@@ -31,6 +31,59 @@ final class SchemeInk {
 	const BRIGHT_MENU_L = 0.42;
 
 	/**
+	 * HSL saturation below which a colour is a GREY — it can be read, but it
+	 * cannot MEAN anything.
+	 *
+	 * ⭐ ONE QUANTITY, ONE OWNER — his law. This number was tuned once, on the
+	 * brighter ocean ({@see verdict_can_take()}), by listing every ink and
+	 * surface the app can emit and reading where the line had to fall: ocean's
+	 * #738e96 at 14.3% is a colour, WP 7.1's midnight at 12.6% and coffee's
+	 * older bar at 7.7% are greys. Two callers now ask the same question — may
+	 * this colour stand in for the green, and may it stand in for the accent —
+	 * and both read it from here.
+	 */
+	const COLOUR_FLOOR = 0.14;
+
+	/**
+	 * Is there enough colour in this to carry a MEANING, rather than only enough
+	 * contrast to be seen?
+	 *
+	 * ⛔ THE GUARD THAT WAS MISSING, and his catch 2026-08-21 on the DEFAULT
+	 * scheme: `modern` registers #1e1e1e, a pure near-black, so the accent
+	 * re-key in {@see Admin::scheme_css()} emitted `--ar-accent:#1e1e1e` and
+	 * every accent-driven thing in the app went black — the traffic chart's
+	 * bars, the links, the tab underlines, the numbers, the readiness ring.
+	 * ⚠️ The existing gate asked the wrong question. `carries_text()` asks
+	 * whether the colour can be READ, and a near-black on cream reads better
+	 * than anything: 18:1. It passed exactly because it has no colour in it.
+	 * ⭐ So the accent needs BOTH gates — readable AND coloured — and this is
+	 * the second one. It is the same judgement `verdict_can_take()` already
+	 * makes about a grey verdict mark ("we did not look", not "this is fine"),
+	 * applied one level up: a grey accent is not the scheme's flavour, it is the
+	 * absence of one, and the honest answer there is to emit nothing and leave
+	 * the designed teal standing.
+	 *
+	 * @param string $hex Colour.
+	 * @return bool
+	 */
+	public static function carries_colour( $hex ) {
+		$hex = ltrim( strtolower( trim( (string) $hex ) ), '#' );
+		if ( ! preg_match( '/\A[0-9a-f]{6}\z/', $hex ) ) {
+			return false;
+		}
+		$rgb = array_map( 'hexdec', str_split( $hex, 2 ) );
+		$max = max( $rgb ) / 255;
+		$min = min( $rgb ) / 255;
+		$d   = $max - $min;
+		if ( $d <= 0 ) {
+			return false;
+		}
+		$l = ( $max + $min ) / 2;
+
+		return ( $l > 0.5 ? $d / ( 2 - $max - $min ) : $d / ( $max + $min ) ) >= self::COLOUR_FLOOR;
+	}
+
+	/**
 	 * The scheme-flavoured surface for the buttons, chips and readiness rug,
 	 * KEYED BY colors[0] — the first swatch WordPress registers.
 	 *
@@ -80,9 +133,49 @@ final class SchemeInk {
 		'#6f2724' => '#8a312d', // sunrise   — his pick 2026-08-20: the EXACT bar (8.07:1)
 
 		// ---- unchanged across both ----
-		'#e5e5e5' => '#ebeaea', // light  — HIS PICK 2026-08-20, a shade above the
-		                        //          scheme's own grey: this IS the rail's ground
-		'#1e1e1e' => '#1e1e1e', // modern — its own menu colour, already card-depth
+		// ⭐ fresh — RULE 10 AGAIN, his pick 2026-08-21. This scheme used to return
+		//    before the map was ever read, so its slabs wore the app's own warm
+		//    near-black #1b1913 by day and the designed night card #262d31 after
+		//    dark. It now wears the night card in both, like `modern` below.
+		// ⛔ #262d31 IS NOT A FRESH COLOUR — it is app.css's dark --ar-surface, and
+		//    he named it directly (over #1d2327, fresh's own bar, which he asked
+		//    for first and replaced). So this entry is keyed by fresh's colors[0]
+		//    like every other row, but the VALUE answers "what is this slab at
+		//    night", not "what colour is this scheme". ⚠️ Which means a WordPress
+		//    retune of fresh moves the KEY here and nothing else.
+		// ⚠️ THE OTHER COPY is the base dark --ar-surface in app.css (:root
+		//    [data-ar-theme="dark"]). Both move together or the slab reads two
+		//    colours again — the same pairing as modern's, noted below.
+		// ⛔ AND FRESH STILL ADOPTS NOTHING ELSE — see Admin::scheme_css(). It
+		//    lends its slab a depth; the accent, the greens and the rug stay the
+		//    designed ones, because this is the scheme they were designed on.
+		'#1d2327' => '#262d31', // fresh  — the designed night card, his call 2026-08-21
+		// ⭐ light — HIS PICK 2026-08-21, replacing the #ebeaea slab of 08-20 and
+		//    returning to the MID GREY this scheme wore before it. ⛔ Read the
+		//    rug section in schemes.css before touching it: on #6e6e6e nothing
+		//    coloured reaches 4.5:1 (green 2.27, teal 2.10, amber 2.58), which is
+		//    why the first #6e6e6e attempt was abandoned. It works now because
+		//    the rug went MONOCHROME with it — the white-rug treatment he wrote
+		//    for the scheme-coloured grounds later the same day.
+		// ⚠️ 0.4314 vs BRIGHT_MENU_L 0.42 — eleven thousandths. That margin is
+		//    what keeps is_bright() true here, and is_bright() is what keeps this
+		//    scheme's accent on the designed teal instead of its #c64606 orange
+		//    highlight. #6c6c6c is the darkest grey that still counts as bright;
+		//    #6b6b6b flips and takes the whole app orange. ⛔ Do not "round" this.
+		'#e5e5e5' => '#6e6e6e', // light  — the mid grey, his call 2026-08-21
+		// ⭐ modern (the DEFAULT scheme) — ONE CARD, NOT TWO. His call 2026-08-21:
+		//    "make the rail's bg as its dark mode looks". This scheme's ink
+		//    surfaces used to be its menu colour #1e1e1e by day and its night
+		//    card #242424 after dark — one slab, two colours, for no reason
+		//    anybody could see. It now wears the night card in both modes.
+		// ⚠️ THE OTHER HALF OF THIS VALUE lives in schemes.css, as --ar-surface
+		//    in the MODERN section. This file's own convention is to write a
+		//    shared hex out in both places rather than share one rule (see the
+		//    note gold, in four sections) — so if WordPress retunes `modern`,
+		//    BOTH have to move, and neither is the copy.
+		// ⛔ It stays a GREY, which is the point: carries_colour() still refuses
+		//    it, so the app keeps its designed teal accent on the Default scheme.
+		'#1e1e1e' => '#242424', // modern — its night card, by his call 2026-08-21
 	);
 
 	/**
@@ -127,20 +220,27 @@ final class SchemeInk {
 	/**
 	 * The card surface for a scheme: the curated map for the core schemes
 	 * (exact, hand-picked), the {@see scheme_ink()} derivation for anything
-	 * else (a third-party scheme the map can't know about), and '' for the
-	 * default "fresh" — which keeps the designed warm ink.
+	 * else (a third-party scheme the map can't know about), and '' when there
+	 * is no scheme to read.
+	 *
+	 * ⚠️ "fresh" USED TO RETURN '' HERE, and stopped on 2026-08-21 when he gave
+	 * that scheme a light ink of its own (#262d31, the designed night card).
+	 * It is now an ordinary row in the map. What fresh still does NOT do is
+	 * adopt an accent, a green or a white rug — that exemption moved to
+	 * {@see Admin::scheme_css()}, which is where adoption is decided.
 	 *
 	 * @param string $scheme Scheme slug from the user's profile, e.g. "coffee".
-	 *                       Used ONLY to spot the default "fresh"; the ink itself
-	 *                       is chosen by colour, never by slug.
+	 *                       Used only to spot an empty choice and to hand the
+	 *                       derivation a menu; the ink itself is chosen by
+	 *                       colour, never by slug.
 	 * @param string $base   The scheme's registered base colour (colors[0]) —
 	 *                       what this install actually paints, and the key the
 	 *                       curated map is looked up by.
-	 * @return string Card-depth hex, or '' (default scheme / nothing usable).
+	 * @return string Card-depth hex, or '' (no scheme / nothing usable).
 	 */
 	public static function card_ink_for( $scheme, $base ) {
 		$scheme = (string) $scheme;
-		if ( '' === $scheme || 'fresh' === $scheme ) {
+		if ( '' === $scheme ) {
 			return '';
 		}
 		$base = strtolower( trim( (string) $base ) );
@@ -173,6 +273,7 @@ final class SchemeInk {
 	 * these colours (it already has, twice) and a list would quietly go stale:
 	 *
 	 *   saturation >= 14%   or the mark is grey and says nothing
+	 *                       (COLOUR_FLOOR — the accent gate reads the same one)
 	 *   lightness 15–62%    or it cannot be seen on the card
 	 *   >= 25deg from BOTH --ar-warn (40) and --ar-bad (7)
 	 *
@@ -223,7 +324,7 @@ final class SchemeInk {
 			return false;
 		}
 		$sat = $l > 0.5 ? $d / ( 2 - $max - $min ) : $d / ( $max + $min );
-		if ( $sat < 0.14 || $l < 0.15 || $l > 0.62 ) {
+		if ( $sat < self::COLOUR_FLOOR || $l < 0.15 || $l > 0.62 ) {
 			return false;
 		}
 		$hue = self::hue_of( $rgb );

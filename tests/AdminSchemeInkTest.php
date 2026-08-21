@@ -122,8 +122,14 @@ final class AdminSchemeInkTest extends TestCase {
 		// was missing and so its selected half stayed the app's near-black on a
 		// blue install — his catch, 2026-08-20. Anything else written that way
 		// belongs here too.
+		// ⭐ THE THREE TOOLTIPS JOINED 2026-08-21, by the same property: each paints
+		// `background: var(--ar-ink)` with its text in --ar-surface, and each was
+		// coming up in the app's own near-black beside a button wearing the
+		// scheme's colour — on every scheme, not only the Light one he spotted it
+		// on. ⚠️ Their carets are children and follow the token unnamed.
 		$this->assertSame(
-			'.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness,.ar-srcpick__btn.is-on',
+			'.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness,.ar-srcpick__btn.is-on'
+				. ',.ar-act-tip,.ar-act-uatip,.ar-tip',
 			Admin::SCHEME_SCOPE
 		);
 	}
@@ -221,6 +227,85 @@ final class AdminSchemeInkTest extends TestCase {
 		$this->assertFalse( SchemeInk::verdict_can_take( '#2d353a' ) );
 	}
 
+	public function test_readable_and_coloured_are_two_different_questions() {
+		// ⛔⛔ THE REGRESSION, in one assertion. The accent gate used to ask only
+		// carries_text(), and a pure near-black passed it at 18:1 — PRECISELY
+		// because there is no colour in it to get in the way. Whatever else
+		// changes here, these two must never collapse into one test.
+		$this->assertTrue( SchemeInk::carries_text( '#1e1e1e' ) );
+		$this->assertFalse( SchemeInk::carries_colour( '#1e1e1e' ) );
+
+		// The greys, both generations of each: the Default's near-black, both
+		// midnights, coffee's older bar, and the Light scheme's own grey.
+		foreach ( array( '#1e1e1e', '#242424', '#25282b', '#2d353a', '#46403c', '#ebeaea' ) as $grey ) {
+			$this->assertFalse( SchemeInk::carries_colour( $grey ), $grey );
+		}
+		// And the inks that do lend a colour — every scheme the app re-keys.
+		foreach ( array( '#245278', '#39535a', '#8a312d', '#432e5f', '#4e4036', '#567958' ) as $ok ) {
+			$this->assertTrue( SchemeInk::carries_colour( $ok ), $ok );
+		}
+		// ⛔ ONE FLOOR, ONE OWNER — the same 1.7-point margin the verdict gate is
+		// tuned on. Moving COLOUR_FLOOR moves both, which is the point.
+		$this->assertTrue( SchemeInk::carries_colour( '#738e96' ) );   // 14.3%
+		$this->assertFalse( SchemeInk::carries_colour( '#2d353a' ) );  // 12.6%
+	}
+
+	public function test_the_default_scheme_keeps_the_app_its_own_colour() {
+		// ⛔⛔ HIS CATCH 2026-08-21, and the scheme MOST PEOPLE ARE ON: WordPress
+		// 7.1 registers `modern` as the Default, and its #1e1e1e drove the accent
+		// re-key, turning the traffic chart's bars, the links, the tab underlines
+		// and the numbers black, and washing the readiness rug's green to #e8e8e8.
+		// A scheme with no colour of its own lends none: the designed teal and the
+		// designed green stand.
+		$css = $this->scheme_css( 'modern', array( '#1e1e1e', '#3858e9', '#7b90ff' ) );
+		$this->assertStringNotContainsString( '--ar-accent', $css );
+		$this->assertStringNotContainsString( '--ar-good', $css );
+		$this->assertStringNotContainsString( '--rail-face', $css );
+		// ⭐ But the dark SURFACES still take the scheme's ink — that half was
+		// never the problem, and dropping it would be a second regression.
+		// ⚠️ #242424 and not the menu's #1e1e1e: his call 2026-08-21 — this
+		// scheme's slab wears its NIGHT CARD by day too, one colour not two.
+		$this->assertStringContainsString( '--ar-ink:#242424', $css );
+
+		// The same for midnight, whose ink is a 12.6% slate — under the floor.
+		foreach ( array( array( '#232a2e', '#333c42', '#69a8bb' ), array( '#25282b', '#363b3f', '#69a8bb' ) ) as $night ) {
+			$css = $this->scheme_css( 'midnight', $night );
+			$this->assertStringNotContainsString( '--ar-accent', $css, $night[0] );
+			$this->assertStringNotContainsString( '--rail-face', $css, $night[0] );
+		}
+	}
+
+	public function test_a_scheme_that_lends_a_colour_still_dresses_the_whole_app() {
+		// ⭐ THE OTHER HALF OF THE GUARD. The fix must not quietly undo the arc:
+		// every scheme that HAS a colour still re-keys the accent and still wears
+		// the white rug. Core's 7.1 registrations, verbatim.
+		$coloured = array(
+			'blue'      => array( '#183751', '#245278', '#437aa8', '#e1a948' ),
+			'sunrise'   => array( '#6f2724', '#8a312d', '#ad631e', '#ccaf0b' ),
+			'ectoplasm' => array( '#392751', '#4a3369', '#646c3e', '#d46f15' ),
+			'ocean'     => array( '#2b3f44', '#39535a', '#567958', '#aa9d88' ),
+			'coffee'    => array( '#382e27', '#5c4c40', '#916745', '#9ea476' ),
+		);
+		foreach ( $coloured as $slug => $colors ) {
+			$css = $this->scheme_css( $slug, $colors );
+			$this->assertStringContainsString( '--ar-accent:', $css, $slug );
+			$this->assertStringContainsString( '--rail-face:', $css, $slug );
+			// ⛔ AND THE PROPERTY, not just the presence: whatever it emitted has
+			// to be a colour. This is the assertion that would have failed before.
+			preg_match( '/--ar-accent:(#[0-9a-f]{6})/', $css, $m );
+			$this->assertTrue( SchemeInk::carries_colour( $m[1] ), $slug . ' -> ' . $m[1] );
+		}
+	}
+
+	/** The inline CSS the app actually emits for a scheme registered as core does. */
+	private function scheme_css( $slug, array $colors ) {
+		$this->with_scheme( $slug, $colors );
+		$method = new \ReflectionMethod( Admin::class, 'scheme_css' );
+		$method->setAccessible( true );
+
+		return $method->invoke( new Admin( new Settings() ) );
+	}
+
 	public function test_a_derived_ink_always_carries_its_text() {
 		// The depth is chosen BY the text, so this is the property, not a
 		// coincidence of the numbers above.
@@ -230,8 +315,29 @@ final class AdminSchemeInkTest extends TestCase {
 		}
 	}
 
-	public function test_default_scheme_emits_nothing() {
-		$this->assertSame( '', Admin::card_ink_for( 'fresh', '#222222' ) );
+	public function test_fresh_lends_a_slab_but_adopts_nothing() {
+		// ⭐ HIS CALL 2026-08-21. `fresh` used to return before the map was read;
+		// it is an ordinary row now, keyed by its colors[0] and handing back the
+		// DESIGNED NIGHT CARD — #262d31 is app.css's dark --ar-surface, not a
+		// colour fresh registers. He named it directly, over fresh's own #1d2327.
+		$this->assertSame( '#262d31', Admin::card_ink_for( 'fresh', '#1d2327' ) );
+		// ⛔ AND NOTHING ELSE. The accent, the greens and the rug stay designed —
+		// the palette was mixed ON this scheme, so there is nothing to adopt.
+		// ⚠️ THE ASSERTION THAT EARNS ITS KEEP: fresh's highlight #2271b1 clears
+		// the text floor (5.08:1) AND carries colour, so without the exemption in
+		// scheme_css() the whole app would key to WordPress blue here.
+		$this->assertTrue( SchemeInk::carries_text( '#2271b1' ) );
+		$this->assertTrue( SchemeInk::carries_colour( '#2271b1' ) );
+		$css = $this->scheme_css( 'fresh', array( '#1d2327', '#2c3338', '#2271b1', '#72aee6' ) );
+		$this->assertStringContainsString( '--ar-ink:#262d31', $css );
+		$this->assertStringNotContainsString( '--ar-accent', $css );
+		$this->assertStringNotContainsString( '--ar-good', $css );
+		$this->assertStringNotContainsString( '--rail-face', $css );
+		// ⭐ The hover lift still applies — a dark slab lightens under the pointer.
+		$this->assertStringContainsString( '88%,#fff', $css );
+	}
+
+	public function test_no_scheme_at_all_emits_nothing() {
 		$this->assertSame( '', Admin::card_ink_for( '', '#222222' ) );
 	}
 
@@ -239,8 +345,23 @@ final class AdminSchemeInkTest extends TestCase {
 		// ⭐ These two paint their menu with colors[0], not colors[1] — which is
 		// exactly the fallback active_surface() already makes. Both generations
 		// must still land on his picks.
-		$this->assertSame( '#ebeaea', Admin::card_ink_for( 'light', '#e5e5e5' ) );
-		$this->assertSame( '#1e1e1e', Admin::card_ink_for( 'modern', '#1e1e1e' ) );
+		$this->assertSame( '#6e6e6e', Admin::card_ink_for( 'light', '#e5e5e5' ) );
+		// ⛔⛔ AND THE ELEVEN THOUSANDTHS THIS SCHEME HANGS ON. is_bright() is what
+		// exempts `light` from the accent re-key, and its highlight is #c64606 — a
+		// strong orange that DOES carry text, so losing the exemption keys the
+		// whole app to it. #6e6e6e sits at 0.4314 against a 0.42 threshold.
+		// #6c6c6c is the darkest grey that still counts as bright; #6b6b6b flips.
+		$light_css = $this->scheme_css( 'light', array( '#e5e5e5', '#6a6a6a', '#c64606', '#007cba' ) );
+		$this->assertStringContainsString( '--ar-ink:#6e6e6e', $light_css );
+		$this->assertStringNotContainsString( '--ar-accent', $light_css );
+		$this->assertStringNotContainsString( '--rail-face', $light_css );
+		$this->assertTrue( SchemeInk::carries_text( '#c64606' ), 'the orange this exemption holds back' );
+		// ⭐ ONE CARD, NOT TWO — his call 2026-08-21. `modern` is keyed by its menu
+		// #1e1e1e and hands back #242424, the SAME colour its dark block gives the
+		// card at night, so the readiness slab, the buttons and the chips stop
+		// changing colour when the theme toggles. ⛔ The pair is the assertion:
+		// this hex and schemes.css's MODERN --ar-surface move together or not at all.
+		$this->assertSame( '#242424', Admin::card_ink_for( 'modern', '#1e1e1e' ) );
 	}
 
 	public function test_third_party_scheme_falls_back_to_the_rule() {

@@ -3789,7 +3789,16 @@ a.ar-btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2p
    outline speaks --ar-bad-on-ink, the salmon the theme already declared
    night-legible; the brick itself stays the fill. */
 .ar-btn--danger { background: transparent; color: var(--ar-bad); border-color: var(--ar-bad); }
-.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: #fff; border-color: var(--ar-bad); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--ar-bad) 60%, transparent); }
+/* ⛔ NO SHADOW — his catch 2026-08-21, on the Light scheme: "in light theme this
+   doesn't merge, the danger is not in light form." It was the LAST drop shadow
+   on a button anywhere in the app, and the only one the 2026-08-20 sweep missed:
+   that pass reached .ar-btn:hover and every scheme's own hover through
+   Admin.php, but `:not(.ar-btn--danger)` excused this button from all of them.
+   ⚠️ It was light-mode only — the night twin on the next line already said
+   `box-shadow: none` — so a filled red slab cast on a flat, shadowless scheme
+   and nowhere else. ⭐ The hover still answers loudly: the outline FILLS
+   (#fff on #b93c2b, 5.61:1) and .ar-btn:hover's translateY(-1px) lifts it. */
+.ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: #fff; border-color: var(--ar-bad); box-shadow: none; }
 :root[data-ar-theme="dark"] .ar-btn--danger { background: transparent; color: var(--ar-bad-on-ink); border-color: color-mix(in srgb, var(--ar-bad-on-ink) 65%, var(--ar-line-strong)); }
 :root[data-ar-theme="dark"] .ar-btn--danger:hover:not(:disabled) { background: var(--ar-bad); color: #fff; border-color: var(--ar-bad); box-shadow: none; }
 

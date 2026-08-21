@@ -88,6 +88,11 @@
 /* ---- Default (slug: modern) — WP 7.1's neutral near-black ---------------- */
 :root[data-ar-theme="dark"] body.admin-color-modern {
   --ar-paper: #151515;
+  /* ⚠️ #242424 IS ALSO THIS SCHEME'S LIGHT-MODE INK, since 2026-08-21 — his
+     call, "make the rail's bg as its dark mode looks". The other copy is
+     SchemeInk::SCHEME_INKS['#1e1e1e'] in PHP. Neither is the original: if
+     WordPress retunes `modern`, both move together or the readiness card,
+     the buttons and the chips start reading two colours again. */
   --ar-surface: #242424;
   --ar-surface-2: #2e2e2e;
   --ar-field: #2d2d2d; /* surface, lightness +3.5 — his hand-picked input tone. */
@@ -731,32 +736,35 @@ body.admin-color-light {
    scheme already follows.
    ⛔ --ghost and --danger are left out: they paint themselves at night and are
    not ink surfaces. */
-/* ⭐⭐ THE INK SURFACES ARE THE CHARCOAL IN BOTH MODES — his call, 2026-08-20:
-   "use same scheme like dark mode but only keep the rail's bg light".
-   ⛔ THIS REPLACES "the ink surfaces follow the rug", which was his earlier rule
-   and is now deliberately broken FOR THIS SCHEME ONLY: by day the rug stays
-   light and the buttons go charcoal anyway, so they are no longer one family.
-   Do not "restore" the pairing — the split is the instruction.
-   ⚠️ WHAT IT REPLACED, kept for the numbers: by day the buttons were the
-   scheme's own grey (#e5e5e5, from Admin.php's curated map) with a #1e1e1e
-   label at 13.2:1, hovering to the accent with the ground held still. The
-   charcoal reads 11.6:1 with its #f5f5f5 label, and hover takes the teal drawn
-   FOR an ink ground: the day accent lands at 2.0:1 on #333333, no hover at all.
-   ⛔ The rail cards' 22px glyph tile is NOT in this list — his call, 2026-08-20,
-   shown as a black square he did not want. It is a mark on a card that stays
-   light in both modes, not a surface you press, so it keeps the day grey
-   throughout. Only the things you act on follow the rug. */
-:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
-:root body.admin-color-light .ar-tags__chip {
+/* ⭐⭐ THE INK SURFACES FOLLOW THE RUG AGAIN — his call, 2026-08-21: "button's on
+   light mode in light should match #6e6e6e, maybe ink should be #6e6e6e".
+   ⛔ THIS RESTORES THE PAIRING that 08-20 deliberately broke. That split
+   ("the buttons go charcoal anyway") existed because the day rug was a PALE
+   slab, so a button could not belong to it without turning pale too. The rug is
+   a mid grey again, so the reason is gone and the buttons rejoin it.
+   ⭐⭐ AND THEY REJOIN IT BY READING THE TOKEN, not by naming a hex — his own
+   "maybe ink should be #6e6e6e". app.css already paints .ar-btn and
+   .ar-tags__chip as `background: var(--ar-ink); color: var(--ar-paper)`, and
+   inc/SchemeInk.php scopes the ink to exactly those selectors, so DAY NEEDS NO
+   RULE HERE AT ALL. What is left below is the night, which still wants the
+   charcoal, and one hover.
+   ⚠️ WHAT THE DAY MEASURES NOW: #f5f5f5 on #6e6e6e is 4.68:1 — over the floor,
+   and the price of a mid grey (the charcoal read 11.6:1). Its earlier pale
+   version read 13.2:1 the other way round.
+   ⛔ The rail cards' 22px glyph tile is still NOT in this list — his call,
+   2026-08-20, shown as a black square he did not want. It is a mark on a card,
+   not a surface you press. Only the things you act on follow the rug. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger),
+:root[data-ar-theme="dark"] body.admin-color-light .ar-tags__chip {
   --ar-ink: #333333;
   background: #333333;
   border-color: #333333;
   color: #f5f5f5;
 }
-/* ⭐ AND IT HOVERS LIKE EVERY OTHER SCHEME — his call, 2026-08-20: "don't just
-   change the color of button, maybe lift up with shadowy color". It used to hold
-   the ground still and swap the label to teal, which was the one button in the
-   app that answered the pointer without moving.
+/* ⭐ THE NIGHT HOVER — his call, 2026-08-20: "don't just change the color of
+   button, maybe lift up with shadowy color". It used to hold the ground still
+   and swap the label to teal, the one button in the app that answered the
+   pointer without moving.
    ⚠️ The lift is the file's own 12%-toward-white step, resolved here rather than
    derived: #333333 -> #474747, a 1.36:1 move, in the same band as the night
    rooms. The label stays #f5f5f5 (8.52:1 on the lift) instead of turning teal —
@@ -765,8 +773,76 @@ body.admin-color-light {
    the lifting, which is what every ink-bearing scheme already does: Admin.php
    writes box-shadow:none into all of their hovers. app.css's drop shadow is
    left standing for the default scheme only. */
-:root body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
+:root[data-ar-theme="dark"] body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
   background: #474747; color: #f5f5f5; box-shadow: none;
+}
+/* ⛔ AND THE DAY HOVER DEEPENS, where every dark ink lifts. This is the app's
+   OWN rule for the case, not a new one: Admin.php lifts a hover 88% toward
+   white on a dark ink and deepens it 88% toward black on a bright one, and
+   is_bright() calls #6e6e6e bright (0.4314 against a 0.42 threshold).
+   ⚠️ THE NUMBER IS WHY THE RULE EXISTS. The label sits ON this ground, so every
+   step the ground RISES the label loses — app.css's base lift takes #6e6e6e to
+   #7f7f7f and the #f5f5f5 label down to 3.67:1, under the floor. Deepening is
+   the same gesture mirrored: #616161, and the label goes UP to 5.68:1. The
+   ground itself shifts 1.21:1, a shade under the 1.28–1.36 the night rooms
+   move, and app.css's translateY(-1px) — the part he said actually reads —
+   still runs underneath, because this rule names only a background.
+   ⭐ Derived from the token, not from a hex, so it follows the ink if it moves. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ar-ink) 88%, #000);
+}
+/* ⭐⭐ AND THE DAY ACCENT IS THE INK — his call, 2026-08-21, shown as the
+   Endpoint Activity chart: "use in light's day mode, same color from
+   button/rail bg". So the whole scheme speaks in one grey by day: the slabs,
+   the bars, the links, the tab underline, the numbers, the focus ring.
+   ⭐ RE-KEY THE TOKEN, NEVER THE ELEMENTS — his own pattern, and it is why this
+   is three declarations and not a list of selectors. He pointed at two bar
+   kinds (.ar-act-bar__fill and .ar-act-rank__bar); both read --ar-accent, and
+   so do 234 other places in app.css.
+   ⛔ THE INK, AND NOT THIS SCHEME'S HIGHLIGHT. Admin.php prefers colors[2]
+   where it carries text, and here that is #c64606 — a strong orange that DOES
+   carry, which is exactly why that path stays fenced off for this scheme (see
+   the is_bright guard in scheme_css). He asked for the button's colour, not
+   WordPress's.
+   ⚠️ AND ALL THREE, because in light mode app.css writes the two washes as
+   hand-picked teal LITERALS (#f0f6f4 / #e3efec) rather than mixes — re-keying
+   the accent alone leaves every wash teal beside a grey. Same 12% / 20%
+   formulas Admin.php uses. ⚠️ Declared at BODY level, which outranks the :root
+   block those literals live in, and inherits everywhere the app paints.
+   ⚠️ WHAT IT MEASURES: #6e6e6e is 4.93:1 on a card (#fbfbfb) and 4.51:1 on the
+   panel (#f1f1f1) — over the floor on both, and the panel is the tight one.
+   ⛔ DAY ONLY. At night the slabs are #333333, and an accent there would be
+   near-black links; the night keeps the designed teal. ⚠️ This does mean the
+   mode now changes more than the rug on this scheme — it changes the rug, the
+   slabs and the accent. The 08-20 note saying otherwise is superseded.
+   ⭐ The greens and golds are untouched: a grey cannot stand in for a verdict
+   (carries_colour() refuses it), so "↑ 999%" stays green and "↓ 71%" gold. */
+/* ⛔ THE DANGER BUTTON STOPS FILLING RED — his call, 2026-08-21: "I want to get
+   rid of this danger color fill, it breaks the light vibe." In a room made of
+   one grey, a saturated red slab was the single loud thing on the screen.
+   ⭐ IT STILL SAYS DANGER, and louder than before where it counts: the label
+   and the border DEEPEN to --ar-bad-deep. #b93c2b -> #8c2f22 is a 1.47:1 move
+   on the text itself — bigger than the 1.36:1 the night buttons move their
+   GROUND, and it lands at 7.57:1 on the paper. The red never leaves; it
+   concentrates.
+   ⛔ THE GROUND GOES TO --ar-paper, which is what .ar-btn--ghost already hovers
+   to on this scheme — the two outline buttons now answer the pointer the same
+   way. ⚠️ On its own that ground step is 1.054:1, far too small to read, which
+   is exactly why the colour move carries this hover and not the fill.
+   ⭐ AND THE 1px LIFT DOES THE REST. app.css's .ar-btn:hover translateY(-1px)
+   was always running here — his "it doesn't move like Refresh does" was the red
+   fill drowning it, not a missing rule. Take the slab away and the travel reads.
+   ⚠️ THIS SCHEME ONLY, and by day. Everywhere else the fill IS the app's danger
+   language and is untouched. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-btn--danger:hover:not(:disabled) {
+  background: var(--ar-paper);
+  color: var(--ar-bad-deep);
+  border-color: var(--ar-bad-deep);
+}
+:root:not([data-ar-theme="dark"]) body.admin-color-light {
+  --ar-accent: #6e6e6e;
+  --ar-accent-wash: color-mix(in srgb, #6e6e6e 12%, var(--ar-surface));
+  --ar-accent-soft: color-mix(in srgb, #6e6e6e 20%, var(--ar-surface));
 }
 /* ⚠️ AND THE BRAND TILE, WHICH IS THE SAME KIND OF SURFACE. app.css paints it
    from --ar-ink with the A cut out in --ar-paper, and at night flips both — so
@@ -809,52 +885,67 @@ body.admin-color-light {
    .ar-sys__mark on the same screen. ⛔ Don't reintroduce a literal for one
    scheme; move the tokens instead. */
 /* ---- Light — the readiness rug -------------------------------------------
-   His pick, 2026-08-20, given as the two rugs side by side: by day a light
-   slab, by night his charcoal. That settles a compromise this block used to
-   spend forty lines apologising for. The rug was #6e6e6e — a MID grey, and mid
-   grey is the one ground where colour cannot be seen at all: 4.5:1 downward
-   wants near-black, upward wants near-white, so the green and the amber both
-   went out as near-white tints (#cfe9d4, #f0e0bb) and stopped being green and
-   amber. The card was never broken; it had simply moved and its palette had
-   not followed.
+   HIS PICK, 2026-08-21: the day rug is the MID GREY #6e6e6e again (painted by
+   inc/SchemeInk.php as this scheme's ink), and by night it stays his charcoal.
+   ⚠️ THIS REVERSES 08-20, which had put a light #ebeaea slab here — and it is
+   worth knowing WHY the light slab existed, because the reason is still true:
 
-   ⭐ On #e8e8e8 they are just themselves again: the ring, the band word and
-   the kicker take the scheme's own teal at 5.2:1, the one actionable count
-   takes a real gold at 4.5:1, and every veil the card already draws — the
-   score number at 70%, the strap line, the ring's track — lands where it was
-   designed to land. Nothing here overrides a child rule any more.
+   ⛔ MID GREY IS THE ONE GROUND WHERE COLOUR CANNOT BE SEEN AT ALL. Measured on
+   #6e6e6e, every mark this card paints fails the floor — the green 2.27:1, the
+   teal 2.10, the amber 2.58, and the day teal/gold/red this block used to
+   re-key sit at 1.24, 1.12 and 1.17. 4.5:1 downward wants near-black, upward
+   wants near-white, and a colour is neither. That is what sank the FIRST
+   #6e6e6e rug: its green and amber degraded into near-white tints (#cfe9d4,
+   #f0e0bb) and stopped being green and amber.
 
-   ⛔ The *-on-ink colours are re-keyed here and ONLY here. Their names state
-   the assumption they were drawn under, and on this one scheme by day that
-   assumption is false: this is the single card in the app whose ground flips
-   with the mode, so it is the single place they can be wrong. */
+   ⭐ SO THE RUG GOES MONOCHROME, and that is what makes the grey work this time
+   — the treatment he wrote later on 08-20 for every scheme-coloured ground:
+   "a rug that has taken a ground wears white." One face for the card, no
+   hierarchy drawn in brightness, and the only colour left is the one actionable
+   count. Nothing is being asked to carry a hue it cannot carry.
+
+   ⛔ THE *-on-ink RE-KEYS ARE GONE. They existed only because the day card was
+   PALE — the single card in the app whose ground flips with the mode — and on a
+   grey they are the worst values on the screen (1.1–1.2:1). The base on-ink
+   colours stand instead; they are drawn for an ink ground, which this is again. */
 :root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card.ar-rail-card--readiness {
   /* ⛔ No background here: the rug's ground IS --ar-ink, and inc/SchemeInk.php
-     now paints this scheme's ink #e5e5e5 — one value for the card, the buttons
-     and the chips, which is what makes them agree. */
-  --rail-face: #1e1e1e;       /* 13.2:1 — the scheme's ink is now the rug's too */
-  --rail-read: 82%;           /* 7.6:1 for the rung names and their counts */
-  --rail-good: #6e6e6e;       /* his pick — ring, dots, band word, kicker */
-  --ar-warn-on-ink: #856010;  /* 4.5:1 — "119 to fix" is small type, so it earns the floor */
-  --ar-bad-on-ink: #b23928;   /* 4.6:1 */
-  --ar-teal-on-ink: #146b64;  /* the card's links, on a light ground now */
-  --ar-teal-on-ink-hover: #0f544f;
+     paints this scheme's ink #6e6e6e. ⚠️ The BUTTONS and CHIPS do not follow it
+     — they are pinned to #333333 by the rule above, his call 2026-08-20 ("the
+     split is the instruction"), in both modes. */
+  --rail-face: #f2f2f2;       /* 4.55:1 — and the same face the night rug uses */
+  /* ⛔ 100%, not the 82% veil this block used to carry. The veil was drawn to
+     sit ABOVE a near-black face on a pale slab; over a near-white face on a
+     grey it composites back down to 3.65:1 and the rung rows read as "dimmed"
+     beside the band word. His own note on the scheme-coloured rugs, and it
+     lands the same way here: with one face for the card, the rungs read at
+     full strength. */
+  --rail-read: 100%;
+  --rail-good: #f2f2f2;       /* ring, dots, band word, kicker — no colour survives here */
+  /* ⭐ The one thing that keeps a colour: "N to fix" is the only mark on the
+     card that means an action. This is the gold Admin.php already puts on every
+     mid-tone ground. ⚠️ 3.14:1 — under the floor, knowingly, and for the reason
+     written there: a saturated gold on a mid-tone ground cannot reach 3:1
+     without turning into cream and ceasing to read as the warning colour. The
+     count is legible by position and size. */
+  --ar-warn-on-ink: #f8c350;
 }
-/* The score block's hover, turned around for this one ground. It is a button —
-   the whole gauge + band word jumps to the readiness report — and it announces
-   that with `filter: brightness(1.08)`, which MULTIPLIES: above 1 it walks every
-   colour toward WHITE. On the charcoal rug that is away from the ground and
-   reads. On this light slab it is toward the ground, and the hover washes out
-   instead of coming forward — 9/255, in the wrong direction.
-   ⭐ Deepening is the same gesture mirrored: 20/255 the other way.
-   ⛔ A filter and not an explicit colour, unlike the rungs beneath it. This
-   block is TONE-COLOURED — the band word is one hue at "top", another at
-   "floor", another at "local", and the ring's arc tracks the score the same way
-   — so naming a hover colour would need one rule per state and would flatten
-   the very thing the colour is saying. Multiplying keeps every hue and only
-   moves its depth. The rungs are the opposite case: their ink is a near-black
-   veil, which multiplication cannot darken (4/255), so they lift the veil
-   instead. Two mechanisms because the two blocks are built differently. */
-:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-readiness--link:hover {
-  filter: brightness(0.82);
+/* THE HOVER, and it moves with the ground. The `filter: brightness(0.82)` that
+   used to sit here was mirrored for a PALE slab, where lifting walked the card
+   toward its own ground and washed out. On a mid grey the card is an ink
+   surface again, so it lifts like every other one — and app.css's own
+   brightness(1.08) underneath does that unaided.
+   ⛔ WHAT IT CANNOT DO ALONE is answer on the LINES. At --rail-read:100% the
+   rungs already paint the full --rail-face, and app.css's rung hover is
+   `color: var(--rail-face)` — it resolves to the colour it started from and the
+   row stops answering the pointer. A value at the end of its range has no
+   headroom left, so the lift goes ABOVE the face, to white. Same pair, same
+   reason and the same two selectors Admin::scheme_css() emits for every
+   scheme-coloured rug; this scheme is exempt from that emission (its ink is
+   bright by the is_bright test) so it says them itself.
+   ⭐ And the score block joins them by name rather than by filter, so every
+   line on the card answers the pointer identically — his call, 2026-08-20. */
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rung__btn:not(.ar-rung__btn--static):hover :is(.ar-rung__name, .ar-rung__count),
+:root:not([data-ar-theme="dark"]) body.admin-color-light .ar-rail-card--readiness .ar-rail-readiness--link:hover :is(.ar-rail-tier__name, .ar-rail-gauge__num) {
+  color: #ffffff;
 }

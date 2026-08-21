@@ -27,7 +27,22 @@ final class Admin {
 	 * design language. Scoping the --ar-ink override to these selectors re-inks
 	 * just them; class selectors also reach UI teleported to <body> (modals).
 	 */
-	const SCHEME_SCOPE = '.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness,.ar-srcpick__btn.is-on';
+	/**
+	 * ⭐ THE THREE TOOLTIPS JOINED ON 2026-08-21 — his catch, on the Light
+	 * scheme: "also the tooltip". They are ink surfaces by the same test as
+	 * everything else here — each paints `background: var(--ar-ink)` with its
+	 * text in --ar-surface — and they were the only ones left out, so a bubble
+	 * came up in the app's own near-black beside a button wearing the scheme's
+	 * colour. That was true on every scheme, not just his; the Light room is
+	 * simply where a near-black bubble on a grey page is impossible to miss.
+	 * ⚠️ The carets are CHILDREN (.ar-act-tip__caret, .ar-act-uatip__caret) and
+	 * paint from the same token, so they follow without being named.
+	 * ⛔ .ar__mark, .ar-wiz__welcome-mark--brand and .ar-about-snippet are ink
+	 * grounds too and stay OUT, each for its own written reason: the two marks
+	 * are chrome that must not change with the mode (schemes.css restates them),
+	 * and the snippet is dressed per-scheme by hand.
+	 */
+	const SCHEME_SCOPE = '.ar-btn,.ar-tags__chip,.ar-rail-card.ar-rail-card--readiness,.ar-srcpick__btn.is-on,.ar-act-tip,.ar-act-uatip,.ar-tip';
 
 	/** @var Settings */
 	private $settings;
@@ -492,10 +507,14 @@ final class Admin {
 	 * rest of the app (headings, toggles, links, the teal accent, the
 	 * green/amber status tones) keeps the designed palette. Ink values come
 	 * from the curated SCHEME_INKS map for the core schemes and the
-	 * {@see scheme_ink()} derivation for third-party ones. The stock "fresh"
-	 * scheme emits nothing — the designed palette IS the fresh look.
+	 * {@see scheme_ink()} derivation for third-party ones.
 	 *
-	 * @return string CSS custom-property rule, or '' (default scheme / opted out).
+	 * ⭐ THE STOCK "fresh" SCHEME LENDS BUT DOES NOT ADOPT (his call 2026-08-21):
+	 * it emits an ink like any other scheme — #262d31, the designed night card —
+	 * and nothing else, because the designed palette IS the fresh look and has
+	 * nothing to take from it. See the $accent gate below.
+	 *
+	 * @return string CSS custom-property rule, or '' (no scheme / opted out).
 	 */
 	/**
 	 * Stamp the active colour scheme's OWN surface colour onto <body>, as
@@ -706,7 +725,40 @@ final class Admin {
 		//    bars. His call 2026-08-20: this scheme wears the designed teal
 		//    #146b64 in both modes, the value its night block already restates,
 		//    and the one thing its mode changes is the rug.
-		$accent = ( SchemeInk::carries_text( $accent_hue ) && ! self::is_bright( $ink ) )
+		// ⛔ AND NOTHING IS RE-KEYED IF IT IS A GREY. His catch 2026-08-21, on the
+		//    DEFAULT scheme — the one most people never change. `modern` registers
+		//    #1e1e1e; its highlight (#7b90ff) misses the text floor, so the line
+		//    above fell back to $ink, and the app emitted --ar-accent:#1e1e1e. The
+		//    traffic chart's bars, the links, the tab underlines, the numbers and
+		//    the readiness ring all went BLACK, and the app lost its colour on the
+		//    scheme that ships switched on.
+		// ⚠️ The guard beside this one could not catch it, and the reason is worth
+		//    keeping: carries_text() asks whether a colour can be READ, and a
+		//    near-black on cream reads at 18:1. It passed the test PRECISELY
+		//    because it has no colour in it. Readable and coloured are two
+		//    questions, and the accent needs both answered yes.
+		// ⭐ Emitting nothing leaves app.css's designed teal standing — the same
+		//    fallback the Light scheme takes, and the right one here: a scheme
+		//    whose own colour is a grey has no flavour to lend, so it lends none.
+		//    ⚠️ This also takes MIDNIGHT back to the teal (its ink is 12.6%
+		//    saturated, under the floor his ocean tuning set). Both generations of
+		//    it, by the same reasoning.
+		// ⛔ AND NOT ON FRESH, WHICH LENDS BUT DOES NOT ADOPT — his call 2026-08-21,
+		//    when he gave that scheme a light ink (#262d31) and nothing else.
+		//    ⭐ It is not a special case, it is the base case: the teal, the green
+		//       and the cream were all mixed ON fresh's charcoal. A scheme has
+		//       nothing to adopt from the palette that was designed against it, so
+		//       fresh lends its slabs a depth and takes no colour back.
+		//    ⚠️ WITHOUT THIS the app would go WordPress blue on the default-until-
+		//       7.1 scheme: fresh's highlight #2271b1 clears the text floor at
+		//       5.08:1 AND carries colour, so it would key --ar-accent, --ar-good
+		//       and both washes, and $rug_white would follow it. Measured, not
+		//       assumed. He asked for an ink; this keeps the ask to an ink.
+		//    ⛔ Keyed by SLUG on purpose, against this file's usual rule. Every
+		//       other lookup here asks "what colour is this scheme", which slugs
+		//       go stale about; this one asks "is this the scheme the palette was
+		//       drawn on", which is an identity and cannot be retuned away.
+		$accent = ( 'fresh' !== $scheme && SchemeInk::carries_text( $accent_hue ) && SchemeInk::carries_colour( $accent_hue ) && ! self::is_bright( $ink ) )
 			? ':root:not([data-ar-theme="dark"]){'
 				. $good
 				. '--ar-accent:' . $accent_hue . ';'
@@ -757,7 +809,20 @@ final class Admin {
 		//    the same "come forward" gesture, correct on a light ground because
 		//    the face it lifts to is dark. The score block above it already
 		//    deepens by filter for the same reason.
-		$rug_white = self::is_bright( $ink )
+		// ⛔ AND THE RUG FOLLOWS THE ACCENT, not the brightness of the ink. His
+		//    note above says it plainly — "a rug that has taken a SCHEME'S COLOUR
+		//    wears white" — and the test for that is whether the scheme lent one.
+		//    On the Default scheme it did not (grey, see $accent), yet this fired
+		//    anyway and washed the ring, the band word and the rungs to #e8e8e8:
+		//    a card with its green taken away and nothing put in its place. The
+		//    exemption he wrote for "fresh" — "the ONE rug that keeps the green is
+		//    the default's" — was keyed to a slug, and WordPress 7.1 moved the
+		//    default to `modern`, which walks straight past that early return.
+		// ⭐ Keyed to the accent instead, it holds for whichever scheme is the
+		//    default, this generation or the next. ⚠️ It subsumes the is_bright()
+		//    test it replaces: a bright ink is the Light scheme, whose $accent is
+		//    already empty for its own reason, so that rug is untouched as before.
+		$rug_white = '' === $accent
 			? ''
 			: $light . '.ar-rail-card.ar-rail-card--readiness'
 				. '{--rail-face:' . $face . ';--rail-good:' . $face . ';--rail-read:100%}'
