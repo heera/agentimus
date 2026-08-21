@@ -149,8 +149,13 @@
      that wants its own bars overrides this one line instead of six selectors.
      ⚠️ Read by all six: .ar-act-bar__fill, .ar-refspark__bar, .ar-bing__bar,
      .ar-act-rank__bar, .ar-clsn__bar i, .ar-wd-prov__bar. Anything drawn as a
-     filled measure later belongs here too. */
-  --ar-bar: var(--ar-accent);
+     filled measure later belongs here too.
+     ⛔⛔ AND IT IS DECLARED ON <body>, NOT HERE — see the rule just below this
+     block. A custom property that references another resolves against the
+     element it is DECLARED on, and every scheme re-keys --ar-accent on BODY. At
+     :root this silently meant "the bars follow the BASE accent": caught live on
+     ectoplasm at night, links #7c8841 and bars still #8ab685. It is the same
+     trap this file already records for --ar-accent-wash, one property along. */
   --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
   --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
   /* Text on a signal-coloured fill, and ink pushed past itself (the black a
@@ -202,6 +207,14 @@
    stay in key without a second hand-picked set. The switch is the
    data-ar-theme attribute on <html>, set by theme.js (light / dark, with
    "system" resolved there); wp-admin around the app keeps its own colors. */
+
+/* ⭐ --ar-bar IS DECLARED HERE, on <body>, and the level is load-bearing rather
+   than tidy — see the note in :root above. Declaring the default where the
+   scheme re-keys happen is what makes "a bar follows the accent" actually true.
+   ⚠️ A scheme that wants its OWN bars overrides this on the same element
+   (body.admin-color-…), so specificity decides and this default is not reached. */
+body { --ar-bar: var(--ar-accent); }
+
 :root[data-ar-theme="dark"] {
   /* His pick: the cards wear wp-admin's own sidebar charcoal, so the app and
      the admin chrome around it read as one night. Page darker in the same
