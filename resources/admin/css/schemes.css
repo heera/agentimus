@@ -789,6 +789,58 @@
   --ar-btn-hover-ink: #fafafa;
 }
 
+/* -- Sunrise · the rug by day -------------------------------------------------- */
+/* ⭐ THE LAST RUG TO TAKE THE TREATMENT blue started — his call 2026-08-21, once
+   the audit showed sunrise was the only scheme still wearing the plain white.
+   (fresh, modern and midnight are NOT gaps: their inks are greys, carries_colour
+   refuses them, no white-out is emitted and their rugs keep the designed green.
+   Light is hand-dressed monochrome on purpose.)
+   ⭐⭐ GREEN IS THE ONLY HUE LEFT ON THIS CARD, and that is the argument for it
+   rather than an accident. The ground is hue 3, the failure mark 12, the warn
+   gold 41 — all three of the warm family are spoken for. #a0c49c sits at hue
+   114: 111 degrees off the ground, 102 off the failure, 73 off the gold. On a
+   red card it is the one colour that cannot be mistaken for any of them.
+   ⚠️ 4.25:1 on this ink — the same number blue and ocean landed at, and the same
+   trade: the ring, the ticks and the band word are fine (a graphic and large
+   text answer to 3:1), the KICKER and the "Next:" line are small text and sit
+   under 4.5. Taken knowingly on those two schemes and taken again here.
+   ⛔ Not its own #ad631e highlight, which is 1.79:1 on this ground — invisible.
+   ⛔ Not the sage #8ab685 either: same hue, but 3.56:1 where this reads 4.25.
+   ⭐ The hover matches the GESTURE the other four make — #b9d4b6, a 1.21:1 lift. */
+:root:not([data-ar-theme="dark"]) body.admin-color-sunrise .ar-rail-card.ar-rail-card--readiness {
+  --rail-good: #a0c49c;
+}
+:root:not([data-ar-theme="dark"]) body.admin-color-sunrise
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-tier__name {
+  color: #b9d4b6;
+}
+/* The score number comes to full strength instead of past it — see BLUE. */
+:root:not([data-ar-theme="dark"]) body.admin-color-sunrise
+  .ar-rail-card--readiness .ar-rail-readiness--link:hover .ar-rail-gauge__num {
+  color: var(--rail-face);
+}
+
+/* -- Sunrise · the failing rug, by day ---------------------------------------- */
+/* ⛔ RED ON RED — his catch 2026-08-21, asking what a failed rug would even look
+   like here. This is the ONLY scheme where the question arises: by day its card
+   IS the scheme's deep red #8a312d (hue 3), and the failure mark it inherits is
+   --ar-bad-on-ink #e08a72 (hue 13). Ten degrees apart, 3.15:1 — visible, but it
+   reads as a lighter TINT of the card rather than as an alarm.
+   ⚠️ THE MIRROR OF A GUARD THAT ALREADY EXISTS. verdict_can_take() refuses to
+   let this scheme's colour stand in for GREEN, on the grounds that hue 3 sits
+   four degrees from --ar-bad and every PASSING check would paint red. Nothing
+   asked the reverse — whether --ar-bad still reads once the card went red.
+   ⭐ ON A RED GROUND A FAILURE CAN ONLY SEPARATE BY WEIGHT, not by hue, so his
+   pick goes lighter and stays in the family: #f2bcae, 4.92:1, still hue 12.
+   ⛔ NOT the white the good state wears (#e8e8e8, 6.70:1): it separates best of
+   all and would erase the difference between a pass and a failure, which is the
+   one distinction this card exists to make.
+   ⚠️ Day only, and this scheme only. At night the card is the app's own dark and
+   the inherited salmon is correct there. */
+:root:not([data-ar-theme="dark"]) body.admin-color-sunrise .ar-rail-card.ar-rail-card--readiness {
+  --ar-bad-on-ink: #f2bcae;
+}
+
 /* ===========================================================================
    LIGHT — the one scheme that looks the same in both modes.
    ======================================================================== */
