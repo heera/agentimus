@@ -138,6 +138,19 @@
      re-declares them as these exact 12%/20% mixes whenever a scheme re-keys the
      accent. Writing them the same way here leaves one owner instead of two, and
      they resolve against whatever ground is actually in force. */
+  /* ⭐ THE COLOUR OF A MEASURED BAR, and it defaults to the accent so nothing
+     moves. It exists because a bar is not a link: it is a filled AREA, judged by
+     comparison with its neighbours, where a link is small text judged against
+     the page. A scheme can want one without wanting the other — his call on
+     sunrise, 2026-08-21: "in sunrise light mode use #8e0403 for those bars, all
+     stat bars, the vertical/horizontal", while its links and tabs stay put.
+     ⛔ Declared as `var(--ar-accent)`, NOT as a copy of its value: it resolves at
+     use, so it follows every scheme re-key and both modes for free, and a room
+     that wants its own bars overrides this one line instead of six selectors.
+     ⚠️ Read by all six: .ar-act-bar__fill, .ar-refspark__bar, .ar-bing__bar,
+     .ar-act-rank__bar, .ar-clsn__bar i, .ar-wd-prov__bar. Anything drawn as a
+     filled measure later belongs here too. */
+  --ar-bar: var(--ar-accent);
   --ar-accent-wash: color-mix(in srgb, var(--ar-accent) 12%, var(--ar-surface));
   --ar-accent-soft: color-mix(in srgb, var(--ar-accent) 20%, var(--ar-surface));
   /* Text on a signal-coloured fill, and ink pushed past itself (the black a
@@ -2391,7 +2404,7 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
    a zero-scaled chart would render as a flat wall). Newest bar full-ink. */
 .ar-bing__trend { display: flex; align-items: flex-end; gap: 3px; height: 56px; margin: 0 0 6px; }
 .ar-bing__bar {
-  flex: 1 1 0; align-self: flex-end; background: var(--ar-accent); opacity: 0.82;
+  flex: 1 1 0; align-self: flex-end; background: var(--ar-bar); opacity: 0.82;
   border: 0; border-radius: 2px 2px 0 0; min-height: 2px; padding: 0;
   appearance: none; -webkit-appearance: none; cursor: pointer; transition: filter 0.15s ease;
 }
@@ -3077,7 +3090,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 .ar-clsn__nums { flex: 0 0 auto; display: flex; gap: 18px; font-family: var(--ar-mono); font-size: 10.5px; color: var(--ar-ink-soft); text-align: right; }
 .ar-clsn__nums b { display: block; font-size: 13px; color: var(--ar-ink); font-weight: 600; }
 .ar-clsn__bar { flex: 0 0 auto; width: 110px; height: 5px; border-radius: 3px; background: var(--ar-surface-2); overflow: hidden; }
-.ar-clsn__bar i { display: block; height: 100%; background: var(--ar-accent); opacity: 0.75; }
+.ar-clsn__bar i { display: block; height: 100%; background: var(--ar-bar); opacity: 0.75; }
 .ar-clsn__win {
   flex: 0 0 auto; font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ar-good);
@@ -4788,7 +4801,7 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
 /* Provider rows */
 .ar-wd-list { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 0; border-top: 1px solid var(--ar-line); }
 .ar-wd-prov { display: flex; gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--ar-line); }
-.ar-wd-prov__bar { flex: 0 0 auto; width: 3px; border-radius: 2px; background: var(--ar-accent); }
+.ar-wd-prov__bar { flex: 0 0 auto; width: 3px; border-radius: 2px; background: var(--ar-bar); }
 .ar-wd-prov__body { flex: 1; min-width: 0; }
 /* The head is a row of THREE things and only the first is a button: the toggle
    takes the free width, the state and the switch keep their own. A control
@@ -5402,7 +5415,7 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
    run has a head without needing a second hue. */
 .ar-act-bar__fill {
   width: 100%; min-height: 2px; border-radius: 2px 2px 0 0;
-  background: var(--ar-accent); opacity: 0.82;
+  background: var(--ar-bar); opacity: 0.82;
   transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
 }
 .ar-act-bar:last-child .ar-act-bar__fill { opacity: 1; }
@@ -5800,7 +5813,7 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 .ar-act-rank__label { font-size: 13px; color: var(--ar-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ar-act-rank__label code { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink); }
 .ar-act-rank__track { height: 7px; background: var(--ar-surface-2); border-radius: 999px; overflow: hidden; }
-.ar-act-rank__bar { display: block; height: 100%; background: var(--ar-accent); border-radius: 999px; }
+.ar-act-rank__bar { display: block; height: 100%; background: var(--ar-bar); border-radius: 999px; }
 .ar-act-rank__n { font-family: var(--ar-mono); font-size: 12px; color: var(--ar-ink-soft); text-align: right; min-width: 24px; }
 /* Trend variant (Top clients / By endpoint only): a calm growth/down delta sits in a
    FIXED-width column between the label and the bar, so bars stay aligned row to row. Only
@@ -5876,7 +5889,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
    .ar-act-bar__fill. Newest day at full strength; the selected one leaves it. */
 .ar-refspark__bar {
   appearance: none; border: 0; padding: 0; cursor: pointer;
-  flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ar-accent);
+  flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ar-bar);
   opacity: 0.82;
   transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.12s ease;
 }
@@ -9328,7 +9341,7 @@ body {
    the chip said the same word twice, and we cannot badge any other vendor
    honestly — badging only ourselves was special pleading. Being set apart is now
    the bar and the order, not a label. */
-.ar-wd-prov.is-ours .ar-wd-prov__bar { background: var(--ar-accent); }
+.ar-wd-prov.is-ours .ar-wd-prov__bar { background: var(--ar-bar); }
 
 /* A group the owner switched off, said in colour as well as in words (his call,
    2026-08-15): recessed ground, muted edge, quieter title. Not opacity — that

@@ -789,6 +789,24 @@
   --ar-btn-hover-ink: #fafafa;
 }
 
+/* -- Sunrise · the bars by day ------------------------------------------------- */
+/* ⭐ HIS PICK, 2026-08-21: "in sunrise light mode use #8e0403 for those bars, all
+   stat bars, the vertical/horizontal." So the six measured bars go to this
+   scheme's own deep red while its links, tabs, numbers and chips keep the
+   #ad631e the accent gives them.
+   ⭐ ONE LINE, NOT SIX SELECTORS — --ar-bar exists in app.css for exactly this,
+   defaulting to var(--ar-accent) so every other scheme is untouched. A bar is a
+   filled AREA judged against its neighbours; a link is small text judged against
+   the page. Wanting one darker is not wanting the other darker.
+   ⚠️ WHAT IT MEASURES: #8e0403 is 9.52:1 on the card and 8.50 on the page —
+   where the accent it replaces reads 4.51. The vertical strips wear the 0.82
+   veil over it, which lands at 6.84:1, so even the quietest bar in the run is
+   twice the floor a graphic answers to. ⛔ Nothing here is at risk of being too
+   faint; the reason for the change is that he wants the RED, not more contrast. */
+:root:not([data-ar-theme="dark"]) body.admin-color-sunrise {
+  --ar-bar: #8e0403;
+}
+
 /* -- Sunrise · the rug by day -------------------------------------------------- */
 /* ⭐ THE LAST RUG TO TAKE THE TREATMENT blue started — his call 2026-08-21, once
    the audit showed sunrise was the only scheme still wearing the plain white.
