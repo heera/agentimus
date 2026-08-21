@@ -182,44 +182,18 @@ final class SchemeInk {
 		'#1e1e1e' => '#242424', // modern — its night card, by his call 2026-08-21
 	);
 
-	/**
-	 * The BRIGHT surface for a scheme whose menu is bright — the colour the app's
-	 * ink surfaces take instead of a dark.
-	 *
-	 * ⭐ HIS CALL, 2026-08-20, settled by pointing at it rather than describing
-	 * it: on the brighter blue the buttons AND the readiness rug are the menu's
-	 * own colour, with the light text they already had. Every dark I derived to
-	 * "go with" a bright menu landed somewhere nobody chose, and both halves of
-	 * my compromise were wrong too — flipping the rug's text dark stranded its
-	 * greens and golds, and leaving the rug out dropped it to the app's neutral
-	 * #1b1913, a colour belonging to no scheme at all.
-	 *
-	 * ⚠️ The rug still needs two of its own tokens re-keyed WHITE alongside this
-	 * ({@see Admin::scheme_css()}): --rail-face and --rail-good are mixed against
-	 * a dark card, and on a bright one the band word, the kicker and the ring all
-	 * disappear into the ground. The gold "N to fix" is left alone — it reads.
-	 *
-	 * ⚠️ SCHEME_INKS keeps its dark value for these schemes, and is still used:
-	 * the GHOST button paints `color: var(--ar-ink)` on the PAGE, not on the ink,
-	 * so it needs the dark one or it is 2.4:1 text.
-	 *
-	 * Keyed by colors[0], like SCHEME_INKS.
-	 */
-	const SCHEME_SURFACES = array(
-		// ⛔ EMPTY, AND THAT IS THE FINISHED STATE — his call across three sittings
-		// on 2026-08-20: "just one for all". Blue, ocean and sunrise each wore a
-		// bright pre-7.1 menu and each has been collapsed onto its own 7.1 bar, so
-		// no scheme dresses its surfaces in a bright menu any more.
-		// ⚠️ The array is kept rather than deleted because card_surface_for() is
-		// this table's only reader and returning '' for everything is exactly what
-		// the dark-menu path expects. A scheme that ever needs the bright treatment
-		// again adds one line here and nothing else changes.
-		// ⚠️ Which does mean the BRIGHT branch of Admin::scheme_css() is now
-		// unreachable. Left standing deliberately, and flagged to him — it is a
-		// separate deletion, not a side effect of this one.
-	);
-
-
+	/* ⛔ SCHEME_SURFACES AND card_surface_for() ARE GONE — 2026-08-21, his call.
+	 * They answered "which schemes dress their surfaces in a BRIGHT menu colour
+	 * instead of a dark ink". Three did (blue, ocean, sunrise) until 2026-08-20,
+	 * when he collapsed each onto its own 7.1 bar — "just one for all" — and the
+	 * table emptied. An empty table meant card_surface_for() could only answer '',
+	 * which meant the branch in Admin::scheme_css() that consumed it was
+	 * unreachable, which is why that branch went too.
+	 * ⚠️ RESTORING THE BEHAVIOUR IS NOT ONE LINE. It needs the table, the reader
+	 * AND the branch back together; a row on its own would now do nothing. The
+	 * branch's own note in Admin::scheme_css() records what it did.
+	 * ⛔ is_bright() SURVIVES and is unrelated — it still decides whether a hover
+	 * lifts or deepens, and still fences the Light scheme off the accent re-key. */
 
 	/**
 	 * The card surface for a scheme: the curated map for the core schemes
@@ -342,24 +316,6 @@ final class SchemeInk {
 		return true;
 	}
 
-	/**
-	 * The bright surface for a scheme, or '' when the ink serves.
-	 *
-	 * @param string $base colors[0].
-	 * @return string
-	 */
-	public static function card_surface_for( $base ) {
-		$base = strtolower( trim( (string) $base ) );
-
-		return isset( self::SCHEME_SURFACES[ $base ] ) ? self::SCHEME_SURFACES[ $base ] : '';
-	}
-
-	/**
-	 * The warn colour paired with a bright surface, or '' to keep the default.
-	 *
-	 * @param string $base colors[0].
-	 * @return string
-	 */
 	/**
 	 * The scheme's menu tone, best-effort: colors[1] where it exists, else the
 	 * given fallback. ⚠️ Only used for schemes the curated map has never seen —

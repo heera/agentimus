@@ -163,28 +163,26 @@ final class AdminSchemeInkTest extends TestCase {
 		$this->assertNotSame( '#6f2724', SchemeInk::derive_ink( '#8a312d', '#6f2724' ) );
 	}
 
-	public function test_no_scheme_dresses_its_surfaces_in_a_bright_menu() {
+	public function test_every_collapsed_scheme_wears_its_own_bar_on_both_generations() {
 		// ⭐ HIS CALL, 2026-08-20: one colour per scheme, on every WordPress that
-		// scheme has shipped on. The bright-menu treatment — buttons and rug in
-		// the menu's own light colour — had three users and now has none.
-		// ⛔ NO SCHEME IS A BRIGHT-SURFACE SCHEME ANY MORE — his call, 2026-08-20,
-		// one colour per scheme across every generation. All three that used this
-		// path (blue, ocean, sunrise) now wear their own 7.1 bar instead.
-		$this->assertSame( '', SchemeInk::card_surface_for( '#096484' ) );
-		$this->assertSame( '', SchemeInk::card_surface_for( '#627c83' ) );
-		$this->assertSame( '', SchemeInk::card_surface_for( '#b43c38' ) );
-		$this->assertSame( array(), SchemeInk::SCHEME_SURFACES );
-		// ⛔ And the DARK ink survives for these schemes, because the ghost
+		// scheme has shipped on. Blue, ocean and sunrise each used to wear a
+		// BRIGHT menu colour on their pre-7.1 generation; all three now wear their
+		// own 7.1 bar instead, whichever generation the install registers.
+		// ⚠️ THIS TEST USED TO ASSERT card_surface_for() == '' AND that
+		// SCHEME_SURFACES was empty. Both were deleted on 2026-08-21 along with
+		// the unreachable branch that read them, so the assertion moved to the
+		// thing that actually matters and is still observable: the ink each of
+		// those schemes hands back.
+		// ⛔ And the DARK ink is what must survive for them, because the ghost
 		// button paints it on the PAGE, not on the ink. Losing it was the bug
 		// that dropped the rug to the app's neutral #1b1913.
-		// Each collapsed scheme wears its 7.1 bar on both generations.
 		$this->assertSame( '#245278', Admin::card_ink_for( 'blue', '#096484' ) );
 		$this->assertSame( '#39535a', Admin::card_ink_for( 'ocean', '#627c83' ) );
 		$this->assertSame( '#8a312d', Admin::card_ink_for( 'sunrise', '#b43c38' ) );
-		// A dark-menu scheme has no bright surface at all.
-		foreach ( array( '#183751', '#6f2724', '#232a2e', '#46403c' ) as $base ) {
-			$this->assertSame( '', SchemeInk::card_surface_for( $base ), $base );
-		}
+		// …and the same value on the 7.1 side, which is what "one room" means.
+		$this->assertSame( '#245278', Admin::card_ink_for( 'blue', '#183751' ) );
+		$this->assertSame( '#39535a', Admin::card_ink_for( 'ocean', '#2b3f44' ) );
+		$this->assertSame( '#8a312d', Admin::card_ink_for( 'sunrise', '#6f2724' ) );
 	}
 
 	public function test_a_verdict_mark_never_takes_a_colour_that_reads_as_alarm() {
@@ -375,11 +373,11 @@ final class AdminSchemeInkTest extends TestCase {
 		);
 		// And a BRIGHT unmeasured colour takes itself, per his rule.
 		$this->assertSame( '#8fb4cc', SchemeInk::derive_ink( '#8fb4cc', '#3d2b56' ) );
-		// ⚠️ An unmeasured scheme gets no pressable surface, so its buttons keep
-		// the ink. That is the known edge of this design — a third-party scheme
-		// with a bright menu is dressed dark — pinned here as a decision rather
-		// than a surprise.
-		$this->assertSame( '', SchemeInk::card_surface_for( '#3d2b56' ) );
+		// ⚠️ An unmeasured scheme with a bright menu is dressed in that menu's own
+		// colour as its INK — the derivation above — and there is no separate
+		// "pressable surface" concept any more (deleted 2026-08-21 with the
+		// unreachable branch that used it). Pinned here as a decision, not a
+		// surprise.
 	}
 
 	/**

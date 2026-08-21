@@ -571,7 +571,6 @@ final class Admin {
 		if ( '' === $ink ) {
 			return '';
 		}
-		$surface = SchemeInk::card_surface_for( $base );
 
 		// ⭐⭐ colors[2] — WORDPRESS'S OWN HIGHLIGHT, and his idea, 2026-08-20. He
 		// pointed at the admin menu's CURRENT item — the one WordPress paints to
@@ -667,12 +666,12 @@ final class Admin {
 		//    alone left every wash teal while its own colour went blue. Same 12%
 		//    and 20% formulas the dark blocks use, against whatever surface is in
 		//    force.
-		// The colour every accent-driven thing takes: the ink on a dark menu, the
-		// SURFACE on a bright one, and WordPress's own highlight where that reads
-		// on paper — see $highlight above.
-		$accent_hue = '' !== $surface
-			? $surface
-			: ( SchemeInk::carries_text( $highlight ) ? $highlight : $ink );
+		// The colour every accent-driven thing takes: WordPress's own highlight
+		// where that reads on paper, and the ink otherwise — see $highlight above.
+		// ⚠️ THERE USED TO BE A THIRD CASE HERE, the "bright menu" surface, and it
+		// is gone with the branch that consumed it (2026-08-21). See the note on
+		// the return below.
+		$accent_hue = SchemeInk::carries_text( $highlight ) ? $highlight : $ink;
 
 		// ⭐⭐ THE GREEN ITSELF, not a list of the things wearing it. His call,
 		//    2026-08-20: "just apply this color where a green color was before,
@@ -841,83 +840,40 @@ final class Admin {
 				. '{--rail-face:' . $face . ';--rail-good:' . $face . ';--rail-read:100%}'
 				. $rug_hover . '{color:#ffffff}';
 
-		if ( '' === $surface ) {
-			// The ordinary case: a dark menu, and its ink dresses everything.
-			$css = $scope . '{--ar-ink:' . $ink . '}' . $accent;
+		// ⛔ THERE IS NO SECOND BRANCH ANY MORE. Until 2026-08-21 this returned
+		// early and ~60 lines below dressed a "bright menu" scheme in its own menu
+		// colour instead of a dark ink. That path died on 2026-08-20 when he
+		// collapsed blue, ocean and sunrise onto their 7.1 bars and SCHEME_SURFACES
+		// emptied — `card_surface_for()` could only ever answer '', so the test
+		// guarding the branch was always true and the code under it unreachable.
+		// It stood for a day with a comment saying so; this is that deletion.
+		// ⚠️ WHAT IT COST, so nobody has to reconstruct it from git: on a bright
+		// menu the ink surfaces AND the accent both took the menu's own colour
+		// (his call: "same as classic blue theme in light mode"), the rug's
+		// "N to fix" took a #f8c350 gold that survives a mid-tone ground, the
+		// GHOST button kept the dark ink because it paints on the PAGE, and the
+		// button hover DEEPENED instead of lifting. ⛔ Restoring any of that means
+		// restoring the branch too — adding a row to SCHEME_SURFACES alone would
+		// now do nothing, which is exactly why that table went with it.
+		$css = $scope . '{--ar-ink:' . $ink . '}' . $accent;
 
-			// ⛔ …but NOT app.css's hover. It dives to --ar-ink-hard, which is
-			//    #000 by day, so a navy or brown button turns BLACK under the
-			//    pointer and throws its hue away — his catch on the dark blue:
-			//    "changes button to black, which is also not in sync".
-			// ⭐ A dark surface LIGHTENS instead, by the mirror of what a bright
-			//    one does. 88% toward white is a 1.35–1.46:1 shift across every
-			//    ink we emit, against 1.28:1 for the bright case — the same
-			//    gesture, read the same way, from either end.
-			// ⚠️ Skipped when the ink is itself bright: that is the Light scheme,
-			//    which schemes.css already dresses by hand, and this would
-			//    override it.
-			// ⚠️ AND NOT FOR "light", whose own day hover DEEPENS (schemes.css) —
-			// emitting a lighten here would be a rule that only ever loses.
-			if ( 'light' !== $scheme && ! self::is_bright( $ink ) ) {
-				$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
-					. '{background:color-mix(in srgb,' . $ink . ' 88%,#fff);box-shadow:none}';
-			}
-
-			return $css . $rug_white;
+		// ⛔ …but NOT app.css's hover. It dives to --ar-ink-hard, which is
+		//    #000 by day, so a navy or brown button turns BLACK under the
+		//    pointer and throws its hue away — his catch on the dark blue:
+		//    "changes button to black, which is also not in sync".
+		// ⭐ A dark surface LIGHTENS instead. 88% toward white is a 1.35–1.46:1
+		//    shift across every ink we emit — the same gesture, read the same way.
+		// ⚠️ Skipped when the ink is itself bright: that is the Light scheme,
+		//    which schemes.css already dresses by hand, and this would
+		//    override it.
+		// ⚠️ AND NOT FOR "light", whose own day hover DEEPENS (schemes.css) —
+		// emitting a lighten here would be a rule that only ever loses.
+		if ( 'light' !== $scheme && ! self::is_bright( $ink ) ) {
+			$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
+				. '{background:color-mix(in srgb,' . $ink . ' 88%,#fff);box-shadow:none}';
 		}
 
-		// ---- A BRIGHT menu. His call: the surfaces ARE the menu's colour ----
-		//
-		// ⭐ AND SO IS THE ACCENT — $accent fires here exactly as it does on a
-		//    dark menu, only keyed to the SURFACE. His words, 2026-08-20:
-		//    "#52accc apply this to accent color in bright blue in light mode,
-		//    same as classic blue theme in light mode".
-		//    ⛔ This reverses two earlier attempts, and both failure modes are
-		//    worth keeping written down. Accent := the dark ink put TWO blues on
-		//    one screen — bright buttons beside dark links, chips, bars and
-		//    switches, with nothing to explain which was which. Accent left at
-		//    the app's teal put a blue scheme beside a green app. One colour, on
-		//    the surfaces and the accent alike, is the only version that reads as
-		//    a decision rather than an accident.
-		//    ⚠️ What it costs, measured: #52accc is 2.54:1 on the cream card, and
-		//    the white knob on a switch track reads 2.58:1 against its own track,
-		//    so an enabled switch is a weaker signal than it was. Raised with him
-		//    twice; his call both times.
-		$css = $scope . '{--ar-ink:' . $surface . '}' . $accent . $rug_white;
-
-		// The one coloured thing left on the rug: "N to fix". Its default
-		// --ar-warn-on-ink is mixed for a DARK card and vanishes on a bright one —
-		// 1.31:1 on blue, 1.76:1 on ocean. This is the gold that survives being
-		// put on any of the three (1.59 / 2.14 / 2.75).
-		// ⚠️ Still under every floor, and knowingly so: a saturated gold on a
-		// mid-tone ground cannot reach 3:1 without turning into cream and ceasing
-		// to read as the warning colour. The count is legible by position and size.
-		// ⛔ ONE VALUE, not a map. It used to be SCHEME_SURFACE_WARN keyed by
-		// colors[0], with two of the three schemes left without an entry and
-		// sitting at their broken defaults. A rule that covers every bright ground
-		// is both shorter and more honest than a table with holes in it.
-		$css .= $light . '.ar-rail-card--readiness .ar-rung__todo{color:#f8c350}';
-
-		// ⛔ The GHOST button keeps the DARK ink. It is the one control that
-		//    paints `color: var(--ar-ink)` on the PAGE rather than on the ink, so
-		//    the bright value would be 2.4:1 text on classic blue.
-		$css .= $light . '.ar-btn--ghost{color:' . $ink . '}';
-
-		// ⭐ Hover DEEPENS the surface and leaves the label alone.
-		//    ⛔ Not app.css's --ar-ink-hard, which is #000 by day and turned a
-		//       bright button black under the pointer.
-		//    ⛔ And not schemes.css's move for the Light scheme either, which
-		//       holds the ground and swaps the label to --ar-accent. That works
-		//       on Light's neutral grey; on a coloured surface the teal accent
-		//       fights the hue — his catch, on the blue: "the color goes out of
-		//       sync". A coloured button should deepen, not change hue.
-		//    ⭐ It also reads BETTER on hover, not worse: darkening under light
-		//       text lifts the label from 2.27:1 to 2.90:1 on the brighter blue,
-		//       while the surface itself shifts 1.28:1 — enough to feel.
-		$css .= $light . '.ar-btn:not(.ar-btn--ghost):not(.ar-btn--danger):hover:not(:disabled)'
-			. '{background:color-mix(in srgb,' . $surface . ' 88%,#000);box-shadow:none}';
-
-		return $css;
+		return $css . $rug_white;
 	}
 
 	/**
