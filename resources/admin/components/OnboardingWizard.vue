@@ -689,7 +689,7 @@ export default {
                   </div>
                   <p class="ar-card__note">
                     Your choices are written into your site’s <code>robots.txt</code> — the file crawlers
-                    check for the rules — as a Content-Signal: a polite request well-behaved crawlers honour.
+                    check for the rules — as a polite request that well-behaved crawlers honour.
                   </p>
                 </div>
 

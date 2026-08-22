@@ -511,7 +511,7 @@ export default {
 
                     <!-- JSON-LD body -->
                     <template v-if="format === 'jsonld'">
-                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">Nothing would be emitted for this target.</p>
+                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">Nothing would be added to this page.</p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
                         <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
@@ -522,7 +522,7 @@ export default {
                     </template>
                     <!-- Markdown body -->
                     <template v-else>
-                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">No Markdown is served for this target.</p>
+                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">No Markdown is served for this page.</p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
                         <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>

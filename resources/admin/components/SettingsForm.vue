@@ -1681,7 +1681,7 @@ export default {
               </span>
             </label>
           </div>
-          <small class="ar-field__hint">Emitted in robots.txt as <code>{{ signalPreview }}</code></small>
+          <small class="ar-field__hint">Written into robots.txt as <code>{{ signalPreview }}</code></small>
         </div>
 
         <div class="ar-field">

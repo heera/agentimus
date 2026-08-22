@@ -17,6 +17,7 @@
 import SelectMenu from './SelectMenu.vue';
 import CardSkeleton from './CardSkeleton.vue';
 import { uaTip } from '../js/uaTip.js';
+import { surfaceName, isRenamed } from '../js/surfaceNames.js';
 import { formatStamp, relTimeShort } from '../js/wpDate.js';
 
 export default {
@@ -141,7 +142,7 @@ export default {
       return [
         { key: 'client', label: 'Client', w: '18%' },
         { key: 'status', label: 'Status', cls: 'ar-log__statuscol', w: '96px' },
-        { key: 'endpoint', label: 'Endpoint', w: '20%' },
+        { key: 'endpoint', label: 'Address', w: '20%' },
         ...(this.hasNetwork ? [{ key: '', label: 'Network', w: '14%' }] : []),
         { key: 'ua', label: 'User-Agent' },
         { key: 'at', label: 'Requested at', w: '17%' },
@@ -195,6 +196,8 @@ export default {
     if (this.active) this.load();
   },
   methods: {
+    surfaceName,
+    isRenamed,
     async loadFacets() {
       if (!this.api) return;
       try {
@@ -385,7 +388,7 @@ export default {
           <SelectMenu v-model="filters.agent" :options="agentOptions" multiple aria-label="Filter by client" />
         </div>
         <div class="ar-log__field">
-          <span class="ar-log__label">Endpoint</span>
+          <span class="ar-log__label">Address</span>
           <SelectMenu v-model="filters.endpoint" :options="endpointOptions" multiple mono aria-label="Filter by endpoint" />
         </div>
         <div v-if="hasNetwork" class="ar-log__field">
@@ -494,16 +497,16 @@ export default {
                   @mouseleave="hideUaTip"
                 >{{ statusMark(r).text }}</span>
               </td>
-              <td data-label="Endpoint">
+              <td data-label="Address">
                 <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg>
                 <button
                   type="button"
                   class="ar-log__pivot"
-                  :aria-label="`Show only ${r.endpoint}`"
-                  @mouseenter="showUaTip($event, 'Show only this endpoint', '')"
+                  :aria-label="`Show only ${surfaceName(r.endpoint)}`"
+                  @mouseenter="showUaTip($event, 'Show only this address', '')"
                   @mouseleave="hideUaTip"
                   @click="pivot('endpoint', r.endpoint)"
-                ><code class="ar-act-feed__ep">{{ r.endpoint }}</code></button>
+                ><code class="ar-act-feed__ep" :title="isRenamed(r.endpoint) ? r.endpoint : null">{{ surfaceName(r.endpoint) }}</code></button>
               </td>
               <td v-if="hasNetwork" data-label="Network">
                 <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>

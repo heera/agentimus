@@ -1,6 +1,7 @@
 <script>
 import { confirm } from '../js/confirm.js';
 import { tileIcon } from '../js/groupIcons.js';
+import { surfaceName, isRenamed } from '../js/surfaceNames.js';
 import SelectMenu from './SelectMenu.vue';
 
 import { uaTip } from '../js/uaTip.js';
@@ -281,6 +282,8 @@ export default {
     },
   },
   methods: {
+    surfaceName,
+    isRenamed,
     tileIcon,
     barHeight(hits) {
       const h = Math.round((hits / this.maxDaily) * 100);
@@ -637,8 +640,8 @@ export default {
     <!-- First load in flight: show a skeleton, not the empty state. -->
     <template v-if="!loaded">
       <section class="ar-card" aria-busy="true">
-        <h2 class="ar-card__title">Endpoint Activity</h2>
-        <p class="ar-card__lead">Loading recent endpoint activity…</p>
+        <h2 class="ar-card__title">AI Activity</h2>
+        <p class="ar-card__lead">Loading recent activity…</p>
         <div class="ar-skel">
           <div class="ar-skel__tiles">
             <span class="ar-skel__box"></span>
@@ -655,7 +658,7 @@ export default {
 
     <!-- Logging disabled -->
     <section v-else-if="data.enabled === false" class="ar-card">
-      <h2 class="ar-card__title">Endpoint Activity</h2>
+      <h2 class="ar-card__title">AI Activity</h2>
       <p class="ar-card__lead">
         Activity logging is off. Enable <strong>Record AI activity &amp; referrals</strong> on the
         Visit Log card under Settings → Discovery, and this screen starts recording which
@@ -673,13 +676,13 @@ export default {
         <div class="ar-card__head ar-card__head--ruled">
           <div>
             <div class="ar-act-titlerow">
-              <h2 class="ar-card__title">Endpoint Activity</h2>
+              <h2 class="ar-card__title">AI Activity</h2>
               <span v-if="live" class="ar-act-live" v-tip="`Auto-refresh is on — these stats update on their own. Refresh forces an update now.`">
                 <span class="ar-act-live__dot" aria-hidden="true"></span>Auto-refresh
               </span>
             </div>
             <p class="ar-card__lead">
-              Who fetched your discovery &amp; llms endpoints — AI assistants, crawlers and browsers.
+              Who fetched what — AI assistants, crawlers and browsers.
               Local-only, no IP logged.
               <!-- `window` is what these cards cover; `retention` is what still exists. The two
                    differ once an owner keeps more than 30 days, so this sentence — which is about
@@ -758,11 +761,11 @@ export default {
            direct children of the .ar-act grid so its gap separates them;
            endpoints first (what was fetched says more than who fetched it). -->
       <section class="ar-card">
-        <h2 class="ar-card__title">By Endpoint <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
+        <h2 class="ar-card__title">Most Fetched <span class="ar-card__tag">Last {{ data.window || 30 }} days</span></h2>
         <!-- The arrow claim must match what trend_pct actually computes: the
              two HALVES of this window, not this window vs the one before. -->
         <p class="ar-card__lead">
-          What gets read — hits for each of your AI files, busiest first. The arrow
+          What gets read — hits for each one, busiest first. The arrow
           compares the recent {{ trendHalfDays }} days with the {{ trendHalfDays }} before; hover a
           row for the numbers behind it.
         </p>
@@ -773,12 +776,16 @@ export default {
             <button
               type="button"
               class="ar-act-rank__btn"
-              :aria-label="`Open the Request Log filtered to ${e.label}`"
+              :aria-label="`Open the Request Log filtered to ${surfaceName(e.label)}`"
               @click="$emit('navigate', { tab: 'log', log: { endpoint: e.label } })"
               @mouseenter="showUaTip($event, trendTip(e), 'Click for every request', 'cursor')"
               @mouseleave="hideUaTip"
             >
-              <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
+              <!-- ⛔ surfaceName(), never the raw key: `rest:discovery` carries a prefix we
+                   invented and `markdown` is every .md twin rolled into one row — neither
+                   is a thing the owner has seen. The raw key rides the title so a
+                   developer can still match a row back to the database. -->
+              <span class="ar-act-rank__label"><code :title="isRenamed(e.label) ? e.label : null">{{ surfaceName(e.label) }}</code></span>
               <span class="ar-act-delta" :class="'is-' + e.delta.dir">{{ e.delta.label }}</span>
               <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, maxEndpoint) }"></span></span>
               <span class="ar-act-rank__n">{{ e.hits }}</span>
@@ -787,7 +794,7 @@ export default {
         </ul>
         <p v-else class="ar-wd-empty">
           No hits yet. Your guide files are live and waiting — crawlers usually find them
-          within a day or two, and every endpoint they read counts up here. Worth a look tomorrow.
+          within a day or two, and every read counts up here. Worth a look tomorrow.
         </p>
       </section>
 
@@ -844,7 +851,7 @@ export default {
               <thead>
                 <tr>
                   <th scope="col">Client</th>
-                  <th scope="col">Endpoint</th>
+                  <th scope="col">Address</th>
                   <th v-if="hasNetwork" scope="col">Network</th>
                   <th scope="col">User-Agent</th>
                   <th scope="col">Hits</th>
@@ -854,7 +861,7 @@ export default {
               <tbody>
                 <tr v-for="(r, i) in recentGrouped" :key="i">
                   <td class="ar-act-table__agent" data-label="Client">{{ r.agent }}</td>
-                  <td data-label="Endpoint"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg><code class="ar-act-feed__ep">{{ r.endpoint }}</code></td>
+                  <td data-label="Address"><svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg><code class="ar-act-feed__ep" :title="isRenamed(r.endpoint) ? r.endpoint : null">{{ surfaceName(r.endpoint) }}</code></td>
                   <td v-if="hasNetwork" data-label="Network">
                     <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>
                     <span
@@ -889,7 +896,7 @@ export default {
           </div>
         </div>
         <p v-else class="ar-wd-empty">
-          No requests recorded yet — the first crawler or AI assistant to fetch your discovery/llms endpoints appears here.
+          No requests recorded yet — the first crawler or AI assistant to fetch one of them appears here.
         </p>
 
         <!-- The same relationship the card above has to the AI traffic screen: this is a
@@ -901,7 +908,7 @@ export default {
             Open the Request Log
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
           </button>
-          <span class="ar-card__morenote">every request, filterable by client, endpoint, network and date</span>
+          <span class="ar-card__morenote">every request, filterable by client, address, network and date</span>
         </p>
       </section>
     </template>
@@ -971,10 +978,14 @@ export default {
                     <p v-if="dayExpand.clients && dayModal.capped" class="ar-act-more-note">from the last {{ dayModal.rows.length }} requests this day</p>
                   </div>
                   <div class="ar-daybreak__col">
-                    <h3 class="ar-daybreak__h">By endpoint <span class="ar-daybreak__n">{{ modalDetail.endpointCount }}</span></h3>
+                    <h3 class="ar-daybreak__h">Most fetched <span class="ar-daybreak__n">{{ modalDetail.endpointCount }}</span></h3>
                     <ul class="ar-act-rank">
                       <li v-for="e in shownEndpoints" :key="e.label">
-                        <span class="ar-act-rank__label"><code>{{ e.label }}</code></span>
+                        <!-- ⛔ surfaceName(), never the raw key: `rest:discovery` carries a prefix we
+                   invented and `markdown` is every .md twin rolled into one row — neither
+                   is a thing the owner has seen. The raw key rides the title so a
+                   developer can still match a row back to the database. -->
+              <span class="ar-act-rank__label"><code :title="isRenamed(e.label) ? e.label : null">{{ surfaceName(e.label) }}</code></span>
                         <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :style="{ width: pct(e.hits, listMax(shownEndpoints)) }"></span></span>
                         <span class="ar-act-rank__n">{{ e.hits }}</span>
                       </li>
@@ -1000,7 +1011,7 @@ export default {
                     <li v-for="(r, i) in dayModal.rows" :key="i">
                       <span class="ar-act-feed__agent">{{ r.agent }}</span>
                       <span class="ar-act-feed__loc">
-                        <code class="ar-act-feed__ep">{{ r.endpoint }}</code>
+                        <code class="ar-act-feed__ep" :title="isRenamed(r.endpoint) ? r.endpoint : null">{{ surfaceName(r.endpoint) }}</code>
                         <span
                           v-if="r.network"
                           class="ar-act-feed__net"

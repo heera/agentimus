@@ -468,7 +468,7 @@ export default {
   <div class="ar-wd">
     <!-- Canonical endpoint -->
     <section class="ar-card ar-wd-endpoint">
-      <h2 class="ar-card__title">Discovery Endpoint</h2>
+      <h2 class="ar-card__title">Discovery File</h2>
 
       <div class="ar-wd-endpoint-row">
         <div class="ar-wd-canonical">

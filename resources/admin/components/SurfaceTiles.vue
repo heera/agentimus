@@ -117,7 +117,7 @@ export default {
                and this is how a caps-set acronym plural is normally handled. -->
           <span class="ar-dash-tile__k">API<span class="ar-dash-tile__pl">s</span></span>
         </span>
-        <span class="ar-dash-tile__sub">Endpoints AI assistants can access</span>
+        <span class="ar-dash-tile__sub">Addresses AI assistants can access</span>
         <span v-if="splitLine(summary.apisPublic, dashApisHeld)" class="ar-dash-tile__sub">{{ splitLine(summary.apisPublic, dashApisHeld) }}</span>
       </span>
     </button>

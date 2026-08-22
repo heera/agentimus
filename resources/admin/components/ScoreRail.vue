@@ -184,7 +184,7 @@ export default {
                    em-dash gauge. On the healthy path "fully agent-ready" was a
                    second verdict under the first; the band says it all. -->
               <span v-if="aeo.blocked" class="ar-rail-tier__sub">{{
-                siteIsLocal ? 'switch on Search engine visibility before launch' : 'agents can’t read the site'
+                siteIsLocal ? 'switch on Search engine visibility before launch' : 'AI assistants can’t read the site'
               }}</span>
             </div>
           </button>

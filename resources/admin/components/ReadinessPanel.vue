@@ -837,10 +837,10 @@ export default {
                 <!-- A shared cache served stored copies → those fetches skip WordPress,
                      so the activity log under-counts and discovery can go stale. -->
                 <div v-if="cachedChecks.length" class="ar-live-cache" role="alert">
-                  <strong class="ar-live-cache__title">A cache is sitting in front of your AI endpoints</strong>
-                  <p>{{ cachedVia }} returned a <em>stored</em> copy of {{ cachedChecks.length }} endpoint{{ cachedChecks.length > 1 ? 's' : '' }} ({{ cachedNames }}), so those agent fetches never reach WordPress. Your <strong>Activity log under-counts</strong> real AI traffic, and freshness-sensitive endpoints (the change feed, page markdown) can go <strong>stale</strong>.</p>
+                  <strong class="ar-live-cache__title">A cache is sitting in front of your AI files</strong>
+                  <p>{{ cachedVia }} returned a <em>stored</em> copy of {{ cachedChecks.length }} file{{ cachedChecks.length > 1 ? 's' : '' }} ({{ cachedNames }}), so those agent fetches never reach WordPress. Your <strong>Activity log under-counts</strong> real AI traffic, and freshness-sensitive files (the change feed, page markdown) can go <strong>stale</strong>.</p>
                   <p class="ar-live-cache__fix"><strong>Fix:</strong> bypass cache for <code>*.md</code>, <code>/llms.txt</code>, <code>/.well-known/*</code> and <code>*changes.json</code> at your CDN/proxy. <a href="https://heera.github.io/agentimus/user-manual/caching.html" target="_blank" rel="noopener">How to fix it</a></p>
-                  <p class="ar-live-cache__fix">Can’t change your cache? Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-feat-bypass_shared_cache' })">Keep AI endpoints out of your cache</button> in Settings — Agentimus asks caches not to store these, which works with any cache that respects <code>Cache-Control</code> (most do).</p>
+                  <p class="ar-live-cache__fix">Can’t change your cache? Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-feat-bypass_shared_cache' })">Keep AI files out of your cache</button> in Settings — Agentimus asks caches not to store these, which works with any cache that respects <code>Cache-Control</code> (most do).</p>
                 </div>
 
                 <ul v-if="live" class="ar-live__list">
@@ -853,7 +853,7 @@ export default {
                 </ul>
                 <div v-else class="ar-live__loading">
                   <span class="ar-spinner" aria-hidden="true"></span>
-                  <span class="ar-live__loading-label">Fetching your endpoints…</span>
+                  <span class="ar-live__loading-label">Fetching your files…</span>
                 </div>
               </div>
               <div class="ar-modal__fade" :class="{ 'is-visible': liveMore }">

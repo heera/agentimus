@@ -501,7 +501,7 @@ export default {
             // callers to fix a label.
             title: 'Visitors',
             audience: 'people',
-            description: 'Everyone Who Visited your site — how many arrived because an AI assistant named you, and how many came another way. Humans only: the machines are in the Request Log.',
+            description: 'Everyone who visited your site — how many arrived because an AI assistant named you, and how many came another way. Humans only: the machines are in the Request Log.',
           },
           log: {
             title: 'Request Log',
