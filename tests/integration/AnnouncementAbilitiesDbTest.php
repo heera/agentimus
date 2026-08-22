@@ -199,7 +199,15 @@ final class AnnouncementAbilitiesDbTest extends DbTestCase {
 		// ⭐ Decoded through the one owner, so an agent never repeats `&#038;`.
 		$this->assertSame( 'Php Dynamic Getter & Setter', $row['title'] );
 		$this->assertNotSame( '', $row['scheduledAt'] );
+		// ⛔ EVERY summary key asserted, not just the one that happened to be real.
+		// `sent` was read off a key summary() does not have, so it sat at 0 beside a
+		// ledger showing a sent row — and this test passed anyway, because it only
+		// ever checked `failed`. Caught on his live site.
 		$this->assertSame( 1, $out['summary']['failed'] );
+		$this->assertSame( 1, $out['summary']['total'], 'The ledger holds one row.' );
+		$this->assertSame( 0, $out['summary']['queued'] );
+		$this->assertArrayHasKey( 'sentWeek', $out['summary'], 'summary() has sentWeek, never "sent".' );
+		$this->assertArrayNotHasKey( 'sent', $out['summary'], 'An all-time "sent" is a number this site never computes.' );
 
 		// The write the ability wraps, driven directly — the ability's body is a
 		// thin call onto this plus a message.
@@ -213,6 +221,7 @@ final class AnnouncementAbilitiesDbTest extends DbTestCase {
 		$this->assertSame( 'queued', $after['rows'][0]['status'] );
 		$this->assertFalse( $after['rows'][0]['canRetry'], 'A re-queued row must not offer retry again.' );
 		$this->assertSame( 0, $after['summary']['failed'] );
+		$this->assertSame( 1, $after['summary']['queued'], 'The retried row is now queued.' );
 		$this->assertSame( 'Php Dynamic Getter & Setter', $after['rows'][0]['title'], 'The title must survive the write too.' );
 	}
 

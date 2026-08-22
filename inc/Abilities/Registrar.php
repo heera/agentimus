@@ -1858,9 +1858,15 @@ final class Registrar {
 					),
 					'summary' => self::obj(
 						array(
-							'queued'    => self::i(),
-							'failed'    => self::i( 'Rows worth telling the owner about.' ),
-							'sent'      => self::i(),
+							'total'    => self::i( 'Every row the ledger holds.' ),
+							'queued'   => self::i( 'Waiting to go out.' ),
+							'failed'   => self::i( 'Rows worth telling the owner about — each carries its reason.' ),
+							// ⛔ sentWeek, NOT "sent": summary() counts the last seven days
+							// only. Calling it `sent` would report an all-time total this
+							// site never computes, and the first cut read a `sent` key that
+							// does not exist — so it was 0 next to a ledger showing a sent
+							// row. Caught on his live site, not here.
+							'sentWeek' => self::i( 'Sent in the last 7 days. NOT an all-time count.' ),
 						)
 					),
 				)
@@ -1896,9 +1902,10 @@ final class Registrar {
 				return array(
 					'rows'    => $rows,
 					'summary' => array(
-						'queued' => (int) ( isset( $sum['queued'] ) ? $sum['queued'] : 0 ),
-						'failed' => (int) ( isset( $sum['failed'] ) ? $sum['failed'] : 0 ),
-						'sent'   => (int) ( isset( $sum['sent'] ) ? $sum['sent'] : 0 ),
+						'total'    => (int) ( isset( $sum['total'] ) ? $sum['total'] : 0 ),
+						'queued'   => (int) ( isset( $sum['queued'] ) ? $sum['queued'] : 0 ),
+						'failed'   => (int) ( isset( $sum['failed'] ) ? $sum['failed'] : 0 ),
+						'sentWeek' => (int) ( isset( $sum['sentWeek'] ) ? $sum['sentWeek'] : 0 ),
 					),
 				);
 			},
