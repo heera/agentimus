@@ -300,7 +300,6 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 == Changelog ==
 
 = 1.42.0 =
-* New: every plugin on Integrations → Plugins now links to that plugin's own site, so you can see what it is without leaving to search for it.
 * New: on Discovery, an address anyone can open is now a link — click it and see exactly what an AI assistant would fetch. An address that needs a sign-in stays plain text, because a link that always fails teaches you the row is broken when the row is fine.
 * New: a connected assistant can read your announcement ledger — what is queued, what posted, and why a failed one failed — and can try a failed announcement again. It cannot write a new announcement, cancel one, post one early or remove one: those four ask you to confirm on your own screen, and an action does not survive losing that.
 * New: a connected assistant can see what your site is connected to and whether each channel is actually delivering. No address or key is ever handed over — a Slack or Discord address is not a setting, it is the power to post in that channel.
@@ -310,6 +309,7 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: a page title carrying an apostrophe written as code could reach a connected assistant still written that way, and an assistant repeats what it is handed.
 * Fixed: on a site where another plugin or your host changes an Agentimus setting as the page loads, saving anything could store that change as though you had chosen it — and turning the other plugin off would not undo it.
 * Fixed: the "All registrations are valid" row did not answer the pointer at all, on any colour scheme, in either mode.
+* Improved: every plugin on Integrations → Plugins now links to that plugin's own site, so you can see what it is without leaving to search for it.
 * Improved: the sidebar's two file lists are named for what they hold, and the row of AI files on your dashboard reads in plain words rather than filenames only.
 
 = 1.41.0 =

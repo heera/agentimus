@@ -972,23 +972,25 @@ final class Admin {
 				// they have already read, under a heading claiming it is new — the
 				// fault he caught on the 1.40.0-dev4 build, where 1.39.0's items sat
 				// under a 1.40.0 title.
-				// ⭐ For 1.42.0 the two LINK items lead, because they are the only
-				// changes an owner meets by clicking something that used to be dead
-				// text. The assistant item comes third: it matters most to the people
-				// who have connected one, and not at all to anyone who has not.
-				// ⛔ The internal-names fix is NOT here. "We stopped showing you our own
-				// key names" is an apology for a thing the owner never had a word for —
-				// it belongs in the changelog, where it reads as a fix, not on a card
-				// that claims to be news.
+				// ⭐ THE LAST SLOT IS THE FIXES, and it is a SINGLE item — his call,
+				// 2026-08-23. A release ships more fixes than a card has room for, and
+				// listing them one per row would push the two things that are genuinely
+				// different off the top. One row that says "these were wrong and now
+				// are" is the honest shape, and it goes LAST: nobody opens a plugin to
+				// read what used to be broken.
+				// ⛔ A LINK WHERE THERE WAS DEAD TEXT IS NOT A FEATURE. The plugin cards
+				// on Integrations grew a link to each plugin's own site, and that had a
+				// row here until he cut it: the owner did not lose anything before, and
+				// a card that announces every improvement teaches people to stop reading
+				// it. The Discovery one survives because it changes what the owner can
+				// SEE — one click and the page an assistant fetches is on screen.
+				// ⛔ The internal-names fix is NOT in the fixes row either. "We stopped
+				// showing you our own key names" is an apology for a thing the owner
+				// never had a word for — the changelog carries it.
 				array(
 					'icon'  => 'link',
 					'title' => 'See What an AI Assistant Actually Fetches',
 					'text'  => 'On Discovery, any address open to everyone is now a link — click it and you see exactly what an assistant sees. Addresses that need a sign-in stay plain text, so a link never sends you to a refusal.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Every Plugin Card Links to Its Own Site',
-					'text'  => 'Integrations → Plugins now tells you where each plugin lives, so you can look one up without leaving to search for it.',
 				),
 				array(
 					'icon'  => 'shield',
@@ -999,6 +1001,11 @@ final class Admin {
 					'icon'  => 'search',
 					'title' => 'The Sidebar Says What Its Files Are For',
 					'text'  => 'The two lists in the sidebar are named for what they hold rather than for the machinery behind them, and the files on your dashboard read in plain words.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'And a Round of Fixes',
+					'text'  => 'Real logos in the post editor\'s Share tab, a Readiness tip that pointed at a setting no longer called that, a page title that could reach an assistant still written in code, and a case where another plugin\'s change to your settings could be saved as your own. The changelog has the full list.',
 				),
 			),
 		);
