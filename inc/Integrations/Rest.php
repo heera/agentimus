@@ -411,7 +411,7 @@ final class Rest {
 			Webhook::record_success();
 		}
 
-		$all                 = $this->settings->all();
+		$all                 = $this->settings->stored();
 		$all['integrations'] = array_merge(
 			is_array( $all['integrations'] ) ? $all['integrations'] : array(),
 			array(
@@ -1045,7 +1045,7 @@ final class Rest {
 	 * @param array $keys The service's settings keys.
 	 */
 	private function store( array $keys ) {
-		$all                 = $this->settings->all();
+		$all                 = $this->settings->stored();
 		$all['integrations'] = array_merge(
 			is_array( $all['integrations'] ) ? $all['integrations'] : array(),
 			$keys

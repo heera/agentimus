@@ -250,8 +250,42 @@ final class Worklist {
 	 * @return string Decoded, tag-free, never empty.
 	 */
 	public static function title_of( $post ) {
-		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+		$title = self::decode_title( get_the_title( $post ) );
 		return '' !== trim( $title ) ? $title : __( '(untitled)', 'agentimus' );
+	}
+
+	/**
+	 * The decode itself, without the (untitled) fallback.
+	 *
+	 * ⛔ SPLIT OUT BECAUSE THE FALLBACK IS NOT ALWAYS THE RIGHT ANSWER. Several
+	 * callers already have a BETTER one than "(untitled)": Findings falls back to
+	 * the page's URL path, and Rest to a translated "Post %d". Pointing those at
+	 * title_of() would have silently killed that code — "(untitled)" is never
+	 * empty, so their own `'' === $title` branch could never run again. They take
+	 * this method; everything with no fallback of its own takes title_of().
+	 *
+	 * ⭐ ENT_HTML5 ALONGSIDE ENT_QUOTES, which is a real fix and not tidying:
+	 * `&apos;` is an HTML5-only named entity, so under ENT_QUOTES alone
+	 * `Tom&apos;s guide` decodes to the literal string `Tom&apos;s guide`.
+	 * Verified: every other case in this codebase's titles decodes identically
+	 * under both, and only `&apos;` differs. inc/Rest.php already used these
+	 * flags — it was the most correct copy of the seven, and this adopts it
+	 * rather than levelling everyone down to the owner's older pair.
+	 * ⚠️ THIS IS THE SAME BUG CLASS AS 2026-08-22's: an agent does not render
+	 * HTML, it repeats what it is handed — a leaked `&apos;` reaches prose and
+	 * sometimes a write.
+	 *
+	 * ⛔ 'UTF-8' IS STATED, NEVER LEFT TO THE INI. Without it html_entity_decode()
+	 * follows `default_charset`, which the host owns — and inc/Changes.php was
+	 * doing exactly that, so the public change feed's titles depended on a php.ini
+	 * this plugin does not control. PHP made UTF-8 the default only in 8.1 and the
+	 * floor here is 7.4.
+	 *
+	 * @param mixed $raw A raw title, as the database hands it over.
+	 * @return string Decoded and tag-free. May be empty — that is the caller's to answer.
+	 */
+	public static function decode_title( $raw ) {
+		return html_entity_decode( wp_strip_all_tags( (string) $raw ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	}
 
 	/**

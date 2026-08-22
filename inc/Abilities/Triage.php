@@ -178,12 +178,10 @@ final class Triage {
 			);
 		}
 
-		// Base the read-modify-write on the STORED option merged with defaults —
-		// NOT Settings::all(), whose result passes through the `agentimus_settings`
-		// read filter: writing that back would bake a site's runtime overrides into
-		// the saved option. Same reasoning as Fixer::apply().
-		$stored = get_option( Settings::OPTION, array() );
-		$all    = wp_parse_args( is_array( $stored ) ? $stored : array(), $this->settings->defaults() );
+		// ⛔ stored(), never all() — see Settings::stored(). The two hand-rolled lines
+		// that used to sit here also skipped the nested deep-merge, so a write could
+		// drop sub-keys a later version had added.
+		$all = $this->settings->stored();
 
 		$list = isset( $all['optimize_ignored'] ) && is_array( $all['optimize_ignored'] )
 			? array_values( array_filter( array_map( 'intval', $all['optimize_ignored'] ) ) )

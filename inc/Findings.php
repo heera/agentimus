@@ -818,7 +818,7 @@ final class Findings {
 				}
 			}
 			$title = $id > 0
-				? html_entity_decode( wp_strip_all_tags( (string) get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' )
+				? Worklist::decode_title( get_the_title( $id ) )
 				: (string) wp_parse_url( (string) $win['page_url'], PHP_URL_PATH );
 			if ( '' === trim( $title ) ) {
 				continue; // A win we cannot name is not a win anyone can read.

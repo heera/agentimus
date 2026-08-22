@@ -355,7 +355,27 @@ final class Settings {
 	 *
 	 * @return array
 	 */
-	public function all() {
+	/**
+	 * The settings as STORED, merged with defaults — and NOT passed through the
+	 * `agentimus_settings` read filter.
+	 *
+	 * ⛔⛔ THIS IS THE ONLY CORRECT BASE FOR A READ-MODIFY-WRITE. all() runs its
+	 * result through the read filter, so a site that overrides a value at runtime
+	 * (an environment forcing a flag off, a hosting mu-plugin) gets that override
+	 * handed back — and writing it back BAKES IT INTO THE SAVED OPTION for good.
+	 * The owner never chose it, and turning the filter off afterwards does not
+	 * undo it. Every `$all = ...; $all[x] = y; update($all)` starts here.
+	 *
+	 * ⚠️⚠️ AND IT IS A METHOD, NOT TWO LINES COPIED. Fixer and Triage each
+	 * hand-rolled this as `wp_parse_args( get_option(...), defaults() )` — which
+	 * skips the deep-merge below and so DROPS any sub-key a later version adds to
+	 * a nested setting (identity, security, content_signal) the moment anything
+	 * writes. Proven, not supposed. all() now calls this, so the two can never
+	 * describe the shape differently again.
+	 *
+	 * @return array Stored values over defaults, unfiltered.
+	 */
+	public function stored() {
 		$saved    = get_option( self::OPTION, array() );
 		$saved    = is_array( $saved ) ? $saved : array();
 		$defaults = $this->defaults();
@@ -375,6 +395,12 @@ final class Settings {
 				);
 			}
 		}
+
+		return $all;
+	}
+
+	public function all() {
+		$all = $this->stored();
 
 		/**
 		 * Filter the resolved settings on read.
@@ -461,7 +487,7 @@ final class Settings {
 	 */
 	public function block_agent( $token ) {
 		$token = substr( trim( (string) $token ), 0, 200 );
-		$all   = $this->all();
+		$all   = $this->stored();
 		if ( '' !== $token ) {
 			$list  = array_values( (array) $all['blocked_agents'] );
 			$lower = array_map( 'strtolower', $list );
@@ -484,7 +510,7 @@ final class Settings {
 	 * @return array The stored settings.
 	 */
 	public function block_spoofed_class() {
-		$all                  = $this->all();
+		$all                  = $this->stored();
 		$all['block_agents']  = true;
 		$all['block_spoofed'] = true;
 		return $this->update( $all );
@@ -554,7 +580,7 @@ final class Settings {
 	 */
 	public function allow_agent( $token ) {
 		$token = substr( trim( (string) $token ), 0, 200 );
-		$all   = $this->all();
+		$all   = $this->stored();
 		if ( '' !== $token ) {
 			$list  = array_values( (array) $all['allowed_agents'] );
 			$lower = array_map( 'strtolower', $list );
@@ -580,7 +606,7 @@ final class Settings {
 	public function remove_agent_token( $token, $list_key ) {
 		$list_key = 'blocked_agents' === $list_key ? 'blocked_agents' : 'allowed_agents';
 		$needle   = strtolower( trim( (string) $token ) );
-		$all      = $this->all();
+		$all      = $this->stored();
 		if ( '' !== $needle ) {
 			$all[ $list_key ] = array_values(
 				array_filter(

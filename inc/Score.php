@@ -645,7 +645,7 @@ final class Score {
 				if ( '' === $edit ) {
 					continue; // No edit access → nowhere useful to send them.
 				}
-				$title   = html_entity_decode( wp_strip_all_tags( get_the_title( (int) $pid ) ), ENT_QUOTES, 'UTF-8' );
+				$title   = Worklist::title_of( (int) $pid );
 				$pages[] = array(
 					'id'    => (int) $pid,
 					'title' => '' !== $title ? $title : __( '(untitled)', 'agentimus' ),
@@ -786,7 +786,7 @@ final class Score {
 			}
 			$out[] = array(
 				'id'    => $id,
-				'title' => html_entity_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES, 'UTF-8' ),
+				'title' => Worklist::title_of( $id ),
 				'url'   => $edit,
 				'flags' => $flags,
 			);

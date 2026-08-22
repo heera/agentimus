@@ -318,7 +318,7 @@ final class Module {
 			);
 		}
 
-		$all                   = $this->settings->all();
+		$all                   = $this->settings->stored();
 		$all['digest_enabled'] = false;
 		$this->settings->update( $all );
 		delete_option( self::STOP_KEY_OPTION ); // The used link dies; re-enabling mints a fresh one.

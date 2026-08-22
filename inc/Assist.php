@@ -335,7 +335,7 @@ final class Assist {
 	 * @return array{title:string,body:string}
 	 */
 	private function context( \WP_Post $post ) {
-		$title = html_entity_decode( wp_strip_all_tags( (string) get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
+		$title = Worklist::title_of( $post );
 
 		// markdown_source() returns the page's HTML (the source the .md converter reads); the
 		// raw content is the off-loop-safe fallback. Either way, strip to plain text so the

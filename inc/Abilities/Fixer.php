@@ -204,12 +204,12 @@ final class Fixer {
 			);
 		}
 
-		// Base the read-modify-write on the STORED option merged with defaults — NOT on
-		// Settings::all(), whose result passes through the `agentimus_settings` read
-		// filter: writing that back would permanently bake a site's runtime filter
-		// overrides (an environment forcing a flag off, say) into the saved option.
-		$stored = get_option( Settings::OPTION, array() );
-		$all    = wp_parse_args( is_array( $stored ) ? $stored : array(), $this->settings->defaults() );
+		// ⛔ stored(), never all(): all() runs through the `agentimus_settings` read
+		// filter, and writing that back would bake a site's runtime overrides into the
+		// saved option for good. See Settings::stored() for why this is a method and
+		// not the two lines that used to sit here — they skipped the nested deep-merge
+		// and dropped sub-keys added in a later version.
+		$all = $this->settings->stored();
 
 		// Only count a flip that actually flips. A remediation whose switch is already
 		// on cannot be what this warning needs (another plugin's filter, say, is

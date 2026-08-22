@@ -539,7 +539,7 @@ final class Rest {
 		}
 		$ignore = (bool) $request->get_param( 'ignored' );
 
-		$all  = $this->settings->all();
+		$all  = $this->settings->stored();
 		$list = ( isset( $all['optimize_ignored'] ) && is_array( $all['optimize_ignored'] ) ) ? array_map( 'intval', $all['optimize_ignored'] ) : array();
 		$list = array_values( array_diff( $list, array( $id ) ) );
 		if ( $ignore ) {
@@ -563,7 +563,7 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function optimize_restore_all() {
-		$all = $this->settings->all();
+		$all = $this->settings->stored();
 		$all['optimize_ignored'] = array();
 		$this->settings->update( $all ); // Sanitises + busts the OPTIMIZE cache.
 
@@ -592,7 +592,7 @@ final class Rest {
 			return new \WP_Error( 'agentimus_no_pages', __( 'Nothing to set aside for that check.', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
-		$all  = $this->settings->all();
+		$all  = $this->settings->stored();
 		$list = ( isset( $all['optimize_ignored'] ) && is_array( $all['optimize_ignored'] ) ) ? array_map( 'intval', $all['optimize_ignored'] ) : array();
 		$list = array_values( array_unique( array_merge( $list, $ids ) ) );
 
@@ -689,7 +689,7 @@ final class Rest {
 			$tagline = Plugin::real_tagline();
 			if ( '' !== $tagline && '' === trim( (string) $this->settings->identity( 'about', '' ) ) ) {
 				// Full-shape update: a partial array would reset every unset toggle.
-				$all                      = $this->settings->all();
+				$all                      = $this->settings->stored();
 				$all['identity']['about'] = $tagline;
 				$this->settings->update( $all );
 			}
@@ -899,7 +899,7 @@ final class Rest {
 		// ⚠️ Merged into the FULL settings array: update() sanitises what it is
 		// given and writes the result whole, so a partial body would reset every
 		// unset boolean on the site.
-		$all  = $this->settings->all();
+		$all  = $this->settings->stored();
 		$list = isset( $all['findings_dismissed'] ) && is_array( $all['findings_dismissed'] )
 			? array_map( 'sanitize_key', array_map( 'strval', $all['findings_dismissed'] ) )
 			: array();
@@ -1354,7 +1354,7 @@ final class Rest {
 	private function preview_label( $post ) {
 		// Decode entities (get_the_title() returns e.g. &#8220;…&#8221;) so the label
 		// reads as clean text, not raw HTML entities.
-		$title = trim( html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		$title = trim( Worklist::decode_title( get_the_title( $post ) ) );
 		if ( '' === $title ) {
 			/* translators: %d: post ID. */
 			$title = sprintf( __( '(untitled #%d)', 'agentimus' ), (int) $post->ID );

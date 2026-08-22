@@ -41,6 +41,7 @@ namespace Agentimus\Integrations;
 
 use Agentimus\Findings;
 use Agentimus\Settings;
+use Agentimus\Worklist;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -360,7 +361,7 @@ final class Events {
 	public static function wrote_payload( $post_id, $action, $ability ) {
 		return array(
 			'postId'  => (int) $post_id,
-			'title'   => html_entity_decode( wp_strip_all_tags( (string) get_the_title( (int) $post_id ) ), ENT_QUOTES, 'UTF-8' ),
+			'title'   => Worklist::title_of( (int) $post_id ),
 			'action'  => 'update' === (string) $action ? 'update' : 'create',
 			'ability' => substr( (string) $ability, 0, 100 ),
 		);

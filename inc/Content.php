@@ -189,7 +189,7 @@ final class Content {
 		// ⚠️ Merged into the FULL settings array: update() sanitizes what it is
 		// given and writes the result whole, so a partial array silently resets
 		// every unset boolean on the site.
-		$all                      = $settings->all();
+		$all                      = $settings->stored();
 		$all['check_types_seen']  = array_values( array_unique( $seen ) );
 		$all['check_types_off']   = array_values( array_unique( $off ) );
 		$settings->update( $all );

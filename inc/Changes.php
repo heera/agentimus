@@ -147,7 +147,7 @@ final class Changes {
 			$items[]      = array(
 				'id'        => (int) $post->ID,
 				'type'      => (string) $post->post_type,
-				'title'     => html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES ),
+				'title'     => Worklist::title_of( $post ),
 				'url'       => (string) get_permalink( $post ),
 				'modified'  => (string) get_post_modified_time( 'c', true, $post ),
 				'published' => (string) get_post_time( 'c', true, $post ),
