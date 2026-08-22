@@ -23,6 +23,13 @@ final class FluentBoards extends Provider {
 
 	const ID = 'fluentboards';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: Verified 2026-08-22: 200, no redirect, title 'FluentBoards: The Simplest WordPress Project Management Plugin'.
+	 */
+	const HOME = 'https://fluentboards.com';
+
 	/** Read from FluentBoards' own bootstrap: `fluent-boards.php:23`, `app/App.php:3`. */
 	const CLASSES = array( 'FluentBoards\\App\\App' );
 

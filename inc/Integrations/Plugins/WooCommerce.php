@@ -28,6 +28,13 @@ final class WooCommerce extends Provider {
 
 	const ID = 'woocommerce';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: WooCommerce's own `Plugin URI:` header (woocommerce/woocommerce.php).
+	 */
+	const HOME = 'https://woocommerce.com/';
+
 	/** WooCommerce's public, read-only storefront API — no login, by its design. */
 	const STORE_URL = '/wp-json/wc/store/v1/products';
 

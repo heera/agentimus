@@ -84,6 +84,37 @@ final class PluginProviderContractTest extends TestCase {
 	}
 
 	/**
+	 * The plugin's own page, which its card links to.
+	 *
+	 * ⛔ '' IS ALLOWED and is the base class default: a provider whose address
+	 * nobody has verified renders no control at all, which is the honest state.
+	 * What is NOT allowed is a value that is not an address — a bare host, a
+	 * typo'd scheme, a path — because that is what silently ships a dead link.
+	 *
+	 * ⚠️ This is a SHAPE check and cannot tell you the address is the right one.
+	 * Every value on the roster today came from the plugin's own `Plugin URI:`
+	 * header or was fetched and read first (2026-08-22). ⛔ Adding a provider
+	 * means doing that again — this test will not do it for you.
+	 */
+	public function test_a_provider_home_is_an_address_or_nothing() {
+		foreach ( $this->roster() as $class ) {
+			$card = $class::describe();
+			$this->assertArrayHasKey( 'home', $card, $class . ': the card carries the plugin\'s own page.' );
+
+			$home = (string) $card['home'];
+			if ( '' === $home ) {
+				continue;
+			}
+
+			$this->assertMatchesRegularExpression(
+				'#^https?://[^/\s]+#',
+				$home,
+				$class . ': "' . $home . '" is not an address a card can open.'
+			);
+		}
+	}
+
+	/**
 	 * ⛔ THE RULE. Whatever a provider hands up, what reaches a discovery document
 	 * is read-only and needs no login — and an authenticated management API is
 	 * never named. Checked against the shape the base class produces, with a

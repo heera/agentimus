@@ -31,6 +31,13 @@ final class FluentCommunity extends Provider {
 
 	const ID = 'fluentcommunity';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: FluentCommunity's own `Plugin URI:` header — ⚠️ `.co`, NOT `.com`.
+	 */
+	const HOME = 'https://fluentcommunity.co';
+
 	/** The public list of spaces — verified 200 without a login. */
 	const SPACES_URL = '/wp-json/fluent-community/v2/spaces';
 

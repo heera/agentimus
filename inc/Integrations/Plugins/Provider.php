@@ -55,6 +55,20 @@ abstract class Provider {
 	const ID = '';
 
 	/**
+	 * The plugin's own page — what its card links to (his ask, 2026-08-22).
+	 *
+	 * ⛔ '' IS A VALID ANSWER, and it is the default on purpose. A provider that
+	 * has not had a verified address put on it renders NO link rather than a
+	 * guessed one: the card already draws no control when there is no action, so
+	 * an absence names itself instead of sending the owner somewhere wrong.
+	 * ⭐ Every value on the roster today came from the plugin's own `Plugin URI:`
+	 * header where it is installed here, or was fetched and read before being
+	 * written down — never from the shape of the other seven. FluentCommunity is
+	 * `.co`, which is exactly the one a pattern would have got wrong.
+	 */
+	const HOME = '';
+
+	/**
 	 * The classes that mean "this plugin is running here". Any one of them.
 	 *
 	 * ⭐ NAMES ARE DATA, and this is why. Nine providers each wrote their own
@@ -334,6 +348,9 @@ abstract class Provider {
 			'name'      => static::name(),
 			'blurb'     => static::blurb(),
 			'present'   => $present,
+			// The plugin's own page, for the card's link. '' where we hold no
+			// verified address — the card then draws no control at all.
+			'home'      => esc_url_raw( (string) static::HOME ),
 			'describes' => $present && ( self::in_the_document( $registry ) || array() !== static::live_post_types() ),
 		);
 	}

@@ -18,6 +18,13 @@ final class FluentCrm extends Provider {
 
 	const ID = 'fluentcrm';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: FluentCRM's own `Plugin URI:` header (fluent-crm/fluent-crm.php).
+	 */
+	const HOME = 'https://fluentcrm.com';
+
 	/** Read from FluentCRM's own bootstrap: `fluent-crm.php:20`, `app/App.php:3`. */
 	const CLASSES = array( 'FluentCrm\\App\\App' );
 

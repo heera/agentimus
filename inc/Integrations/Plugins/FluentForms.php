@@ -18,6 +18,13 @@ final class FluentForms extends Provider {
 
 	const ID = 'fluentforms';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: Verified 2026-08-22: 200, no redirect, title 'Fluent Forms - The Fastest WordPress Form Builder'.
+	 */
+	const HOME = 'https://fluentforms.com';
+
 	/** Read from Fluent Forms' own bootstrap: `fluentform.php:17`, `app/App.php:3`. */
 	const CLASSES = array( 'FluentForm\\App\\App' );
 

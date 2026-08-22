@@ -1,7 +1,7 @@
 <script>
 /**
  * One provider row on the PLUGINS tab, from the server's describe() payload:
- * { id, name, blurb, present, describes }.
+ * { id, name, blurb, present, describes, home }.
  *
  * ⭐ THREE states, not two. Installed and described are different facts, and
  * the card used to show only the first: on a site with the whole family
@@ -14,8 +14,13 @@
  * happen if you installed it", which is the honest answer to "what would
  * Agentimus do more of here?".
  *
- * No action button: there is nothing to configure on a provider, and this
- * grid does not grow dead controls.
+ * ⭐ ONE action, and it is a link out: the plugin's own page (his ask,
+ * 2026-08-22). There is still nothing to CONFIGURE on a provider — the card
+ * grows no button — but "what is this thing?" is a real question, and six of the
+ * eight cards on a typical site are plugins the owner does not run yet.
+ * ⛔ A provider with no verified address renders no control at all, exactly as
+ * before. This grid still does not grow dead controls, and it will not send
+ * anyone to a guessed address either.
  */
 import IntegrationCard from '../IntegrationCard.vue';
 
@@ -51,7 +56,7 @@ export default {
   name: 'PluginCard',
   components: { IntegrationCard },
   props: {
-    plugin: { type: Object, required: true }, // { id, name, blurb, present, describes }
+    plugin: { type: Object, required: true }, // { id, name, blurb, present, describes, home }
   },
   computed: {
     brand() {
@@ -66,6 +71,24 @@ export default {
         ? { label: 'Described', tone: 'on' }
         : { label: 'Nothing public', tone: '' };
     },
+    // ⛔ ONE WORD FOR ALL EIGHT, not "Website" on the installed ones and "Learn
+    // more" on the rest. Two reasons, and both are this card's own rules:
+    //   · This component's contract is a UNIFORM-width chip and a uniform ghost
+    //     action — "a column of cards must read as a column of states". Two
+    //     labels are two button widths, and the footer row goes ragged.
+    //   · "Learn more" is advertising copy, and seven of these eight are the
+    //     owner's own company's plugins. Agentimus naming a destination is a
+    //     fact; Agentimus selling one is not its job.
+    // ⭐ "Plugin website" — HIS WORDING, 2026-08-22, and the extra word earns its
+    // place: on a screen whose other tab is full of SERVICES this site connects
+    // to, a bare "Website" leaves open whose website it is.
+    // ⚠️ Sentence case, not Title Case: the app writes its buttons that way
+    // ("Clear history", "Get a key", "Set up sharing", "Write a review") and only
+    // Revoke/Rotate Token break it. ⛔ Not the Title-Case rule — that governs
+    // titles the PLUGIN GENERATES, not controls in its own chrome.
+    actionLabel() {
+      return this.plugin.home ? 'Plugin website' : '';
+    },
     // ⛔ Never claim a cause we did not check. The plugin is here and nothing
     // of its own is public — that is all this says.
     line() {
@@ -79,5 +102,13 @@ export default {
 </script>
 
 <template>
-  <IntegrationCard :brand="brand" :mark="mark" :name="plugin.name" :blurb="line" :chip="chip" />
+  <IntegrationCard
+    :brand="brand"
+    :mark="mark"
+    :name="plugin.name"
+    :blurb="line"
+    :chip="chip"
+    :action="actionLabel"
+    :action-href="plugin.home || ''"
+  />
 </template>

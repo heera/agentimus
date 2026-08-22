@@ -759,13 +759,21 @@ export default {
           </p>
           <div class="ar-int__grid">
             <PluginCard v-for="p in plugins" :key="p.id" :plugin="p" />
-            <!-- The developer card: the door for everyone not on the roster. -->
+            <!-- The developer card: the door for everyone not on the roster.
+                 ⭐ HIS CALL, 2026-08-22: "Learn more", not "Guide". This is the one
+                 card on the tab that sells nothing — it invites a developer to go
+                 read about a hook — so the open-ended phrase belongs HERE rather
+                 than on eight product cards, which now say plainly what they link
+                 to. "Guide" also named a document; this names the errand.
+                 ⚠️ A comment may NOT sit between a component's attributes: Vue's
+                 SFC parser rejects the block outright, and the build fails with a
+                 createDescriptor error that names neither the file nor the line. -->
             <IntegrationCard
               :mark="'</>'"
               name="Your plugin"
               blurb="Any plugin can describe itself to AI assistants through the WP_Discovery hook — one action, no dependency on Agentimus."
               :chip="{ label: 'For developers', tone: '' }"
-              action="Guide"
+              action="Learn more"
               :action-href="devGuide"
             />
           </div>

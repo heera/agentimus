@@ -18,6 +18,13 @@ final class FluentBooking extends Provider {
 
 	const ID = 'fluentbooking';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: Verified 2026-08-22: 200, no redirect, title '… - FluentBooking'.
+	 */
+	const HOME = 'https://fluentbooking.com';
+
 	/** Read from FluentBooking's own bootstrap: `fluent-booking.php:22`, `app/App.php:3`. */
 	const CLASSES = array( 'FluentBooking\\App\\App' );
 

@@ -19,6 +19,13 @@ final class FluentSupport extends Provider {
 	const ID = 'fluentsupport';
 
 	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: Verified 2026-08-22: 200, no redirect, title 'Fluent Support: Best Support Ticket Plugin for WordPress'.
+	 */
+	const HOME = 'https://fluentsupport.com';
+
+	/**
 	 * ⚠️ THE FALLBACK NAMED A CONSTANT THAT HAS NEVER EXISTED. It read
 	 * `FLUENTSUPPORT_PLUGIN_PATH`; Fluent Support defines `FLUENT_SUPPORT_VERSION`,
 	 * `FLUENT_SUPPORT_PLUGIN_PATH` and the rest — every one with the underscore

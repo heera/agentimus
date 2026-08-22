@@ -25,6 +25,13 @@ final class FluentCart extends Provider {
 
 	const ID = 'fluentcart';
 
+	/**
+	 * The plugin's own page, so a card can open it.
+	 *
+	 * ⛔ NEVER GUESSED. Source: FluentCart's own `Plugin URI:` header (fluent-cart/fluent-cart.php).
+	 */
+	const HOME = 'https://fluentcart.com';
+
 	/** The store's own product type — public, and the readable half of the shop. */
 	const PRODUCT_TYPE = 'fluent-products';
 
