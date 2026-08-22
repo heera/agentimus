@@ -373,7 +373,20 @@ export default {
         <ul v-if="endpoints.length" class="ar-wd-eps">
           <li v-for="(e, i) in endpoints" :key="i" :class="{ 'is-held': e.open && e.open.published === false }">
             <span class="ar-wd-ep__type">{{ e.type }}</span>
-            <code>{{ e.url }}</code>
+            <!-- ⭐ HIS ASK, 2026-08-22: an owner should be able to open what an
+                 assistant would fetch, rather than read the address and retype it.
+                 ⛔ HIS CALL in the same breath — only the doors genuinely open to
+                 anyone become links. An address behind a sign-in would answer a
+                 click with a 401, and a link that reliably fails is worse than no
+                 link: it teaches the owner that the row is broken when the row is
+                 correct. Those keep the plain `code`, and the pill four pixels
+                 away already says why in words.
+                 ⚠️ Asked of authIsOpen(), NOT of `is-held`. `is-held` is only the
+                 narrower "we checked and it refused a stranger"; a row registered
+                 as needing a key is not held, is not struck through, and would
+                 still 401. One question, asked of the scheme. -->
+            <a v-if="e.href && authIsOpen(e)" class="ar-wd-ep__link" :href="e.href" target="_blank" rel="noopener"><code>{{ e.url }}</code></a>
+            <code v-else>{{ e.url }}</code>
             <span class="ar-wd-auth" :class="`is-${authIsOpen(e) ? 'open' : 'locked'}`">{{ authLabel(e) }}</span>
             <!-- The background check's own sentence about this address, whether it
                  passed or not — a verdict is worth as much when it is good — and

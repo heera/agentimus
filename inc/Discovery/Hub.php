@@ -197,6 +197,45 @@ final class Hub {
 	}
 
 	/**
+	 * One declared address, as something the owner can actually open.
+	 *
+	 * ⭐ RESOLVED THE WAY THE BACKGROUND CHECK RESOLVES IT — `home_url()` on the
+	 * registered path, the same call Reachability::ask_over_http() makes — so the
+	 * address the owner clicks is byte-for-byte the address we probed and reported
+	 * on. Two surfaces describing one address may not compute it two ways.
+	 *
+	 * ⚠️ In practice the Envelope has already absolutized the address before the
+	 * Hub reads it, so the site-relative branch below rarely fires on a registered
+	 * provider. It is a floor, not the mechanism: this method's real job is to
+	 * answer "is this openable at all?" with an address or with ''.
+	 *
+	 * ⛔ An already-absolute address is passed through untouched, including one
+	 * pointing off this site: that is somebody else's server, we never check it,
+	 * and rewriting it here would be inventing a claim about a host we know
+	 * nothing about.
+	 *
+	 * ⛔ Anything else returns '' rather than a guess. The panel renders a row
+	 * with no resolved address as plain text — which is what it did for every row
+	 * before this existed, so an address we cannot resolve is no worse off.
+	 *
+	 * @param string $url The address as registered: site-relative or absolute.
+	 * @return string An absolute address, or '' when it cannot be resolved.
+	 */
+	private static function openable( $url ) {
+		$url = trim( (string) $url );
+		if ( '' === $url ) {
+			return '';
+		}
+		if ( '/' === $url[0] && ( ! isset( $url[1] ) || '/' !== $url[1] ) ) {
+			return esc_url_raw( home_url( $url ) );
+		}
+		if ( preg_match( '#^https?://#i', $url ) ) {
+			return esc_url_raw( $url );
+		}
+		return '';
+	}
+
+	/**
 	 * What we know about whether one advertised address really opens for a
 	 * stranger — and, when it does not, the sentence the owner needs.
 	 *
@@ -408,6 +447,17 @@ final class Hub {
 				static function ( $endpoint ) use ( $resource ) {
 					return array(
 						'url'  => $endpoint['url'],
+						// The same address as something the panel can offer as a link
+						// (his ask, 2026-08-22).
+						// ⚠️ NOT a second resolution of `url`: the Envelope has already
+						// absolutized every resource by the time we read it, with the same
+						// home_url() call, so on a registered provider these two normally
+						// hold the identical string. What this field adds is the GUARANTEE
+						// — it is either an openable http(s) address or '', and the panel
+						// renders plain text on ''. Linking `url` directly would hand an
+						// href to whatever Resource::url() let through, a site-relative
+						// path or an unresolvable scheme included.
+						'href' => self::openable( $endpoint['url'] ),
 						'type' => $endpoint['type'],
 						'auth' => '' !== $endpoint['auth'] ? $endpoint['auth'] : 'none',
 						// ⭐ Why an address the owner can see here may not be in the

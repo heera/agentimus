@@ -116,8 +116,15 @@ export default {
           (r) => Array.isArray(r.endpoints) && r.endpoints.some((e) => e.url === url)
         );
         const authType = a.auth && a.auth.type ? a.auth.type : 'none';
+        // The resolved address to open, taken from the endpoint this row is a
+        // recap OF — never recomputed here. The summary and the row below it are
+        // two views of one address, and two views may not resolve it two ways.
+        const twin = owner
+          ? (owner.endpoints || []).find((e) => e.url === url)
+          : null;
         return {
           url,
+          href: twin && twin.href ? twin.href : '',
           type: String(a.type || 'rest').toUpperCase(),
           // ⛔ Never the raw scheme. This chip read "apikey" four pixels from a
           // state pill saying "Needs a key" — one fact, two labels, one of them
@@ -669,7 +676,14 @@ export default {
             <ul class="ar-wd-addrs__list">
               <li v-for="a in publishedAddresses" :key="a.url">
                 <span class="ar-wd-addrs__type">{{ a.type }}</span>
-                <code>{{ a.url }}</code>
+                <!-- ⚠️ THIS LIST IS A RECAP OF THE ROWS BELOW IT, so it follows the
+                     same rule they do: only a door genuinely open to anyone becomes
+                     a link. Linking here and not there — or the reverse — would show
+                     one address twice on one screen, clickable once. `a.open` is the
+                     BOOLEAN from isOpenToAnyone(), not the row's `open` verdict
+                     object; two different ideas, and only the name is shared. -->
+                <a v-if="a.href && a.open" class="ar-wd-ep__link" :href="a.href" target="_blank" rel="noopener"><code>{{ a.url }}</code></a>
+                <code v-else>{{ a.url }}</code>
                 <span v-if="a.provider" class="ar-wd-addrs__src">{{ a.provider }}</span>
                 <span class="ar-wd-auth" :class="a.open ? 'is-open' : 'is-locked'">{{ a.auth }}</span>
               </li>
