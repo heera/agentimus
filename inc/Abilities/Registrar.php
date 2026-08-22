@@ -87,7 +87,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement' );
 
 	/** @var Settings */
 	private $settings;
@@ -1822,6 +1822,212 @@ final class Registrar {
 			}
 		);
 
+
+		/* -- Announcements & integrations ------------------------------------ */
+		$this->add(
+			'read-announcements',
+			__( 'Read the announcement ledger', 'agentimus' ),
+			'Returns what this site has queued, posted or failed to post to its social channels, newest '
+				. 'first. `status` is one of queued / sent / failed / cancelled. A FAILED row carries `error` '
+				. 'saying what the network answered — that sentence is the whole point of this tool, because '
+				. 'it is the only place the reason survives. `retry-announcement` can re-queue a failed row; '
+				. 'nothing here can write a new announcement. '
+				. '⛔ This lists what was SCHEDULED, not what a network shows now: a post deleted at the '
+				. 'network still reads "sent" here, because this is the site’s own record of what it sent.',
+			array(
+				'type'                 => 'object',
+				'properties'           => array(
+					'page' => self::i( 'Which page of the ledger (1-based, 20 a page).' ),
+				),
+				'additionalProperties' => false,
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'rows'    => self::arr(
+						array(
+							'id'          => self::s( 'Pass this to retry-announcement.' ),
+							'postId'      => self::i( 'The post being announced — 0 if the row has none.' ),
+							'network'     => self::s( 'Where it goes: x, linkedin, telegram, …' ),
+							'status'      => self::s( 'queued · sent · failed · cancelled.' ),
+							'title'       => self::s( 'The post being announced.' ),
+							'scheduledAt' => self::s( 'ISO 8601, UTC. When it goes out, or went.' ),
+							'error'       => self::s( 'Why it failed, in the network’s own words. Empty unless status is "failed".' ),
+							'canRetry'    => self::b( 'TRUE only on a failed row — retry-announcement refuses anything else.' ),
+						)
+					),
+					'summary' => self::obj(
+						array(
+							'queued'    => self::i(),
+							'failed'    => self::i( 'Rows worth telling the owner about.' ),
+							'sent'      => self::i(),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$in   = is_array( $input ) ? $input : array();
+				$page = isset( $in['page'] ) ? max( 1, (int) $in['page'] ) : 1;
+
+				$ann  = new \Agentimus\Integrations\Announcements( $this->settings );
+				$list = (array) $ann->rows( $page, 20 );
+				$rows = array();
+				// ⛔ A STORED ROW HAS NO TITLE — it keeps `post_id` and `body`. Reading
+				// a 'title' key off it returns nothing on every row, which is a bug
+				// that looks like an empty ledger rather than like a mistake. The name
+				// comes from the post, through the one decoder.
+				foreach ( (array) ( isset( $list['rows'] ) ? $list['rows'] : array() ) as $r ) {
+					$r       = (array) $r;
+					$status  = isset( $r['status'] ) ? (string) $r['status'] : '';
+					$post_id = isset( $r['post_id'] ) ? (int) $r['post_id'] : 0;
+					$rows[]  = array(
+						'id'          => (string) ( isset( $r['id'] ) ? $r['id'] : '' ),
+						'postId'      => $post_id,
+						'network'     => isset( $r['network'] ) ? (string) $r['network'] : '',
+						'status'      => $status,
+						'title'       => $post_id > 0 ? \Agentimus\Worklist::title_of( $post_id ) : '',
+						'scheduledAt' => ! empty( $r['scheduled_at'] ) ? gmdate( 'c', (int) $r['scheduled_at'] ) : '',
+						'error'       => isset( $r['error'] ) ? (string) $r['error'] : '',
+						'canRetry'    => 'failed' === $status,
+					);
+				}
+
+				$sum = (array) $ann->summary();
+				return array(
+					'rows'    => $rows,
+					'summary' => array(
+						'queued' => (int) ( isset( $sum['queued'] ) ? $sum['queued'] : 0 ),
+						'failed' => (int) ( isset( $sum['failed'] ) ? $sum['failed'] : 0 ),
+						'sent'   => (int) ( isset( $sum['sent'] ) ? $sum['sent'] : 0 ),
+					),
+				);
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-integrations',
+			__( 'See what this site is connected to', 'agentimus' ),
+			'Returns the services this site sends its own reports to (Telegram, Slack, Discord, a Google '
+				. 'Sheet, a webhook), and the plugins whose content it describes to AI assistants. Use it to '
+				. 'answer "is anything broken?" — `state` and `lastError` say whether a channel is actually '
+				. 'delivering, and `queued` how many reports are waiting behind a failure. '
+				. '⛔ NO ADDRESS OR CREDENTIAL IS RETURNED, and that is deliberate rather than an oversight: '
+				. 'a Slack or Discord webhook URL IS the power to post in that channel, and a Telegram chat '
+				. 'id plus the bot token is the same. `connected` tells you whether one is set; nothing here '
+				. 'hands over the means to use it. '
+				. '⛔ Read-only. Connecting, disconnecting and turning a channel off all ask the owner to '
+				. 'confirm in the admin, so no tool here can do them.',
+			array(
+				'type'                 => 'object',
+				'properties'           => new \stdClass(),
+				'additionalProperties' => false,
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'services' => self::arr(
+						array(
+							'id'              => self::s( 'webhook · telegram · slack · discord · sheets.' ),
+							'connected'       => self::b( 'Whether the owner has set this one up. ⛔ The address itself is never returned.' ),
+							'enabled'         => self::b( 'Whether it is switched on. A service can be connected and off.' ),
+							// ⛔ A PLAIN STRING LIST. self::arr() takes ITEM PROPERTIES and
+							// builds an array of OBJECTS — declaring it that way made the
+							// whole ability return a WP_Error the moment any service had an
+							// event set, which is every site that uses this feature. It only
+							// showed once the field was forced to populate.
+							'events'          => array(
+								'type'        => 'array',
+								'items'       => array( 'type' => 'string' ),
+								'description' => 'Which moments it receives.',
+							),
+							'queued'          => self::i( 'Reports waiting to go out. A number that only grows means deliveries are failing.' ),
+							'stalledForSecs'  => self::i( 'How long the queue has been stuck, 0 when moving.' ),
+							'lastDeliveredAt' => self::s( 'ISO 8601, UTC. Empty when nothing has ever landed.' ),
+							'lastError'       => self::s( 'The most recent failure in plain words, empty when healthy. A success clears it.' ),
+						)
+					),
+					'plugins'  => self::arr(
+						array(
+							'id'        => self::s(),
+							'name'      => self::s( 'What the plugin calls itself.' ),
+							'installed' => self::b( 'Whether it runs on this site.' ),
+							'described' => self::b( 'Whether anything of its content reaches AI assistants. FALSE on an installed plugin means it keeps everything behind a login.' ),
+							'home'      => self::s( 'The plugin’s own page, empty when none is held.' ),
+						)
+					),
+				)
+			),
+			function () {
+				$dispatcher = new \Agentimus\Integrations\Dispatcher( $this->settings );
+				$services   = array();
+
+				// ⛔ A DELIBERATE PROJECTION, never a reuse of the admin payload:
+				// that one carries the webhook/Slack/Discord URLs and the Telegram
+				// chat id, and those are credentials in effect — a Slack webhook URL
+				// IS the power to post in that channel. Every field below is named on
+				// purpose; adding one means deciding it is safe to hand an agent,
+				// not noticing it was already in the array.
+				// ⚠️ Namespace is …\Integrations\Services, NOT …\Integrations. The
+				// first cut had it wrong, is_callable() answered false for all five,
+				// and the loop produced an EMPTY list in silence — every site would
+				// have read "nothing connected".
+				$map = array(
+					'webhook'  => '\Agentimus\Integrations\Services\Webhook',
+					'telegram' => '\Agentimus\Integrations\Services\Telegram',
+					'slack'    => '\Agentimus\Integrations\Services\Slack',
+					'discord'  => '\Agentimus\Integrations\Services\Discord',
+					'sheets'   => '\Agentimus\Integrations\Services\Sheets',
+				);
+				foreach ( $map as $id => $klass ) {
+					if ( ! class_exists( $klass ) ) {
+						continue;
+					}
+					$cfg   = (array) $klass::config( $this->settings );
+					// ⚠️ state() returns an ARRAY (lastDeliveredAt / lastError /
+					// lastErrorAt), not a word. Casting it to string yields "Array".
+					$state = (array) $klass::state();
+
+					// "Connected" is asked of whatever THIS service needs — the keys
+					// differ (url · chat · spreadsheet) — and never of a field we then
+					// return. The address stays in here.
+					$connected = false;
+					foreach ( array( 'url', 'chat', 'spreadsheet' ) as $needle ) {
+						if ( ! empty( $cfg[ $needle ] ) ) {
+							$connected = true;
+						}
+					}
+
+					$services[] = array(
+						'id'              => (string) $id,
+						'connected'       => $connected,
+						'enabled'         => ! empty( $cfg['enabled'] ),
+						'events'          => array_values( array_map( 'strval', (array) ( isset( $cfg['events'] ) ? $cfg['events'] : array() ) ) ),
+						'queued'          => (int) $dispatcher->depth_for( $id ),
+						'stalledForSecs'  => (int) $dispatcher->stalled_for( $id ),
+						'lastDeliveredAt' => ! empty( $state['lastDeliveredAt'] ) ? gmdate( 'c', (int) $state['lastDeliveredAt'] ) : '',
+						'lastError'       => isset( $state['lastError'] ) ? (string) $state['lastError'] : '',
+					);
+				}
+
+				$plugins  = array();
+				$document = \Agentimus\Discovery\Registry::instance()->collect();
+				foreach ( \Agentimus\Integrations\Plugins\Provider::ROSTER as $class ) {
+					$card      = (array) $class::describe( $document );
+					$plugins[] = array(
+						'id'        => isset( $card['id'] ) ? (string) $card['id'] : '',
+						'name'      => isset( $card['name'] ) ? (string) $card['name'] : '',
+						'installed' => ! empty( $card['present'] ),
+						'described' => ! empty( $card['describes'] ),
+						'home'      => isset( $card['home'] ) ? (string) $card['home'] : '',
+					);
+				}
+
+				return array( 'services' => $services, 'plugins' => $plugins );
+			},
+			$manage
+		);
+
 		$this->register_resource_abilities();
 
 		// The write tier exists only when the owner deliberately turned it on — AND the
@@ -1937,6 +2143,8 @@ final class Registrar {
 			false,
 			array( 'uri' => home_url( '/.well-known/agent-card.json' ), 'mimeType' => 'application/json' )
 		);
+
+
 	}
 
 	/**
@@ -2301,6 +2509,55 @@ final class Registrar {
 			$manage,
 			false
 		);
+
+		/* -- Announcements (write) ------------------------------------------- */
+
+
+
+		$this->add(
+			'retry-announcement',
+			__( 'Try a failed announcement again', 'agentimus' ),
+			'Re-queues ONE announcement that failed, so it goes out on the next dispatch. '
+				. '⛔ THIS IS THE ONLY ANNOUNCEMENT ACTION AN AGENT GETS, and the reason is a rule about this '
+				. 'plugin, not about this tool: cancel, post-now and remove each ask the owner to confirm in '
+				. 'the admin, and an action does not survive losing its human gate. Retry does not ask, '
+				. 'because it only re-queues something the owner already scheduled and the network already '
+				. 'refused — it cannot invent a post, change its words, or send it anywhere new. '
+				. '⚠️ Refused on any row that is not "failed". Read read-announcements first and send an id '
+				. 'whose canRetry is true.',
+			self::obj( array( 'id' => self::s( 'The row id from read-announcements.' ) ), array( 'id' ) ),
+			self::obj(
+				array(
+					'retried' => self::b( 'TRUE when the row is back in the queue.' ),
+					'status'  => self::s( 'What the row says now — "queued" after a successful retry.' ),
+					'message' => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				$id = isset( $in['id'] ) ? sanitize_text_field( (string) $in['id'] ) : '';
+				if ( '' === $id ) {
+					return new \WP_Error( 'agentimus_announce_id', __( 'Which announcement? Send an id from read-announcements.', 'agentimus' ), array( 'status' => 400 ) );
+				}
+
+				$ann = new \Agentimus\Integrations\Announcements( $this->settings );
+				$out = $ann->retry( $id );
+				if ( is_wp_error( $out ) ) {
+					return $out; // Already says "only a failed announcement can be tried again".
+				}
+
+				return array(
+					'retried' => true,
+					'status'  => 'queued',
+					'message' => __( 'Back in the queue — it goes out on the next dispatch.', 'agentimus' ),
+				);
+			},
+			$manage,
+			false // Writes.
+		);
+
+
+
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -2359,6 +2616,14 @@ final class Registrar {
 			// list over every subsystem) and the people/machines audience split.
 			self::CATEGORY . '/read-findings',
 			self::CATEGORY . '/read-audience',
+			// ⭐ The two "is anything broken?" reads. The ledger is the only place a
+			// failed announcement's REASON survives — the admin shows it on a
+			// tooltip and nowhere else — and read-integrations answers whether a
+			// channel is actually delivering. ⛔ read-integrations returns no
+			// address and no credential: a Slack webhook URL IS the power to post
+			// in that channel.
+			self::CATEGORY . '/read-announcements',
+			self::CATEGORY . '/read-integrations',
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {
