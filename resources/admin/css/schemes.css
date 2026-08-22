@@ -990,6 +990,22 @@ body.admin-color-light {
    specific, which is what leaves the rug the only thing that moves. */
 :root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card { border-color: var(--ar-line); }
 :root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card__label { color: var(--ar-ink-faint); }
+/* ⚠️⚠️ THE TWO RULES ABOVE RESTATE "THE DAY'S ANSWER", AND THE DAY'S ANSWER MOVED
+   (2026-08-22). They were written when every rail kicker was a quiet grey and the
+   only hover on the registration row was a background wash. Both changed, and
+   because these selectors carry (0,4,1) they went on quietly winning against the
+   new rules, which sit at (0,1,0) and (0,3,0). His catch: on THIS scheme at night
+   the border did not swap on hover and the kicker stayed grey.
+   ⛔ THE LESSON, and it cost a whole sweep: a scheme block that "restates the
+   day" has to be re-read whenever the day changes, and a token-value sweep CANNOT
+   see this — I measured what --ar-good and --ar-line would produce in all thirteen
+   rooms and every one passed, because the arithmetic was right and a more
+   specific rule was throwing the result away. ⭐ Sweep the CASCADE, not just the
+   tokens: ask which rule actually wins for the property, in the room.
+   ⭐ These two restate the day as it is NOW. */
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-card__label--mark { color: var(--ar-accent); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-regcard.is-ok:hover { border-color: color-mix(in srgb, var(--ar-good) 60%, transparent); }
+:root[data-ar-theme="dark"] body.admin-color-light .ar-rail-regcard.is-alert:hover { border-color: color-mix(in srgb, var(--ar-warn) 60%, transparent); }
 /* ⭐ THE ONE THING THAT CHANGES AT NIGHT ON THIS SCHEME: the rug. Everything
    else above is the day's, restated. The card inverts to his charcoal, the way
    it does on every other scheme by day — and that hands its colours back their

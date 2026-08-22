@@ -190,7 +190,16 @@
      card beside it keeps the gap — his catch 2026-08-21, "the right sidebar is a
      little bit above the left section". Level at scroll 0 and 14px too high from
      the first scroll onward, which is exactly the shape of that bug. */
-  --ar-body-top: 17px;
+  /* ⭐ 24px, 2026-08-22, and it is SPENT HEADROOM rather than a free choice. This
+     was 17px because the rail ran past the fold — the credit line sat 6px under it
+     at a 933px viewport, and 17 was as much air as the top could take. Tightening
+     the rail's file lists that evening (see .ar-rail-links li) shortened the column
+     754px → 704px and put the credit 48px ABOVE the fold, so 7px of it buys the
+     header the air it always wanted.
+     ⛔ IT COSTS HEADROOM 1:1 — the sticky rail offset ADDS this token, so every
+     pixel here pushes the rail down by one. At 24px the credit clears the fold on
+     any viewport ≥ 892px. Raise it further only after re-measuring that. */
+  --ar-body-top: 24px;
   /* WP admin-bar height — the sticky header sits flush below it. 32px on desktop; 46px in
      the responsive-admin band; 0 once the bar stops being fixed (≤600px) and scrolls away. */
   --ar-adminbar: 32px;
@@ -1595,7 +1604,16 @@ body { --ar-bar: var(--ar-accent); }
 /* ⚠️ THE OFFSET IS HEADER + THE PAGE'S OWN TOP GAP. Dropping --ar-body-top from
    this calc pins the column flush under the header while the content column
    keeps its air, so the two stop agreeing the moment you scroll. */
-.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + var(--ar-bar-h) + var(--ar-head-h) + var(--ar-body-top)); display: grid; gap: 14px; align-content: start; padding-bottom: 6px; }
+/* ⭐ 16px between cards, matching each card's own 16px vertical padding — so a
+   card is never nearer its neighbour than it is to its own heading. At 14px the
+   grouping read backwards: 14 out, 16 in.
+   ⛔ NOT the content column's 22px. The rail is the narrow, quiet column and its
+   cards are smaller; matching that number would loosen it into a second content
+   column. What transfers is the RELATIONSHIP — gap ≥ internal padding — not the
+   value.
+   ⚠️ Costs 8px of rail headroom (4 gaps × 2). Measured after: the credit line
+   still clears the fold above 900px. */
+.ar__rail { position: sticky; top: calc(var(--ar-adminbar) + var(--ar-bar-h) + var(--ar-head-h) + var(--ar-body-top)); display: grid; gap: 16px; align-content: start; padding-bottom: 6px; }
 /* A grid item's min-width defaults to `auto`, so it refuses to shrink below its content's
    min-content width — and a <button> ignores its own `overflow: hidden` when contributing
    to that minimum. So one long next-step label ("Next: AI Visibility is failing")
@@ -1627,6 +1645,29 @@ body { --ar-bar: var(--ar-accent); }
   text-transform: uppercase;
   color: var(--ar-ink-faint);
 }
+/* ⭐ THE MARKED KICKERS TAKE THE ACCENT — his catch, 2026-08-22, after the mark
+   beside them was given an accent edge: "the icon now highlights but the header
+   text dims down, looks mismatched." He was right, and the cause was older than
+   the icon.
+   ⭐⭐ THE TWO MODES ALREADY DISAGREED. Dark has keyed these kickers to
+   --ar-chrome since the theming arc (see the [data-ar-theme="dark"] block far
+   above), which resolves to the accent — 6.07:1, a green heading. LIGHT was
+   still on --ar-ink-faint at 3.01:1. So one mode led with colour and the other
+   whispered in grey, and the accent edge simply made the gap visible. This rule
+   brings light into line rather than inventing a third treatment.
+   ⛔ It also fixes a plain fault: 3.01:1 is UNDER the 4.5:1 floor for text. The
+   line that says what the card IS was the least readable thing in it, while the
+   filenames below sat at 17.28:1 — the hierarchy was upside down.
+   ⚠️ ACCENT AS TEXT IS SAFE **HERE AND ONLY HERE**: SchemeInk::carries_text()
+   gates the derived accent at 4.5:1 against `#fffdf7`, the LIGHT card, so light
+   rooms are guaranteed (base 5.17, blue 4.50, light-scheme 5.77). ⛔ The same
+   token is NOT safe as text on the dark grounds — ectoplasm dark measures
+   3.39:1 — which is why this rule is not written for both modes and why the
+   endpoint links elsewhere in this file keep their ink. Dark is already handled
+   by --ar-chrome, whose value is chosen per room.
+   ⛔ Scoped to --mark, not to every rail kicker: the readiness card's label has
+   its own --rail-face treatment and must not take a token mixed for paper. */
+.ar-rail-card__label--mark { color: var(--ar-accent); }
 .ar-rail-link {
   /* Margin, not padding: the 10px above the words is spacing from the rung
      list, and must not be part of what the pointer can hover. */
@@ -1684,14 +1725,70 @@ body { --ar-bar: var(--ar-accent); }
    scheme: this file spent the whole arc removing those.
    ⭐ The border joins it, keyed to the accent rather than to --ar-line-strong,
    so the whole card answers as one object. */
-.ar-rail-regcard.is-ok:hover {
-  background: var(--ar-accent-wash);
-  border-color: var(--ar-accent-soft);
-}
+/* ⛔ NO GROUND ON HOVER — his call, 2026-08-22: the card must not repaint, only
+   its contents brighten.
+   ⚠️⚠️ AND THAT UNDOES A FIX, DELIBERATELY, SO READ THIS BEFORE PUTTING IT BACK.
+   The wash was added on 2026-08-21 precisely because a colour-only hover was a
+   NO-OP on most rooms: at night the base palette declares --ar-good: var(--ar-accent),
+   so recolouring this row to the accent repainted it the colour it already wore.
+   ⭐ What makes the hover work now without a ground is BRIGHTNESS, not hue: the
+   ring sits at 0.9 opacity and goes to 1 (see .ar-rail-regcard__icon svg). That
+   moves on every scheme in both modes, because it does not depend on two tokens
+   being different. ⛔ If the ring's opacity step is ever removed, this hover goes
+   back to being invisible on eleven night rooms — restore the wash in the same
+   commit or the row stops answering the pointer. */
+/* ⭐ THE HOVER EDGE, MEASURED AGAINST WHAT THE BORDER ACTUALLY IS IN EACH MODE.
+   His catch, 2026-08-22: at night the border looked REMOVED on hover. Two faults
+   stacked:
+     · --ar-accent-soft (the old is-ok hover) is 1.30:1 by day and 1.45:1 at
+       night — fainter than the resting edge in both. The "highlight" was a step
+       DOWN.
+     · ⚠️⚠️ And --ar-line-strong, the obvious fix, is ALSO a step down at night:
+       dark re-keys this card's resting border to --ar-chrome-line (2.05:1), which
+       is STRONGER than --ar-line-strong (1.75:1). A hover written against the
+       light-mode resting value is wrong in the other room.
+   ⭐ 60% of the state colour clears the resting edge in both: 1.33 → 2.45 by day,
+   2.05 → 3.15 at night. ⛔ Any future value here must be measured against
+   --ar-line by day AND --ar-chrome-line at night, not against one of them. */
+.ar-rail-regcard.is-ok:hover { border-color: color-mix(in srgb, var(--ar-good) 60%, transparent); }
+.ar-rail-regcard.is-alert:hover { border-color: color-mix(in srgb, var(--ar-warn) 60%, transparent); }
+/* ⛔⛔ --ar-ink, NOT --ar-accent, AND THIS IS THE WHOLE LESSON OF THIS ROW.
+   The hover recoloured good → accent, and those two tokens are the SAME COLOUR in
+   dark (both #8ab685) and 1.00:1 apart in light. So the text never changed, in
+   either mode — his catch 2026-08-22, and the third time this row's hover has been
+   found doing nothing.
+   ⭐ THE RULE THAT COMES OUT OF IT: a hover on this row may never be expressed as
+   good → accent. Those two are declared equal on most schemes by design. Express
+   it in the INK and LINE ladders, which every room defines with real separation:
+   good → ink measures 3.35:1 by day and 1.74:1 at night, and the ring's opacity
+   step and the border step ride alongside it. Three signals, none of which depend
+   on two coloured tokens happening to differ. */
 .ar-rail-regcard.is-ok:hover,
-.ar-rail-regcard.is-ok:hover .ar-rail-regcard__go { color: var(--ar-accent); }
+.ar-rail-regcard.is-ok:hover .ar-rail-regcard__go { color: var(--ar-ink); }
 .ar-rail-regcard:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
-.ar-rail-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+/* ⭐ HIS PICK, 2026-08-22: the list hangs under the HEADING TEXT, not under the
+   card's left edge — so the mark and its kicker read as one header line and the
+   files as that line's contents, instead of four things sharing one margin.
+   ⚠️ 27px is the mark's 18px plus the 9px gap in .ar-rail-card__label--mark, so
+   the ↳ starts exactly where the kicker's first letter does. ⛔ Change either of
+   those two values and this one has to follow, or the alignment silently drifts —
+   it already did once, when the mark went 22px → 18px and this stayed at 31.
+   ⭐ MEASURED for the wrap it could have caused: the longest item,
+   `mcp/server-card.json`, is 178.4px against 224px of room after the indent —
+   46px of headroom, so nothing wraps at the rail's width. */
+.ar-rail-links { margin: 0 0 0 27px; padding: 0; list-style: none; display: grid; gap: 9px; }
+/* ⭐ HIS CALL, 2026-08-22: tighten the rows.
+   ⚠️⚠️ AND IT IS THE `li` THAT HOLDS THEM APART, NOT THE ANCHOR — setting
+   line-height on `.ar-rail-links a` first did NOTHING, because the anchor is an
+   inline-flex box only 15.6px tall sitting inside a 21px li. The pitch was 36px
+   from THREE stacked sources, measured:
+       li line-height   21px   (the li's own 14px font at 1.5)
+     + li margin-bottom  6px   ⛔ wp-admin's default on every <li>, never declared here
+     + grid row-gap      9px
+   ⭐ 1.35 on the li, and the borrowed margin zeroed: 19 + 9 = 28px pitch. The
+   gap is left alone so ONE value still owns the rhythm between rows.
+   ⛔ Do not "fix" this by putting line-height back on the anchor. */
+.ar-rail-links li { margin: 0; line-height: 1.35; }
 .ar-rail-links a {
   display: inline-flex; align-items: center; gap: 7px;
   /* 88% ink, the same key the readiness card's rung labels are set at (his
@@ -1700,6 +1797,14 @@ body { --ar-bar: var(--ar-accent); }
      filenames. One level for the whole rail. */
   font-family: var(--ar-mono); font-size: 12.5px; text-decoration: none;
   color: color-mix(in srgb, var(--ar-ink) var(--rail-read), transparent);
+  /* ⛔ OPACITY, NOT A LOWER --rail-read: that key is SHARED with the readiness
+     rungs and tuned per scheme (88/74/76/100), so lowering it would dim four
+     other things and discard four tunings. Opacity multiplies whatever the
+     cascade resolved, so every room keeps its own reading and dims by the same
+     proportion — and it takes the ↳ and ↗ with it, which is right.
+     ⚠️ `calc(var(--rail-read) * n)` inside color-mix does NOT work here — it
+     leaves the alpha untouched. Don't reach for it. */
+  opacity: 0.78;
 }
 .ar-rail-links a::before { content: "↳"; color: var(--ar-accent); }
 /* Every link here opens in a new tab — the ↗ answers the ↳ and says so up
@@ -1710,7 +1815,9 @@ body { --ar-bar: var(--ar-accent); }
    and ink, and must outrank the app-wide outbound mark that comes later in
    this file — same specificity would have let source order decide. */
 #agentimus-app .ar-rail-links.ar-rail-links a::after { content: "\2197\FE0E"; font-size: 10.5px; margin-left: 0; opacity: 1; vertical-align: baseline; color: var(--ar-ink-faint); transition: color 0.15s; }
-.ar-rail-links a:hover { color: var(--ar-accent); }
+/* ⭐ Full strength on hover: the dimming is a resting state, and the pointer
+   should be answered by the row lifting to meet it, not only by a hue change. */
+.ar-rail-links a:hover { color: var(--ar-accent); opacity: 1; }
 .ar-rail-links a:hover::after { color: var(--ar-accent); }
 
 /* Validation chip — compact at-a-glance status. The all-clear state lives here
@@ -5119,6 +5226,43 @@ button.ar-wd-stat:focus-visible { outline: 2px solid var(--ar-accent); outline-o
    than ~220px (a phone), wraps to its own full-width line — without this it
    was squeezed to a one-character-per-line column on narrow screens. */
 .ar-wd-eps code { font-size: 12px; color: var(--ar-ink); flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+/* An address anyone can open, offered as a link (his ask, 2026-08-22).
+   ⚠️⚠️ THE FLEX MOVES WITH IT. `flex: 1 1 220px` above is written for a `code`
+   that is a DIRECT child of the row; wrapping that `code` in an anchor makes the
+   ANCHOR the flex item and leaves the declaration above inert — the address would
+   shrink to its own width and stop wrapping to a full line on a phone, which is
+   the exact fault the rule above was written to fix. So the anchor takes it, and
+   the `code` inside goes back to being ordinary inline text.
+   ⭐ The ↗ is not typed here: the app-wide outbound rule draws it on anything
+   with target="_blank", so this link cannot forget its mark — and since only the
+   doors open to anyone are links, that mark is also what separates, at a glance,
+   what a stranger can read from what needs a sign-in. ⛔ It is not carrying that
+   alone: the auth pill is on every row, linked or not. */
+.ar-wd-ep__link { text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+/* ⛔⛔ THE ADDRESS KEEPS ITS INK — it does NOT take --ar-accent, and this was
+   measured before it was decided. carries_text() gates the derived accent at
+   4.5:1 against INK_TEXT, which is `#fffdf7` — THE LIGHT CARD, and only the
+   light card. Nothing has ever guaranteed the accent against the dark rooms'
+   own surfaces, and four of them fail it: ectoplasm 3.39:1 (#7c8841 on #3a2853),
+   sunrise 4.18, ocean 4.45, midnight 4.47. An accented address would have
+   shipped a 3.39:1 line of body text into a room nobody would have thought to
+   check.
+   ⭐ In the same rooms the ink these addresses ALREADY wear measures 7.27:1 to
+   11.70:1. So the link inherits the colour the text had before it was a link,
+   and this change adds no contrast risk anywhere: only the ↗ and the hover are
+   new. ⛔ Do not "make links look like links" by re-keying this to the accent
+   without re-measuring the seven dark rooms.
+   ⭐ Which is also the rail's own convention (.ar-rail-links): ink at rest,
+   accent on hover. A hover is momentary and may take a colour a paragraph
+   may not. */
+.ar-wd-ep__link:hover code { color: var(--ar-accent); text-decoration: underline; }
+.ar-wd-ep__link:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; border-radius: 3px; }
+/* ⚠️ THE FLEX IS PER LIST, because the two lists size their address differently
+   — the doors give it a 220px basis so it drops to its own line on a phone, the
+   recap above them lets it take what is left. Each anchor inherits its own
+   list's rule, and the `code` inside stops being a flex item at all. */
+.ar-wd-eps .ar-wd-ep__link { flex: 1 1 220px; }
+.ar-wd-addrs__list .ar-wd-ep__link { flex: 1 1 auto; }
 .ar-wd-auth { font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
 .ar-wd-auth.is-open { color: var(--ar-good); border-color: var(--ar-good-tint); background: var(--ar-good-wash); }
 .ar-wd-auth.is-locked { color: var(--ar-warn); border-color: var(--ar-warn-tint); background: var(--ar-warn-wash); }
@@ -8565,10 +8709,16 @@ body {
   font-family: var(--ar-mono); font-size: 10.5px;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--ar-ink-faint);
 }
+/* ⛔ CHANGED WITH THE RAIL MARK, not after it. These two are one object — same
+   22px square, same 6px radius, same uppercase-mono label beside them — and they
+   sit on the DASHBOARD TOGETHER, so accenting one edge and not the other would
+   split a pair on the one screen that shows both. See .ar-rail-card__mark for
+   the measurement that moved them. ⭐ The grounds stay different on purpose:
+   each mark takes the rung next to its OWN ground. */
 .ar-sys__mark {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: 6px;
-  background: var(--ar-surface); border: 1px solid var(--ar-line);
+  background: var(--ar-surface); border: 1px solid color-mix(in srgb, var(--ar-accent) 45%, transparent);
   color: var(--ar-ink-soft);
 }
 .ar-sys__n {
@@ -9222,42 +9372,63 @@ body {
      rather than pushing the footer off the bottom (his catch, 2026-08-15).
      It also reads right: a gap measured under a 15px line looks wider under a
      22px tile. */
-  margin-bottom: 4px;
+  /* ⭐ HIS CALL, 2026-08-22: 10px, not 4. The 4px was set when this kicker was a
+     bare line of text; with a 22px mark on it the header became a taller object
+     and 4px read as the list crowding it. The note below explains why it was 4
+     in the first place — kept, because the reasoning still applies to the mark's
+     own height, just not to the gap under it. */
+  margin-bottom: 10px;
 }
 .ar-rail-card__mark {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  /* ⛔ THE LIST INDENT IS DERIVED FROM THIS 18px — .ar-rail-links is 18 + the
+     label's 9px gap = 27px, so the file list starts on the kicker's first letter.
+     Change the size and that must change with it. (His size, 2026-08-22: the same
+     box .ar-rail-regcard__icon is drawn at, so the rail's marks are one dimension.) */
+  width: 18px;
+  height: 18px;
   border-radius: 6px;
-  /* ⭐ The same quiet neutral .ar-sys__mark wears beside DOORS and SIGNALS.
-     These two are one object — same 22px square, same 6px radius, the same
-     uppercase-mono section label beside them, on the same screen — and the rule
-     below already sizes this glyph to match that one.
-     ⛔ NOT a copy of that rule's three values. .ar-sys__mark is --ar-surface on
-     an --ar-surface-2 panel; this card's ground IS --ar-surface, so those same
-     values paint the tile the colour of the card behind it. What transfers is
-     the RELATIONSHIP: each mark takes the rung NEXT TO its own ground.
-     ⚠️ --ar-paper sat here for half a day and was wrong, in a way one mode hid.
-     In Light the ladder runs surface-2 < paper < surface, so paper was a 6/255
-     nudge and looked right. In dark, paper is the FLOOR — the page canvas — and
-     the same token became a 38/255 pit next to the systems mark's 12. His catch,
-     2026-08-20, on the blue scheme at night.
-     ⭐ --ar-surface-2 is the adjacent rung in BOTH modes, so the step matches
-     the systems mark to the channel: 5/7/11 by day, 3/9/12 by night. The SIGN
-     is opposite and cannot not be — this mark's ground is the very token that
-     mark uses as its tile — but at 22px behind a hairline it is the weight that
-     reads, not which side of the ground it sits on. */
+  /* ⛔ A ROUNDED SQUARE, NEVER A CIRCLE. A circle in this rail already means a
+     VERDICT — the connection dot, the readiness tick, and the registration mark
+     below these cards ("All registrations are valid"). These two name a KIND of
+     thing. A ring here was built and refused: three circles stacked read as three
+     status lights, and a book beside llms.txt would start claiming the file is
+     valid. Square = a kind, circle = a judgement about one.
+     ⛔ The ground stays NEUTRAL — an accent wash behind the glyph was tried and
+     put aside; the colour rides on the edge and the glyph instead.
+     ⚠️ If it ever changes, it goes to --ar-surface-2, never --ar-paper: paper is a
+     6/255 nudge by day and the FLOOR at night, so it looks right in one mode and
+     digs a pit in the other (his catch, 2026-08-20, blue scheme). */
   background: var(--ar-surface-2);
-  border: 1px solid var(--ar-line);
-  color: var(--ar-ink-soft);
+  /* ⭐ Edge and glyph both in the accent, at one weight — the same colour the ↳
+     below them wears. Measured on the tile: edge 3.84:1 by day, 4.47:1 at night;
+     glyph 4.62:1 and 5.10:1. The --ar-line this replaced was 1.16:1 — not "mild",
+     invisible.
+     ⛔⛔ SOFTEN IN THE COLOUR, NEVER IN THE WIDTH. `0.5px` is the instinct and it
+     is a trap: a 2x display renders a true half-pixel and looks right, a 1x
+     monitor rounds it to ZERO and the border vanishes — perfect for whoever is
+     checking, missing for everyone else. 1px always paints.
+     ⚠️ Alpha, not a mix with a ground token, so the value does not have to name
+     which surface it sits on.
+     ⚠️ THE ACCENT IS SAFE HERE BECAUSE THIS IS A GRAPHIC (3:1), NOT TEXT (4.5:1).
+     carries_text() gates the accent against the LIGHT card only; four dark rooms
+     fall under 4.5:1 as text — ectoplasm dark is 3.39:1. Same token, different
+     bar, opposite answer. See .ar-wd-ep__link, which keeps its ink for exactly
+     this reason.
+     ⚠️ .ar-sys__mark on the dashboard is still 45% with an ink glyph; the pair
+     matched on 2026-08-20 has drifted, deliberately. Bringing it back means both
+     values, not one. */
+  border: 1px solid color-mix(in srgb, var(--ar-accent) 90%, transparent);
+  color: var(--ar-accent);
 }
+
 /* 12px, not 13 — the same glyph size .ar-sys__mark uses beside DOORS and
    SIGNALS on this very screen. Both are section labels in the same
    uppercase-mono dress, so they are one object, measured alike. */
-.ar-rail-card__mark svg { width: 12px; height: 12px; display: block; }
+.ar-rail-card__mark svg { width: 18px; height: 18px; display: block; }
 
 /* The registrations row wears its whole state (his call, 2026-08-15).
    The alert state already coloured the entire row amber; the valid state
@@ -9269,8 +9440,25 @@ body {
 .ar-rail-regcard__text { font-weight: 500; }
 /* The ring is drawn, so the icon box is a box, not a line of text — centre it
    on the row rather than on a baseline it no longer has. */
+/* ⛔ NO TILE HERE — a square one was built on 2026-08-22 to match the two cards
+   above and reverted the same evening (see ScoreRail.vue for the reasoning: a
+   circle in this rail means a VERDICT, a square means a kind of thing). The ring
+   this mark draws IS its container; wrapping it in a second one made two
+   containers argue, and flattening it to a bare tick to avoid that threw away the
+   only shape that said "this row is a judgement".
+   ⭐ It still matches its neighbours where matching is honest: 18px, and an edge
+   in the accent family. */
 .ar-rail-regcard__icon { display: inline-flex; align-items: center; }
-.ar-rail-regcard__icon svg { width: 15px; height: 15px; display: block; }
+/* ⭐ The ring is MILD at rest — the same 90% the two card tiles wear on their
+   edges, so the three marks read at one weight though only this one is a circle.
+   ⭐ Opacity, not a mixed stroke: this mark is --ar-good when registrations are
+   valid and --ar-warn when they are not, so a literal would be written twice and
+   could drift. Opacity multiplies whichever state is current.
+   ⛔ THE 0.9 → 1 STEP IS LOAD-BEARING: it is what makes the hover visible without
+   a background (see .ar-rail-regcard.is-ok:hover). Remove it and the row stops
+   answering the pointer wherever --ar-good and --ar-accent are the same token. */
+.ar-rail-regcard__icon svg { width: 18px; height: 18px; display: block; opacity: 0.9; }
+.ar-rail-regcard:hover .ar-rail-regcard__icon svg { opacity: 1; }
 
 /* The publish card's two parts: a quiet heading over each half, so "read" and
    "run" are told apart before anyone reaches for a switch. */

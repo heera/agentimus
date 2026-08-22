@@ -27,7 +27,7 @@ Only the content types you have chosen appear in these files. By default that's 
 
 ## How to view any of these files
 
-**In a browser.** Most of these are just web addresses. Type your site's address followed by the path — for example `https://example.com/llms.txt` — and the file opens as plain text or JSON you can read directly. The settings screen also has a **Live endpoints** box with ready-made links to your `llms.txt`, `llms-full.txt` and `robots.txt`, and the **Discovery** hub lists the `/.well-known/` documents.
+**In a browser.** Most of these are just web addresses. Type your site's address followed by the path — for example `https://example.com/llms.txt` — and the file opens as plain text or JSON you can read directly. The settings screen also has a **What Your Site Covers** box with ready-made links to your `llms.txt`, `llms-full.txt` and `robots.txt`, and the **Discovery** hub lists the `/.well-known/` documents.
 
 **The one exception — the "Accept header" versions.** Some of what Agentimus serves is triggered by a request *header* rather than a distinct URL. A browser's address bar can't send that header, so to see those you use a command-line tool such as `curl`:
 

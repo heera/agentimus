@@ -2304,7 +2304,17 @@ export default {
            kept ABOVE the zone break so the developer & maintenance zone stays a
            coherent pair on phones. -->
       <section class="ar-card ar-card--muted ar-card--endpoints">
-        <h2 class="ar-card__title">Live Endpoints</h2>
+        <!-- ⛔ RENAMED WITH THE RAIL, not after it. This card and the rail's
+             first card list the SAME three files — this one only appears when the
+             rail is hidden on a narrow screen — so leaving "Live Endpoints" here
+             would give one thing two names depending on window width.
+             ⚠️ Title Case here, sentence case in the rail: this is an <h2> card
+             title among "Weekly Email" and "Search Basics", and it follows its
+             own neighbours. The rail's kicker is a different surface.
+             ⛔ And it may not say "read" either — see the rail's note: a heading
+             calling THESE the files AI reads implies the discovery documents are
+             not read, and they are. -->
+        <h2 class="ar-card__title">What Your Site Covers</h2>
         <ul class="ar-links">
           <li><a :href="endpoints.llms" target="_blank" rel="noopener">{{ endpoints.llms }}</a></li>
           <li><a :href="endpoints.llmsFull" target="_blank" rel="noopener">{{ endpoints.llmsFull }}</a></li>

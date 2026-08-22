@@ -265,13 +265,39 @@ export default {
                claiming something it cannot know. -->
           <p class="ar-rail-card__label ar-rail-card__label--mark">
             <span class="ar-rail-card__mark" aria-hidden="true">
+              <!-- ⭐ AN OPEN BOOK — his call, 2026-08-22: the two marks must carry
+                   the same split the headings do. A globe said "these live on the
+                   web", which is true of BOTH cards and so distinguished nothing.
+                   A book is what a reader opens to find out what something is
+                   about, which is exactly what llms.txt is. -->
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6Z" />
-                <path d="M3.4 12h17.2" />
-                <path d="M12 3.2c2.3 2.4 3.5 5.5 3.5 8.8s-1.2 6.4-3.5 8.8c-2.3-2.4-3.5-5.5-3.5-8.8S9.7 5.6 12 3.2Z" />
+                <path d="M12 7.4v11.4" />
+                <path d="M12 7.4C10.3 6.2 8 5.7 5 5.7v11.4c3 0 5.3.5 7 1.7" />
+                <path d="M12 7.4c1.7-1.2 4-1.7 7-1.7v11.4c-3 0-5.3.5-7 1.7" />
               </svg>
             </span>
-            Live endpoints
+            <!-- ⭐ HIS WORDING, 2026-08-22. The heading SAYS what the files are,
+                 so nothing has to be explained under it — a teaching line was
+                 tried here first and rejected: the rail is mono top to bottom,
+                 and a serif sentence dropped into it read as a second voice.
+                 ⭐⭐ THE TWO HEADINGS ARE THE SAME CHARACTER COUNT ON PURPOSE — 21
+                 each — and that is a real constraint, not a preference. This
+                 kicker is MONOSPACE, so characters ARE pixels: 21 chars renders
+                 at 157.9px in both cards, so the two headings start and end on the
+                 same pixel. ⛔ EDIT EITHER HEADING AND YOU MUST RE-COUNT BOTH — one
+                 character of drift is 7.5px of misalignment, and it shows, because
+                 the cards sit one above the other in a 286px column.
+                 ⚠️ The line holds 217px (the card's 248px inner width, less the
+                 22px mark and its 9px gap), so 28 characters is the ceiling before
+                 a heading wraps under its own icon.
+                 ⛔⛔ NEITHER HEADING MAY SAY "READ" — his catch, and it is a logic
+                 fault, not a word choice. An earlier pair led with "Files AI
+                 assistants read", which quietly claims the OTHER card's files are
+                 not read by AI. They are: discovery.json and the MCP cards exist
+                 to be fetched. The true split is CONTENT vs CAPABILITIES — what
+                 the site is about, against what it can do — so neither card
+                 mentions reading and neither can imply the other does not. -->
+            What your site covers
           </p>
           <ul class="ar-rail-links">
             <li><a :href="endpoints.llms" target="_blank" rel="noopener">llms.txt</a></li>
@@ -283,14 +309,27 @@ export default {
         <div v-if="discoveryDocs.length" class="ar-rail-card">
           <p class="ar-rail-card__label ar-rail-card__label--mark">
             <span class="ar-rail-card__mark" aria-hidden="true">
+              <!-- ⭐⭐ THE BOLT IS ALREADY THIS PLUGIN'S MARK FOR CAPABILITIES —
+                   TILE_ICONS.capabilities in js/groupIcons.js, whose dashboard tile
+                   reads "What AI assistants may read or do, declared in
+                   discovery.json". That is this card's first file. So this is not a
+                   new symbol, it is the existing one arriving where it belongs:
+                   groupIcons' own law, "one concept, one symbol, wherever it
+                   appears".
+                   ⛔ The PATH is shared with that file and must stay in step with
+                   it — only the stroke differs (1.7 here, 2 there), because the
+                   rail is the quietest column on the screen.
+                   ⛔ A page-with-lines said "these are documents", which is true of
+                   both cards and told the owner nothing about which is which. -->
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6.2 3.4h8l4 4v13.2H6.2Z" />
-                <path d="M14 3.4v4.2h4" />
-                <path d="M9 12.4h6" />
-                <path d="M9 16.2h4.2" />
+                <path d="M12.9 3.4L6 13h4.4l-1.3 7.6L16 11h-4.4z" />
               </svg>
             </span>
-            Discovery docs
+            <!-- ⛔ 21 characters, matching the card above. See the note there
+                 before touching either — including the rule that neither may say
+                 "read". "Discovery docs" named the mechanism; this names what the
+                 owner gets from it. -->
+            What your site offers
           </p>
           <ul class="ar-rail-links">
             <li v-for="d in discoveryDocs" :key="d.label">
@@ -309,7 +348,17 @@ export default {
         >
           <!-- A drawn ring, not a text glyph: ✓ and ⚠ come from two different
                places in the font stack and never sat on the same baseline or
-               at the same weight. One ring, one stroke, both states. -->
+               at the same weight. One ring, one stroke, both states.
+               ⛔⛔ AND THE RING STAYS A RING. On 2026-08-22 this mark was given the
+               two cards' square tile so all three would match, and it was reverted
+               the same evening — his call, agreeing with the objection: a circle in
+               this rail means STATE (the connection dot, the readiness tick, and
+               this row, which renders a VERDICT about the registrations). The two
+               cards above name kinds of thing. Square = a kind, circle = a
+               judgement about one, and making all three the same shape threw that
+               away for the sake of a family resemblance nothing needed.
+               ⭐ What the marks share instead is size (18px) and the accent-family
+               edge — enough to read as one set without the shapes lying. -->
           <span class="ar-rail-regcard__icon" aria-hidden="true">
             <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="9" cy="9" r="7.4" />
