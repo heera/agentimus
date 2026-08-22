@@ -972,33 +972,33 @@ final class Admin {
 				// they have already read, under a heading claiming it is new — the
 				// fault he caught on the 1.40.0-dev4 build, where 1.39.0's items sat
 				// under a 1.40.0 title.
-				// ⭐ His call for 1.41.0: the colour fix leads. It is the one thing
-				// here that every owner on WordPress 7.1's default scheme actually
-				// saw, and it went wrong in the release before this one.
+				// ⭐ For 1.42.0 the two LINK items lead, because they are the only
+				// changes an owner meets by clicking something that used to be dead
+				// text. The assistant item comes third: it matters most to the people
+				// who have connected one, and not at all to anyone who has not.
+				// ⛔ The internal-names fix is NOT here. "We stopped showing you our own
+				// key names" is an apology for a thing the owner never had a word for —
+				// it belongs in the changelog, where it reads as a fix, not on a card
+				// that claims to be news.
 				array(
-					// ⭐ The APPEARANCE mark for the appearance item — and it also
-					// keeps four tiles on four different marks. The icon is the only
-					// thing telling one tile from the next here (they all share the
-					// one accent, by design), so a repeat inside a set of four spends
-					// the only distinction the card has.
-					'icon'  => 'image',
-					'title' => 'Agentimus Keeps Its Colour on the Default Scheme',
-					'text'  => 'If the plugin looked black and grey after the last update, that is fixed — your charts, links and numbers have their colour back.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Your Assistant Can Set a Page Aside',
-					'text'  => 'A connected assistant can now mark a page as one you never meant to be quoted — a contact page, an index — so it stops counting against your content score. It can do one page at a time; clearing a whole check at once is still yours alone.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Sharper Questions for Your Crawler Log',
-					'text'  => 'An assistant can ask about several crawlers at once, or everything spoofed and everything refused together — the same way your own screen filters.',
+					'icon'  => 'link',
+					'title' => 'See What an AI Assistant Actually Fetches',
+					'text'  => 'On Discovery, any address open to everyone is now a link — click it and you see exactly what an assistant sees. Addresses that need a sign-in stay plain text, so a link never sends you to a refusal.',
 				),
 				array(
 					'icon'  => 'page',
-					'title' => 'Titles You Type Stay as You Typed Them',
-					'text'  => 'The assistant capitalises the titles it writes for you. It had been recapitalising the ones you typed yourself, and it leaves those alone now.',
+					'title' => 'Every Plugin Card Links to Its Own Site',
+					'text'  => 'Integrations → Plugins now tells you where each plugin lives, so you can look one up without leaving to search for it.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Your Assistant Can See What Is Connected',
+					'text'  => 'A connected assistant can now read your announcement record — including why one failed — and check whether each channel is still delivering. It is never handed an address or a key, and the four actions your own screen asks you to confirm stay yours.',
+				),
+				array(
+					'icon'  => 'search',
+					'title' => 'The Sidebar Says What Its Files Are For',
+					'text'  => 'The two lists in the sidebar are named for what they hold rather than for the machinery behind them, and the files on your dashboard read in plain words.',
 				),
 			),
 		);

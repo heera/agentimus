@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.41.0
+Stable tag: 1.42.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -299,6 +299,19 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.42.0 =
+* New: every plugin on Integrations → Plugins now links to that plugin's own site, so you can see what it is without leaving to search for it.
+* New: on Discovery, an address anyone can open is now a link — click it and see exactly what an AI assistant would fetch. An address that needs a sign-in stays plain text, because a link that always fails teaches you the row is broken when the row is fine.
+* New: a connected assistant can read your announcement ledger — what is queued, what posted, and why a failed one failed — and can try a failed announcement again. It cannot write a new announcement, cancel one, post one early or remove one: those four ask you to confirm on your own screen, and an action does not survive losing that.
+* New: a connected assistant can see what your site is connected to and whether each channel is actually delivering. No address or key is ever handed over — a Slack or Discord address is not a setting, it is the power to post in that channel.
+* Fixed: your dashboard was showing Agentimus's own internal names for two of the things AI assistants fetch. Every row now reads as what it is, and the two file lists in the sidebar say what they hold instead of naming the machinery.
+* Fixed: the Readiness screen offered a cache setting under a name that no longer existed anywhere in Settings, so following it left you looking for a switch that was never called that.
+* Fixed: the Share tab in the post editor drew two-letter stand-ins where every other screen shows the real logo.
+* Fixed: a page title carrying an apostrophe written as code could reach a connected assistant still written that way, and an assistant repeats what it is handed.
+* Fixed: on a site where another plugin or your host changes an Agentimus setting as the page loads, saving anything could store that change as though you had chosen it — and turning the other plugin off would not undo it.
+* Fixed: the "All registrations are valid" row did not answer the pointer at all, on any colour scheme, in either mode.
+* Improved: the sidebar's two file lists are named for what they hold, and the row of AI files on your dashboard reads in plain words rather than filenames only.
+
 = 1.41.0 =
 * Fixed: on WordPress 7.1's default admin colour scheme, Agentimus lost its colour — chart bars, links, tab underlines and numbers all turned black, and the readiness ring washed out to near-white. 7.1 made “Default” a new scheme whose highlight is too pale to read as text, so Agentimus fell back to that scheme's near-black ink — which passed the check for being readable precisely because there is no colour in it. Readable and coloured are two questions now, and a scheme with no usable colour keeps Agentimus's own.
 * New: a connected assistant can set a page aside, the same as you can. It could already tell you which pages need work and fix them, but not say the third thing you say constantly — that a page is fine as it is, because it was never meant to be quoted. A contact page, a landing page, an index. Set aside by an assistant behaves exactly as it does from your screen: the page is untouched, it stays published, and it lands in your Set Aside list with the count beside it. One page per call, in both directions — setting aside everything a check flags is still yours alone, behind the confirmation that names the number.
@@ -380,6 +393,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 For older releases, see the full history: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.42.0 =
+Your dashboard no longer shows Agentimus's internal names for the files AI assistants fetch, and the sidebar's two lists say what they hold. Plugin cards and open Discovery addresses are now links you can follow. A connected assistant can read your announcement ledger and see what you are connected to — without ever being handed an address or a key. Also fixes a case where another plugin's runtime change could be saved into your own settings. No breaking changes.
 
 = 1.41.0 =
 Agentimus keeps its own colour on WordPress 7.1's default admin scheme — 1.40.0 turned its charts, links and numbers black there. A connected AI assistant can now set a page aside as one you never meant to be quoted, one page at a time, and can filter your request log by several crawlers at once. Titles you type yourself are no longer recapitalised. No breaking changes.
