@@ -52,10 +52,12 @@ export default {
       // A cancel asked for while the loop runs, and the memory of one that
       // landed. The loop cannot be aborted mid-chunk — a request already with
       // Google is paid for either way — so `cancelling` means "no further
-      // chunks" and the button says so. `cancelled` outranks the auto-resume
-      // in load(): a cancel that a tab-switch undoes is not a cancel. It
-      // lasts for this screen's life — a fresh page load is fresh intent, and
-      // the resume exists precisely for the run a refresh killed.
+      // chunks" and the button says so.
+      //
+      // These are the LOCAL half of the stop, kept for the instant feedback
+      // between the click and the server's answer. The durable half is the
+      // server's own pause (view.pausedAt), which is what survives a reload —
+      // this flag cannot, and a stop the next page load forgets is not a stop.
       cancelling: false,
       cancelled: false,
       error: '',
@@ -95,6 +97,13 @@ export default {
     },
     hasRows() {
       return this.rows.length > 0;
+    },
+    // The owner stopped the run — locally the instant they clicked, and from
+    // the server's own pause on every visit after that. A queue that is not
+    // moving has to say why, or "34 pages still to check" reads as a promise
+    // that something is working through them.
+    stopped() {
+      return !!(this.cancelled || (this.view && this.view.pausedAt));
     },
     site() {
       return (this.view && this.view.site) || { totalUrls: 0, checked: 0, onGoogle: 0, notOnGoogle: 0, cycleDays: 0, healed: [], healedTotal: 0, problems: [], problemsTotal: 0 };
@@ -295,7 +304,12 @@ export default {
         // take hours over what this loop finishes in a minute. Unless the
         // owner stopped it on purpose: then the queue waits for another press
         // or for the daily check, which is what the rail says it will do.
-        if (this.view && this.view.pending > 0 && !this.checking && !this.cancelled) this.checkNow();
+        //
+        // ⛔ `pausedAt` and not `cancelled` alone: the local flag dies with the
+        // page, so a refresh used to start the run up again seconds after the
+        // owner stopped it. The stop is the server's now, and it outlives the
+        // tab that asked for it.
+        if (this.view && this.view.pending > 0 && !this.checking && !this.cancelled && !this.view.pausedAt) this.checkNow();
       } catch (e) {
         this.error = e && e.message ? e.message : 'Could not load the Google index status.';
       } finally {
@@ -347,8 +361,18 @@ export default {
     // — and letting it land keeps its verdicts instead of throwing them away.
     // The queue is server-side: cancelling abandons nothing, it puts the rest
     // back to the daily check or the next press.
-    cancelCheck() {
-      if (this.checking) this.cancelling = true;
+    //
+    // ⛔ Which is why the server has to hear about it. Ending only this loop
+    // stopped nothing: the continuation event finished the run within minutes,
+    // and a page refresh set the loop going again. A failed call leaves the
+    // loop stopped anyway — the local flag still holds for this screen — so it
+    // is silent here rather than an error over a button that visibly worked.
+    async cancelCheck() {
+      if (!this.checking) return;
+      this.cancelling = true;
+      try {
+        await this.api.cancelGoogleIndex();
+      } catch (e) { /* the loop stops regardless; the daily check still finishes the queue */ }
     },
     // The verdict in plain words. "On Google" is Google's own phrasing in the
     // inspection tool — reusing it keeps this card and their console in one
@@ -650,8 +674,10 @@ export default {
           <!-- Honest about the machinery: the daily check WILL finish these,
                but on a heavily cached site wp-cron can take hours over what
                Check Now does in a minute — never promise "fills in as it
-               arrives" for a trickle. -->
-          <span>{{ view.pending }} pages still to check — press Check Now to finish, or the daily check picks them up</span>
+               arrives" for a trickle. A run the owner stopped names itself:
+               the same sentence without it would read as work in progress. -->
+          <span v-if="stopped">Stopped — {{ view.pending }} pages still to check. Press Check Now to finish, or the daily check picks them up.</span>
+          <span v-else>{{ view.pending }} pages still to check — press Check Now to finish, or the daily check picks them up</span>
         </template>
         <template v-if="view.lastError">
           <span class="ar-mcp-rail__sep ar-gidx__sep-warn" aria-hidden="true">·</span>

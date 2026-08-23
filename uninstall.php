@@ -123,6 +123,7 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_google' );
 	delete_option( 'agentimus_google_lock' );
 	delete_option( 'agentimus_google_index' );
+	delete_option( 'agentimus_google_index_pause' );
 	delete_option( 'agentimus_google_trend' );
 	delete_option( 'agentimus_search_db_version' );
 	delete_transient( 'agentimus_google_token' );

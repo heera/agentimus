@@ -138,6 +138,13 @@ final class Module {
 			// bookkeeping: a spent inspection quota must not smear "poll
 			// failed" over a perfectly good performance snapshot. One chunk
 			// here; the continuation event carries whatever remains.
+			//
+			// A run the owner stopped yesterday is picked up here, because that
+			// is exactly what the card told them would happen: "press Check Now
+			// to finish, or the daily check picks them up". A pause stops the
+			// machinery from running away with a run; it is not a decision to
+			// never check those pages again.
+			Index::resume();
 			$this->run_index_sweep( 15.0 );
 		} finally {
 			self::release_lock();
@@ -520,27 +527,71 @@ final class Module {
 
 		$out = Index::sweep( $this->client, $auth['token'], $property, Index::run_targets(), $budget );
 
-		if ( ! empty( $out['queue'] ) && '' === (string) $out['error'] && ! wp_next_scheduled( self::CRON_INDEX ) ) {
-			// A safety net, not the fast path: the panel's own polling loop
-			// usually finishes the run in seconds; this picks it up if the
-			// owner closed the tab mid-sweep (or the daily cron started it).
-			// A silent blip (a slow answer shy of Index::BLIP_LIMIT) keeps the
-			// net armed — the run should heal on its own. After a LOUD pause
-			// the net stands down: a one-minute retry against a dead network
-			// or a dead token is a loop, not a net. That queue waits for the
-			// owner's next panel visit or the daily sweep.
+		// A safety net, not the fast path: the panel's own polling loop usually
+		// finishes the run in seconds; this picks it up if the owner closed the
+		// tab mid-sweep (or the daily cron started it). Re-armed from the LAST
+		// chunk rather than the first, so while that loop is chunking every few
+		// seconds the event keeps sliding out of reach — a net and a live loop
+		// inspecting the same URLs would spend Google's budget twice.
+		//
+		// It stands down the moment the run it was netting is over, because an
+		// event that outlives its run lands on an empty queue — and an empty
+		// queue is exactly how {@see Index::sweep()} is told to START one. Left
+		// armed, the net would begin a whole-site sweep nobody asked for, arm
+		// itself again, and never stop.
+		//
+		// A silent blip (a slow answer shy of Index::BLIP_LIMIT) keeps the net
+		// armed — the run should heal on its own. After a LOUD pause it stands
+		// down too: a one-minute retry against a dead network or a dead token is
+		// a loop, not a net. That queue waits for the owner's next panel visit
+		// or the daily sweep.
+		//
+		// And never under a run the owner stopped: a net that carries on after
+		// Cancel makes the button a lie. (A chunk already in flight when the
+		// pause lands can still arm one — its own read of the flag predates
+		// the press. That event fires once, finds the run paused, and stands
+		// down without spending anything.)
+		wp_clear_scheduled_hook( self::CRON_INDEX );
+		if ( ! empty( $out['queue'] ) && '' === (string) $out['error'] && ! Index::is_paused() ) {
 			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CRON_INDEX );
 		}
 		return $out;
 	}
 
 	/**
-	 * The continuation event's handler.
+	 * The continuation event's handler. A continuation with nothing to continue
+	 * is not a new run: {@see Index::sweep()} reads an empty queue as "start
+	 * today's", so a stray event — one armed mid-run that the panel's own loop
+	 * then outran to the finish — would start a whole-site sweep on its own.
+	 * The net only ever resumes; starting is the owner's click or the daily cron.
 	 *
 	 * @return void
 	 */
 	public function index_chunk() {
+		// {@see Index::sweep()} refuses a paused run on its own; standing down
+		// here as well keeps a stray event from costing a token fetch and a
+		// sitemaps call to learn what one option read already says.
+		if ( ! Index::run_in_flight() || Index::is_paused() ) {
+			return;
+		}
 		$this->run_index_sweep( 15.0 );
+	}
+
+	/**
+	 * The owner pressed Cancel. The chunk already with Google is paid for
+	 * either way and is left to land; what this stops is everything that would
+	 * carry the run on afterwards — the continuation event comes down, and
+	 * {@see Index::sweep()} will refuse every path into it until a deliberate
+	 * start lifts the pause.
+	 *
+	 * @return bool Whether a run was actually stopped.
+	 */
+	public function pause_index_sweep() {
+		$stopped = Index::pause();
+		if ( $stopped ) {
+			wp_clear_scheduled_hook( self::CRON_INDEX );
+		}
+		return $stopped;
 	}
 
 	/**

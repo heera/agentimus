@@ -308,6 +308,10 @@ export function createApi(boot) {
     // The Google index watch: stored answers, and an inline "Check now" sweep.
     getGoogleIndex: () => request('/google/index'),
     refreshGoogleIndex: () => request('/google/index', { method: 'POST' }),
+    // Stop the run. The queue lives on the server, so the stop has to as well:
+    // a cancel that only ended this tab's loop left the continuation event to
+    // finish the run anyway.
+    cancelGoogleIndex: () => request('/google/index/cancel', { method: 'POST' }),
     lookupGoogleIndex: (url) => request(`/google/index/lookup?url=${encodeURIComponent(url)}`),
     googleIndexProblems: (state, page) => request(`/google/index/problems?state=${encodeURIComponent(state)}&page=${Math.max(1, Number(page) || 1)}`),
     // ONE live inspection, on an explicit click — spends one of the day's 2,000.

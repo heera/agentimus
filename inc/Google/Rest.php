@@ -62,6 +62,15 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			),
 		) );
+
+		register_rest_route( self::NS, '/google/index/cancel', array(
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'index_cancel' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			),
+		) );
+
 		register_rest_route( self::NS, '/google/index/lookup', array(
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
@@ -398,7 +407,30 @@ final class Rest {
 		if ( ! $this->google->connected() ) {
 			return new \WP_Error( 'agentimus_google_off', __( 'Google Search Console is not connected.', 'agentimus' ), array( 'status' => 400 ) );
 		}
+		// A press outranks an earlier Cancel: the hands that stopped the run
+		// are the hands starting it again. Only a deliberate start lifts a
+		// pause — never the machinery ({@see Index::pause()}).
+		Index::resume();
 		( new Module( $this->google, $this->client ) )->run_index_sweep();
+		return rest_ensure_response( Index::view( $this->google ) );
+	}
+
+	/**
+	 * POST /google/index/cancel — the owner stopped the run.
+	 *
+	 * The queue is server-side, so stopping has to be too: before this route
+	 * existed, Cancel only ended the loop in THIS browser tab, while the
+	 * continuation event quietly finished the run anyway and a page refresh
+	 * started the loop up again. The card said the rest would wait for the
+	 * next press or the daily check; now it does.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function index_cancel() {
+		if ( ! $this->google->connected() ) {
+			return new \WP_Error( 'agentimus_google_off', __( 'Google Search Console is not connected.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		( new Module( $this->google, $this->client ) )->pause_index_sweep();
 		return rest_ensure_response( Index::view( $this->google ) );
 	}
 

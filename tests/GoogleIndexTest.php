@@ -1058,4 +1058,85 @@ final class GoogleIndexTest extends TestCase {
 		// page is the worse mistake.
 		$this->assertSame( 'unchecked', Index::lookup( 'elsewhere.test/x' )['status'] );
 	}
+
+	/* -- the owner's stop ---------------------------------------------------- */
+
+	/**
+	 * Cancel stops the RUN, not just the loop that was watching it. The sweep
+	 * is the one door every path uses, so refusing here is what makes the stop
+	 * hold against the continuation event, the daily poll and a page refresh
+	 * alike.
+	 */
+	public function test_a_paused_run_refuses_every_chunk_and_keeps_its_queue() {
+		$targets = $this->targets( 'https://example.test/a/', 'https://example.test/b/' );
+		$this->queue_inspection( $this->pass_row() );
+		$out = Index::sweep( new Client(), 'tok', 'p', $targets, 0.0 );
+		$this->assertCount( 1, $out['queue'], 'A budgeted chunk left a tail to stop.' );
+
+		$this->assertTrue( Index::pause(), 'A run in flight can be stopped.' );
+		$this->assertTrue( Index::is_paused() );
+
+		// A poisoned answer: if the sweep ran, page B would swallow it and the
+		// queue below would be empty.
+		$this->queue_inspection( $this->pass_row() );
+		$after = Index::sweep( new Client(), 'tok', 'p', $targets, 0.0 );
+
+		$this->assertCount( 1, $after['queue'], 'The queue is untouched — stopped, not thrown away.' );
+		$this->assertCount( 1, $GLOBALS['_af_http_queue'], 'Not one inspection was spent.' );
+		$this->assertSame( $out['checked_at'], $after['checked_at'], 'And nothing was rewritten.' );
+	}
+
+	public function test_only_a_deliberate_start_lifts_the_pause() {
+		$targets = $this->targets( 'https://example.test/a/', 'https://example.test/b/' );
+		$this->queue_inspection( $this->pass_row() );
+		Index::sweep( new Client(), 'tok', 'p', $targets, 0.0 );
+		Index::pause();
+
+		Index::resume();
+		$this->assertFalse( Index::is_paused() );
+
+		$this->queue_inspection( $this->pass_row() );
+		$out = Index::sweep( new Client(), 'tok', 'p', $targets, 0.0 );
+		$this->assertEmpty( $out['queue'], 'The same queue carried on — a resume is not a new run.' );
+	}
+
+	/** A stop with no run left under it is stale: it must never gate the next one. */
+	public function test_a_finished_run_cannot_be_paused() {
+		$this->queue_inspection( $this->pass_row() );
+		$out = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/' ) );
+		$this->assertEmpty( $out['queue'] );
+
+		$this->assertFalse( Index::pause(), 'There is nothing to stop.' );
+		$this->assertFalse( Index::is_paused() );
+		$this->assertSame( 0, Index::view( $this->connect() )['pausedAt'] );
+	}
+
+	/**
+	 * ⛔ The trap the stop could have laid for the next run: a stamp left behind
+	 * by a run that has since ended, meeting a fresh queue.
+	 */
+	public function test_a_new_run_is_never_born_stopped() {
+		update_option( Index::PAUSE_OPTION, time() - HOUR_IN_SECONDS );
+
+		$this->queue_inspection( $this->pass_row() );
+		$out = Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/' ) );
+
+		$this->assertCount( 1, $out['rows'], 'The fresh run ran.' );
+		$this->assertSame( 0, Index::paused_at(), 'And the stale stamp went with it.' );
+	}
+
+	/**
+	 * ⭐ The view has to carry it. Two surfaces read this payload — the card and
+	 * the MCP tool — and "34 pages pending" with no reason given reads to both
+	 * as work in progress.
+	 */
+	public function test_the_view_names_a_stopped_run() {
+		$this->queue_inspection( $this->pass_row() );
+		Index::sweep( new Client(), 'tok', 'p', $this->targets( 'https://example.test/a/', 'https://example.test/b/' ), 0.0 );
+		Index::pause();
+
+		$view = Index::view( $this->connect() );
+		$this->assertSame( 1, $view['pending'] );
+		$this->assertGreaterThan( 0, $view['pausedAt'], 'The card and an assistant both learn WHY the queue is not moving.' );
+	}
 }

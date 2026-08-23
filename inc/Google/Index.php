@@ -43,6 +43,14 @@ final class Index {
 	/** @var string Option key — one autoload-off option. */
 	const OPTION = 'agentimus_google_index';
 
+	/** @var string Unix time the owner stopped a run, 0 when one is free to
+	 * continue. Its OWN option, deliberately not a key inside {@see OPTION}:
+	 * a chunk in flight read that payload before the owner pressed Cancel and
+	 * writes the whole thing back after — so a pause stored in there would be
+	 * erased by the very chunk the owner was stopping. Two writers, two
+	 * options. */
+	const PAUSE_OPTION = 'agentimus_google_index_pause';
+
 	/** @var int Busiest Pages watched, by Google's own impression counts. */
 	const BUSIEST = 10;
 
@@ -360,6 +368,15 @@ final class Index {
 	 * @return array The stored payload.
 	 */
 	public static function sweep( Client $client, $token, $property, array $targets, $budget = null ) {
+		// The owner stopped this run ({@see pause()}). Guarded HERE because
+		// this is the one door every path uses — the daily poll, the
+		// continuation event, the panel's button — so no caller, present or
+		// future, can carry a stopped run on by accident. Lifting the pause is
+		// a deliberate act, never a side effect of asking for a chunk.
+		if ( self::is_paused() ) {
+			return self::stored();
+		}
+
 		$state = self::stored();
 		$prev  = array();
 		foreach ( $state['rows'] as $row ) {
@@ -371,6 +388,15 @@ final class Index {
 		// run starts fresh from today's targets.
 		$watch = $state['queue'] ? $state['watch'] : $targets;
 		$queue = $state['queue'] ? $state['queue'] : $targets;
+
+		// ⛔ A run is never born stopped. The pause above is read against the
+		// run that was in flight; once that run is over its stamp is stale, and
+		// a stale stamp meeting a fresh queue would stop a run nobody asked to
+		// stop. Cleared here, where a run begins, rather than trusted to every
+		// caller that might start one.
+		if ( ! $state['queue'] ) {
+			self::resume();
+		}
 
 		$cov      = $state['cov'];
 		$cursor   = $state['rot_cursor'];
@@ -629,6 +655,59 @@ final class Index {
 	}
 
 	/**
+	 * The owner stopped this run. Not a cancel in the sense of throwing work
+	 * away — the queue stays exactly where it is, and the card goes on saying
+	 * how much of it is left. What stops is the machinery that would carry it
+	 * on by itself: no continuation event, no chunk, no resume behind a page
+	 * refresh. It waits for the next press of Check Now or for the daily
+	 * check, which is what the card has always promised it would do.
+	 *
+	 * A run that already finished cannot be paused — there would be nothing to
+	 * unpause, and a stamp with no run under it would only confuse the view.
+	 *
+	 * @return bool Whether a run was actually stopped.
+	 */
+	public static function pause() {
+		if ( ! self::run_in_flight() ) {
+			return false;
+		}
+		update_option( self::PAUSE_OPTION, time(), false );
+		return true;
+	}
+
+	/**
+	 * Lift the pause. Only ever from a deliberate start — the owner's press or
+	 * the daily check — never from the machinery, or the pause would mean
+	 * nothing.
+	 *
+	 * @return void
+	 */
+	public static function resume() {
+		if ( self::paused_at() ) {
+			delete_option( self::PAUSE_OPTION );
+		}
+	}
+
+	/**
+	 * Unix time the run was stopped; 0 when nothing is stopped.
+	 *
+	 * @return int
+	 */
+	public static function paused_at() {
+		return (int) get_option( self::PAUSE_OPTION, 0 );
+	}
+
+	/**
+	 * Is the run stopped? A pause with no run left under it is stale by
+	 * definition — the run it belonged to ended — so it reads as running.
+	 *
+	 * @return bool
+	 */
+	public static function is_paused() {
+		return self::paused_at() > 0 && self::run_in_flight();
+	}
+
+	/**
 	 * Store the registered-sitemaps snapshot ({@see Client::sitemaps()}).
 	 * Kept only on success — a transport blip never erases the last good
 	 * answer — and stamped, so the view can tell "no sitemap registered"
@@ -695,6 +774,7 @@ final class Index {
 			'lastError' => '',
 			'quotaHit'  => false,
 			'pending'   => 0,
+			'pausedAt'  => 0,
 			'watched'   => array(
 				'busiest'       => self::BUSIEST,
 				'newest'        => self::NEWEST,
@@ -745,6 +825,10 @@ final class Index {
 		$base['lastError'] = $stored['error'];
 		$base['quotaHit']  = $stored['quota'];
 		$base['pending']   = count( $stored['queue'] );
+		// A queue that is not moving must say why it is not moving: without
+		// this the card and an assistant both read "34 pages pending" and both
+		// assume something is working on them.
+		$base['pausedAt']  = self::is_paused() ? self::paused_at() : 0;
 
 		// Registered-sitemap health — what the OWNER once told Google vs what
 		// the site serves today. checkedAt 0 = never looked (say nothing);
