@@ -42,6 +42,14 @@ export default {
     connected() {
       return !!(this.summary && this.summary.connected);
     },
+    // A purge that failed AFTER clearing some of its list. The edge takes the
+    // URLs in batches, so a break partway leaves half the site fresh and half
+    // stale — a different thing to tell the owner than "the purge failed", and
+    // it needs the counts to be worth telling at all.
+    purgePartial() {
+      const s = this.summary || {};
+      return !!s.lastPurgeError && Number(s.lastPurgeCleared) > 0 && Number(s.lastPurgeCleared) < Number(s.lastPurgeUrls);
+    },
     crawlers() {
       return (this.summary && this.summary.crawlers) || [];
     },
@@ -202,7 +210,19 @@ export default {
             <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
             <span class="ar-warn">Last poll failed: {{ summary.lastError }} — showing the last good numbers.</span>
           </template>
-          <template v-if="summary.lastPurgeError">
+          <!-- A purge that got PART of the way is its own situation, not a
+               milder failure: the pages before the break are fresh and the ones
+               after are not, and only a count can say which. It takes the same
+               seat as the failure line — bad news never stacks — and names the
+               one action that finishes the job, because a permission hint would
+               be wrong here (a refused token fails the FIRST batch, clearing
+               nothing). -->
+          <template v-if="purgePartial">
+            <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
+            <span class="ar-warn">Last purge cleared {{ summary.lastPurgeCleared }} of {{ summary.lastPurgeUrls }} pages, then failed:
+              {{ summary.lastPurgeError }} — the rest still hold old copies. Press Purge edge cache to finish clearing them.</span>
+          </template>
+          <template v-else-if="summary.lastPurgeError">
             <span class="ar-mcp-rail__sep ar-edge__sep-warn" aria-hidden="true">·</span>
             <!-- The failure names its own fix, at the moment it happens: edit the
                  token (which keeps its secret valid — rolling would not), add the

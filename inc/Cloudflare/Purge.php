@@ -64,9 +64,16 @@ final class Purge {
 		}
 		$client = $client ? $client : new Client();
 		$out    = $client->purge_urls( $settings->token(), (string) $settings->get( 'zone_id' ), $urls, self::AUTO_TIMEOUT );
+		// The count the client already worked out and nobody was reading: it
+		// stops at the first failing batch and reports how many landed before
+		// it. Recorded, because "30 of 47 cleared" and "nothing cleared" are
+		// different situations for the owner, and only one of them means the
+		// page they are looking at is fresh.
 		$settings->record_purge(
 			isset( $out['error'] ) ? (string) $out['error'] : '',
-			self::is_refusal( $out )
+			self::is_refusal( $out ),
+			count( $urls ),
+			(int) ( isset( $out['purged'] ) ? $out['purged'] : 0 )
 		);
 	}
 

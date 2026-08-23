@@ -448,6 +448,38 @@ final class Sitemap {
 	}
 
 	/**
+	 * Every sitemap address this site actually serves — the index plus, when
+	 * the promotion is on, the sub-sitemaps behind it.
+	 *
+	 * For a CDN, not for advertising: these files are rebuilt on every publish
+	 * and a CDN caches them like any other page, so an edge that is never told
+	 * keeps handing search engines yesterday's list. {@see \Agentimus\CachePurge}.
+	 *
+	 * ⛔ Sub-sitemaps are listed only when WE generate them. Under core or an
+	 * SEO suite the index address is knowable and its children are not ours to
+	 * enumerate — the index is the file that carries every lastmod, so purging
+	 * it is the part that matters either way.
+	 *
+	 * @return string[] Absolute URLs; empty when no sitemap is detectable.
+	 */
+	public static function public_urls() {
+		$index = self::url();
+		if ( '' === $index ) {
+			return array();
+		}
+		$urls = array( $index );
+		if ( self::promoted() ) {
+			foreach ( Content::post_types() as $type ) {
+				$pages = self::page_count( $type );
+				for ( $page = 1; $page <= $pages; $page++ ) {
+					$urls[] = home_url( self::sub_path( $type, $page ) );
+				}
+			}
+		}
+		return array_values( array_unique( $urls ) );
+	}
+
+	/**
 	 * Best-effort sitemap URL, or '' when none is detectable.
 	 *
 	 * @return string

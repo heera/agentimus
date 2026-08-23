@@ -463,6 +463,60 @@ final class CloudflareTest extends TestCase {
 		$this->assertSame( '', $settings->public_view()['lastPurgeError'] );
 	}
 
+	/**
+	 * ⛔ A PARTIAL PURGE MUST NOT READ AS A FAILED ONE. The list goes to the edge
+	 * in batches of 30; when one breaks partway the batches before it really are
+	 * cleared and the rest really are still stale. The client has always worked
+	 * that number out — {@see Client::purge_urls()} returns `purged` "so the
+	 * caller can record honest progress" — and nobody was reading it, so 30 of 47
+	 * cleared and 0 of 47 cleared told the owner exactly the same story.
+	 */
+	public function test_a_purge_that_breaks_partway_records_what_it_did_clear() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		$urls = array();
+		for ( $i = 0; $i < 47; $i++ ) {
+			$urls[] = 'https://example.test/page-' . $i . '/';
+		}
+		// Batch one lands, batch two is refused.
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		$GLOBALS['_af_http_queue'][] = $this->purge_denied();
+
+		Purge::purge_urls( $urls, $settings );
+
+		$view = $settings->public_view();
+		$this->assertSame( 47, $view['lastPurgeUrls'], 'what it was asked to clear' );
+		$this->assertSame( 30, $view['lastPurgeCleared'], 'what actually landed before the break' );
+		$this->assertNotSame( '', $view['lastPurgeError'], 'and it is still a failure, not a success' );
+	}
+
+	public function test_a_clean_purge_records_the_whole_list_as_cleared() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_urls( array( 'https://example.test/a/', 'https://example.test/b/' ), $settings );
+
+		$view = $settings->public_view();
+		$this->assertSame( 2, $view['lastPurgeUrls'] );
+		$this->assertSame( 2, $view['lastPurgeCleared'] );
+		$this->assertSame( '', $view['lastPurgeError'] );
+	}
+
+	/** A purge-everything has no list, so it must not invent one. */
+	public function test_purge_everything_records_no_counts() {
+		$settings = new Settings();
+		$settings->connect( 'tok', 'zone1', 'example.com' );
+
+		$GLOBALS['_af_http_queue'][] = $this->purge_ok();
+		Purge::purge_all( $settings );
+
+		$view = $settings->public_view();
+		$this->assertSame( 0, $view['lastPurgeUrls'], 'no list was named, so no number is claimed' );
+		$this->assertSame( 0, $view['lastPurgeCleared'] );
+	}
+
 	public function test_a_refusal_stands_the_automatic_path_down_and_a_clean_manual_purge_rearms_it() {
 		$settings = new Settings();
 		$settings->connect( 'tok', 'zone1', 'example.com' );

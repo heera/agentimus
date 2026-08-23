@@ -207,7 +207,7 @@ export default {
         <span class="ar-toggle__track" aria-hidden="true"></span>
         <span class="ar-toggle__text">
           <strong>Clear Cloudflare’s cache when content changes</strong>
-          <small>When you publish or edit, the changed pages are cleared from Cloudflare: the post itself, the front page and your AI files. This is the one cache no caching plugin can reach. It needs the <code>Cache Purge</code> permission on your token. Without it, the attempt is refused, and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token read-only. Either way, the Purge button on the Request Log’s Cloudflare panel still works.</small>
+          <small>When you publish or edit, the changed pages are cleared from Cloudflare: the post itself, the lists it appears on — your posts page, its category and tag pages, the feed and your sitemap — and your AI files. This is the one cache no caching plugin can reach. It needs the <code>Cache Purge</code> permission on your token. Without it, the attempt is refused, and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token read-only. Either way, the Purge button on the Request Log’s Cloudflare panel still works.</small>
         </span>
       </label>
       <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">

@@ -8,6 +8,16 @@
  * `llms.txt`, a stale change feed, and a stale `.md` twin of the very post you edited,
  * until its own TTL runs out. Agents get old content in the meantime.
  *
+ * ⛔ THAT FIRST SENTENCE IS TRUE OF A PLUGIN AND FALSE OF A CDN, and believing it
+ * of both cost this file its biggest hole. A caching plugin does clear the post,
+ * the home page and the archives — inside its own store. Cloudflare holds its own
+ * copy of every one of those pages, no caching plugin can reach it, and the only
+ * code that can is here. So the listing surfaces an edit changes — the posts page
+ * (which on a site with a static front page is NOT `/`), the category and tag
+ * archives, the feed, the sitemap — are purged too, EDGE-ONLY: see
+ * {@see site_listing_urls()} and {@see post_listing_urls()}. Local caches are left
+ * to do their own job, because double-purging them is waste.
+ *
  * This closes that gap: whenever content or identity changes, ask every page cache we can
  * detect to drop Agentimus's files — the site-wide ones (`llms.txt`, `llms-full.txt`,
  * `robots.txt`, the change feed, the `.well-known` docs) and the edited post's own `.md`
@@ -71,9 +81,52 @@ final class CachePurge {
 		// plugins purge it themselves — only the edge needs telling, so it
 		// joins the set only when the automatic edge purge will actually run.
 		if ( Cloudflare\Purge::armed() ) {
-			$urls[] = home_url( '/' );
+			$urls = array_merge( $urls, self::site_listing_urls() );
 		}
 		self::queue( $urls );
+	}
+
+	/**
+	 * The site-wide LISTINGS a publish changes — the pages that show a list of
+	 * posts rather than a post.
+	 *
+	 * ⛔ Edge-only, and that is the whole point of this method existing. The
+	 * docblock at the top of this file assumed a page cache "purges the pages an
+	 * edit touches — the post, the home page, its archives". True of a caching
+	 * PLUGIN. False of a CDN, which no caching plugin can reach: the plugin
+	 * clears its own copy of /blog and Cloudflare goes on serving the old one
+	 * for the rest of its TTL. So these join the set only when the automatic
+	 * edge purge will actually run, and never for the local caches that already
+	 * handle them.
+	 *
+	 * ⭐ The front page is not enough. A site whose posts page is a SEPARATE
+	 * page (Settings → Reading) has its article index at /blog, and purging '/'
+	 * never touches it — the single most visible staleness there is.
+	 *
+	 * @return string[]
+	 */
+	public static function site_listing_urls() {
+		$urls = array( home_url( '/' ) );
+
+		// The posts page, when the front page is a static one. Only then: with
+		// posts on the front page this is the URL already above.
+		if ( 'page' === get_option( 'show_on_front' ) ) {
+			$posts_page = (int) get_option( 'page_for_posts' );
+			$link       = $posts_page ? get_permalink( $posts_page ) : '';
+			if ( is_string( $link ) && '' !== $link ) {
+				$urls[] = $link;
+			}
+		}
+
+		// The main feed — a list of posts like any other, cached like any other.
+		$feed = get_feed_link();
+		if ( is_string( $feed ) && '' !== $feed ) {
+			$urls[] = $feed;
+		}
+
+		// The sitemap: WE regenerate it on every publish (or core does), and
+		// then leave it sitting in the edge cache with yesterday's list.
+		return array_merge( $urls, Sitemap::public_urls() );
 	}
 
 	/**
@@ -98,9 +151,57 @@ final class CachePurge {
 			// set only when the automatic edge purge will actually run.
 			if ( Cloudflare\Purge::armed() ) {
 				$urls[] = (string) $permalink;
+				$urls   = array_merge( $urls, self::post_listing_urls( $post_id ) );
 			}
 			self::queue( $urls );
 		}
+	}
+
+	/**
+	 * The LISTINGS this one post appears on — its category and tag archives,
+	 * and its post type's archive.
+	 *
+	 * ⛔ Edge-only, for the reason in {@see site_listing_urls()}.
+	 *
+	 * ⭐ Deliberately UNCAPPED, Heera's call 2026-08-23 with the numbers in
+	 * front of him: on his own content the median post carries 4 of these and
+	 * the worst carries 11, and a ceiling would only ever silently drop
+	 * somebody's archive page — the failure it prevents (a long tail of API
+	 * calls) is cheaper than the one it creates (a page that quietly keeps
+	 * serving stale). What a purge actually cleared is reported per purge
+	 * instead ({@see Cloudflare\Settings::record_purge()}), so a set too big for
+	 * the edge to take in one go says so rather than reading as success.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string[]
+	 */
+	public static function post_listing_urls( $post_id ) {
+		$post_id = (int) $post_id;
+		$urls    = array();
+
+		foreach ( get_object_taxonomies( get_post_type( $post_id ), 'objects' ) as $taxonomy ) {
+			// Public ones only: a private taxonomy has no archive to go stale.
+			if ( empty( $taxonomy->public ) ) {
+				continue;
+			}
+			$terms = wp_get_object_terms( $post_id, $taxonomy->name );
+			if ( is_wp_error( $terms ) ) {
+				continue;
+			}
+			foreach ( $terms as $term ) {
+				$link = get_term_link( $term );
+				if ( is_string( $link ) && '' !== $link ) {
+					$urls[] = $link;
+				}
+			}
+		}
+
+		$archive = get_post_type_archive_link( get_post_type( $post_id ) );
+		if ( is_string( $archive ) && '' !== $archive ) {
+			$urls[] = $archive;
+		}
+
+		return $urls;
 	}
 
 	/**

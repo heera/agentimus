@@ -43,6 +43,14 @@ final class Settings {
 			// not smear "poll failed" over perfectly good numbers, and vice versa.
 			'last_purge_at'    => 0,
 			'last_purge_error' => '',
+			// What the last purge was ASKED to clear and what it actually
+			// cleared. Two numbers because they can differ: the edge takes the
+			// list in batches, and a failure partway leaves the earlier batches
+			// cleared and the rest still stale. One number could only tell that
+			// story by lying about half of it. Both 0 for a purge-everything,
+			// which has no list.
+			'last_purge_urls'    => 0,
+			'last_purge_cleared' => 0,
 			// A 401/403 refusal stands the AUTOMATIC purge down (the token can't
 			// purge, and retrying on every save would be a nag plus a wasted
 			// request). Cleared by any clean purge — the manual button always
@@ -160,9 +168,11 @@ final class Settings {
 		$all['last_poll_at'] = 0;
 		$all['last_error']   = '';
 		// A new token is a new question — forget the old one's purge verdicts.
-		$all['last_purge_at']    = 0;
-		$all['last_purge_error'] = '';
-		$all['purge_denied']     = false;
+		$all['last_purge_at']      = 0;
+		$all['last_purge_error']   = '';
+		$all['last_purge_urls']    = 0;
+		$all['last_purge_cleared'] = 0;
+		$all['purge_denied']       = false;
 		$this->persist( $all );
 	}
 
@@ -181,16 +191,26 @@ final class Settings {
 	 * when one happened (a clean purge clears the previous error AND re-arms
 	 * the automatic path).
 	 *
-	 * @param string $error  Human-readable failure, or '' for a clean purge.
-	 * @param bool   $denied Whether the failure was a permission refusal
-	 *                       (401/403) — stands the automatic path down.
+	 * ⭐ And how much of it landed. A URL purge goes to the edge in batches, so
+	 * a failure partway is a PARTIAL outcome — some pages fresh, the rest still
+	 * serving yesterday — and recording only "it failed" leaves the owner no way
+	 * to know which. Both counts are 0 for a purge-everything: that call has no
+	 * list, and inventing one would be a number nobody measured.
+	 *
+	 * @param string $error     Human-readable failure, or '' for a clean purge.
+	 * @param bool   $denied    Whether the failure was a permission refusal
+	 *                          (401/403) — stands the automatic path down.
+	 * @param int    $attempted URLs this purge was asked to clear.
+	 * @param int    $cleared   URLs the edge confirmed it dropped.
 	 * @return void
 	 */
-	public function record_purge( $error = '', $denied = false ) {
-		$all                     = $this->all();
-		$all['last_purge_at']    = time();
-		$all['last_purge_error'] = sanitize_text_field( (string) $error );
-		$all['purge_denied']     = '' === (string) $error ? false : (bool) $denied;
+	public function record_purge( $error = '', $denied = false, $attempted = 0, $cleared = 0 ) {
+		$all                       = $this->all();
+		$all['last_purge_at']      = time();
+		$all['last_purge_error']   = sanitize_text_field( (string) $error );
+		$all['last_purge_urls']    = max( 0, (int) $attempted );
+		$all['last_purge_cleared'] = max( 0, min( (int) $cleared, (int) $attempted ) );
+		$all['purge_denied']       = '' === (string) $error ? false : (bool) $denied;
 		$this->persist( $all );
 	}
 
@@ -219,6 +239,8 @@ final class Settings {
 			'lastError'      => (string) $all['last_error'],
 			'lastPurgeAt'    => (int) $all['last_purge_at'],
 			'lastPurgeError' => (string) $all['last_purge_error'],
+			'lastPurgeUrls'    => (int) $all['last_purge_urls'],
+			'lastPurgeCleared' => (int) $all['last_purge_cleared'],
 		);
 	}
 }
