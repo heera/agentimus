@@ -96,6 +96,11 @@ export default {
       // postNote carries the explanation instead.
       if (md && !this.res.postIncluded) return null;
       if (!md && !this.res.livePublic) return null;
+      // ⛔ AND NOTHING IS SERVED WHEN THERE IS NOTHING TO SERVE. A published page
+      // with an empty body is postIncluded and livePublic and still produces no
+      // output, so this banner sat directly above "No Markdown is served for this
+      // page" saying the opposite. Caught by rendering that state on purpose.
+      if (this.isEmpty) return null;
       // The site target's markdown is the index served at the home URL and /llms.txt,
       // not a single page's .md — so its "served" line names where it actually lives.
       const isSite = !!(this.res.target && this.res.target.type === 'site');
@@ -511,7 +516,18 @@ export default {
 
                     <!-- JSON-LD body -->
                     <template v-if="format === 'jsonld'">
-                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">Nothing would be added to this page.</p>
+                      <!-- ⭐ The bare fact was a dead end. Every OTHER reason for an
+                           empty preview already speaks for itself — the switch being
+                           off, an SEO plugin owning schema, a draft, a password —
+                           through the banner or postNote above. What is left when all
+                           of those are silent is a page the builder found nothing to
+                           describe, so this names what the answer is built from
+                           instead of asserting a cause it cannot know. -->
+                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">
+                        Nothing would be added to this page. This is built from your site identity and the
+                        page’s own content — check that who the site represents is filled in under
+                        <strong>Settings → Identity</strong>.
+                      </p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
                         <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>
@@ -522,7 +538,14 @@ export default {
                     </template>
                     <!-- Markdown body -->
                     <template v-else>
-                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">No Markdown is served for this page.</p>
+                      <!-- Same reasoning as the JSON-LD twin above. By the time this
+                           line shows, the page IS published, IS unprotected and IS a
+                           type Agentimus describes — those three each carry their own
+                           note — so the only thing left is a body with nothing in it. -->
+                      <p v-if="isEmpty && !res.postNote" class="agentimus-jsonld__empty">
+                        No Markdown is served for this page — there’s no body text to convert.
+                        Add some content and its <code>.md</code> twin appears with it.
+                      </p>
                       <div v-else-if="!isEmpty" class="agentimus-jsonld__codewrap">
                         <button type="button" class="agentimus-jsonld__codecopy" :class="{ 'is-copied': copied }" @click="copy" :aria-label="copyLabel" v-tip="copyLabel">
                           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg>

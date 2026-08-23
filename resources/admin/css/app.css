@@ -2060,6 +2060,16 @@ body { --ar-bar: var(--ar-accent); }
 }
 .ar-whatsnew__itemtext { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
 .ar-whatsnew__foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
+/* The same rule as the audience rows above: a link sitting in a row or a
+   sentence needs a signal that is not its colour. "Got it" beside it is a
+   button with its own box, so it is already unmistakable. */
+.ar-whatsnew__foot .ar-linkbtn {
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+	text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.ar-whatsnew__foot .ar-linkbtn:hover { text-decoration-color: currentColor; }
 .ar-whatsnew__gotit { font-size: 12.5px; padding: 7px 18px; }
 @media (max-width: 720px) {
   /* One column on a phone — the floor above would otherwise ask for a width the
@@ -8575,8 +8585,25 @@ body {
    trend is green or red because it is a direction, and "not recording" is faint
    because it is an absence. Neither is part of the link. */
 .ar-aud__row.is-go { cursor: pointer; }
-.ar-aud__row.is-go .ar-aud__row-l { color: var(--ar-accent); }
-.ar-aud__row.is-go:hover .ar-aud__row-l { text-decoration: underline; text-underline-offset: 3px; }
+/* ⛔ COLOUR CANNOT BE THE ONLY THING THAT SAYS "CLICKABLE". `--ar-good` IS
+   `--ar-accent` on most schemes, so a status word ("On", "Covered", "Both
+   connected") and a link paint the identical hex — and the status word is the
+   BOLDER of the two (650 against 400), which points the reader the wrong way.
+   The underline below already existed but only on hover: it tells nobody
+   anything until they are already pointing at it, and tells a touch user
+   nothing at all. It rests muted and comes up to full ink on hover.
+   ⭐ currentColor, not a token: the rule then holds on all nine schemes without
+   knowing any of their values. His call 2026-08-24, after spotting it on the
+   dashboard. Links that stand alone with an arrow already announce themselves
+   and are deliberately left as they are. */
+.ar-aud__row.is-go .ar-aud__row-l {
+	color: var(--ar-accent);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+	text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.ar-aud__row.is-go:hover .ar-aud__row-l { text-decoration-color: currentColor; }
 .ar-aud__row.is-go .ar-aud__trend,
 .ar-aud__row.is-go .ar-aud__off { text-decoration: none; }
 .ar-aud__row.is-go:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; }

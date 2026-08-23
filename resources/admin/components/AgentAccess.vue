@@ -595,6 +595,15 @@ export default {
         Nothing has run — and nothing has been turned away either. Requests that were refused, and
         anyone poking at abilities that don't exist, would show up here too.
       </p>
+      <!-- ⭐ An empty screen that only says what is absent leaves a new owner
+           with nowhere to go: this screen fills itself as a SIDE EFFECT of
+           something set up elsewhere, so it has to name that place. The MCP
+           card's own empty state does the same thing one step earlier
+           ("Give an assistant the address above"). -->
+      <p>
+        Connect an assistant under <strong>Settings → MCP Server</strong> and everything it
+        does lands in this list.
+      </p>
     </div>
 
     <!-- What this VIEW is holding back, as opposed to what the feature can't see at all. A list
