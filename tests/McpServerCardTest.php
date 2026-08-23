@@ -54,20 +54,55 @@ final class McpServerCardTest extends TestCase {
 
 	/* -- server_tools(): real tools from the live server -------------------- */
 
+	/** Every name the card is allowed to print, as the surface hands it over. */
+	private function allow( string ...$names ) {
+		return array_fill_keys( $names, true );
+	}
+
 	public function test_server_tools_reads_name_and_description() {
 		$server = $this->server( array( $this->tool( 'fluentcart-get-orders', 'Retrieve orders.' ) ) );
-		$tools  = $this->call( 'server_tools', $server );
+		$tools  = $this->call( 'server_tools', $server, $this->allow( 'fluentcart-get-orders' ) );
 		$this->assertSame( array( array( 'name' => 'fluentcart-get-orders', 'description' => 'Retrieve orders.' ) ), $tools );
 	}
 
 	public function test_server_tools_tolerates_string_entries_and_skips_nameless() {
 		$server = $this->server( array( 'bare-tool', $this->tool( '', 'no name' ), 42 ) );
-		$tools  = $this->call( 'server_tools', $server );
+		$tools  = $this->call( 'server_tools', $server, $this->allow( 'bare-tool' ) );
 		$this->assertSame( array( array( 'name' => 'bare-tool', 'description' => '' ) ), $tools );
 	}
 
 	public function test_server_tools_empty_when_no_getter() {
-		$this->assertSame( array(), $this->call( 'server_tools', new \stdClass() ) );
+		$this->assertSame( array(), $this->call( 'server_tools', new \stdClass(), $this->allow( 'anything' ) ) );
+	}
+
+	/**
+	 * ⛔⛔ THE LEAK THIS CLOSES, and it shipped. The per-tool publication boundary
+	 * is drawn over registry resources; this path reads the LIVE server, which
+	 * knows nothing about it — so every Agentimus tool, each registered
+	 * `mcp.public => false` precisely to stay off public surfaces, was printed
+	 * into /.well-known/mcp.json with its description anyway. Four surfaces, and
+	 * only this one disagreed.
+	 */
+	public function test_a_tool_nobody_published_is_not_named_in_the_card() {
+		$server = $this->server( array(
+			$this->tool( 'agentimus-read-request-log', 'Every request an agent made.' ),
+			$this->tool( 'someone-else-open-tool', 'Published by its owner.' ),
+		) );
+
+		$tools = $this->call( 'server_tools', $server, $this->allow( 'someone-else-open-tool' ) );
+
+		$this->assertSame( array( array( 'name' => 'someone-else-open-tool', 'description' => 'Published by its owner.' ) ), $tools );
+		$this->assertStringNotContainsString( 'agentimus-read-request-log', wp_json_encode( $tools ), 'A kept-back tool must not be named.' );
+		$this->assertStringNotContainsString( 'Every request an agent made', wp_json_encode( $tools ), 'Nor may its description leak.' );
+	}
+
+	/**
+	 * ⛔ FAIL CLOSED. A caller that could not work out the publishable set names
+	 * nothing: naming none is recoverable, naming one that was kept back is not.
+	 */
+	public function test_no_publishable_set_means_no_names() {
+		$server = $this->server( array( $this->tool( 'anything', 'at all' ) ) );
+		$this->assertSame( array(), $this->call( 'server_tools', $server, null ) );
 	}
 
 	/* -- primary_server(): which server the single card represents ---------- */

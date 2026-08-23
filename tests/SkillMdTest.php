@@ -93,12 +93,27 @@ final class SkillMdTest extends TestCase {
 		$GLOBALS['_af_did_actions']['mcp_adapter_init'] = 1;
 		\WP\MCP\Core\McpAdapter::$servers              = array( new FakeMcpServer() );
 
+		// The fake server holds `search` and `book`; only one of them is published,
+		// so this doc gets exactly the hand that was dealt. ⛔ The skill file is a
+		// SERVED document like any other — a tool nobody marked publishable is not
+		// named here either, and until 2026-08-24 every one of them was.
+		Registry::instance()->register(
+			array(
+				'id'     => 'fixture-published',
+				'title'  => 'Fixture',
+				'type'   => 'agent',
+				'public' => true,
+				'tools'  => array( array( 'name' => 'search', 'title' => 'Search', 'description' => '', 'inputSchema' => array( 'type' => 'object' ), 'public' => true ) ),
+			)
+		);
+
 		update_option( Settings::OPTION, array( 'enable_mcp_server' => true ) );
 		$md = $this->skill()->markdown();
 		$this->assertStringContainsString( '## Use the MCP server', $md );
 		$this->assertStringContainsString( '/wp-json/acme-mcp/v1/mcp', $md );
 		$this->assertStringContainsString( 'oauth-protected-resource/agentimus/mcp', $md );
 		$this->assertStringContainsString( '- `search`', $md );
+		$this->assertStringNotContainsString( '- `book`', $md, 'Nobody published that one.' );
 		$this->assertStringContainsString( 'read-only', $md );
 
 		// Writes opt-in flips the read-only line to the consent-framed one.

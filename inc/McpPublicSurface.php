@@ -11,6 +11,13 @@
  * design at /.well-known/mcp.json" — which was never true for abilities that
  * require sign-in, and those are all of ours. See PUBLIC_METHODS below.
  *
+ * ⚠️ That premise was HALF-TRUE in the worst way, and it took until 2026-08-24 to
+ * see it: mcp.json really was publishing all of them — not by design, but
+ * because its server card read the live server and never applied the per-tool
+ * boundary ({@see \Agentimus\Discovery\McpSurface::server_tools()}). Closing
+ * this door was right; the other one was standing open the whole time. It is
+ * shut now, and the two agree.
+ *
  * What it changes is the PROTOCOL answer — a scanner or a cautious client no
  * longer reads "401" as "no MCP here". Everything else (tools/list, tools/call,
  * resources, sessions) still requires authentication and flows through the
@@ -40,15 +47,27 @@ final class McpPublicSurface {
 	/**
 	 * What an unauthenticated caller may ask.
 	 *
-	 * `tools/list` is deliberately NOT here. It was, on the premise — stated in
-	 * this file's own header — that the names, descriptions and schemas were
-	 * "already public by design at /.well-known/mcp.json". They are not: three
-	 * weeks earlier, abilities that all require sign-in were marked non-public
-	 * precisely so their signatures would stay OUT of the served documents, and
+	 * `tools/list` is deliberately NOT here.
+	 *
+	 * ⭐ THE RULE, and it is the same one everywhere — his call 2026-08-24: we
+	 * hold ourselves to what we hold other plugins to. Agentimus registers every
+	 * ability `mcp.public => false`, so a tool of ours is not named in a served
+	 * document, and this door does not name one either. A PROVIDER that marks a
+	 * tool public publishes exactly that tool — theirs to give, ours to pass on.
+	 *
+	 * ⛔ Nothing is hidden from an agent that connects. A key gets the full
+	 * `tools/list` over the protocol, which is the step it has to take anyway;
+	 * what a stranger gets is a 401 carrying WWW-Authenticate, which says "there
+	 * are tools, here is where to ask" rather than an empty list reading as
+	 * "there are none".
+	 *
+	 * ⚠️ THE OTHER DOOR WAS OPEN UNTIL 2026-08-24. mcp.json's server card was
+	 * built from the live server object and never applied this boundary, so all
+	 * 34 went out with their descriptions while this file said they could not.
 	 * `WellKnownDocsTest::test_a_non_public_resource_reaches_no_served_surface`
-	 * asserts it by name — scan-exposed-files, and "nor may its schemas /
-	 * descriptions leak there". Answering tools/list anonymously handed back
-	 * over the protocol exactly what that rule keeps out of the files.
+	 * could not see it — the card path only exists with a real adapter — and
+	 * `McpServerCardTest::test_a_tool_nobody_published_is_not_named_in_the_card`
+	 * now covers exactly that hole.
 	 *
 	 * The handshake still works: `initialize` answers, so a scanner or a cautious
 	 * client never reads 401 as "no MCP here", and tools/list now returns the

@@ -144,7 +144,10 @@ final class McpSurface {
 			return '';
 		}
 		foreach ( $mcp['servers'] as $s ) {
-			if ( isset( $s['id'] ) && (string) $s['id'] === $id && ! empty( $s['tool_list'] ) ) {
+			// ⚠️ Matched on the id alone. It used to require a non-empty tool_list,
+			// which was harmless while every server published its tools and became a
+			// 404 on an advertised address the moment one stopped.
+			if ( isset( $s['id'] ) && (string) $s['id'] === $id ) {
 				return $this->encode( $this->build_server_card( $s, $mcp ) );
 			}
 		}
@@ -311,7 +314,8 @@ final class McpSurface {
 					continue;
 				}
 				$route     = method_exists( $server, 'get_server_route' ) ? (string) $server->get_server_route() : '';
-				$tool_list = self::server_tools( $server );
+				$held      = method_exists( $server, 'get_tools' ) ? count( (array) $server->get_tools() ) : 0;
+				$tool_list = self::server_tools( $server, $this->publishable_tool_names() );
 				$id        = method_exists( $server, 'get_server_id' ) ? (string) $server->get_server_id() : '';
 				$entry     = array(
 					'id'          => $id,
@@ -320,14 +324,25 @@ final class McpSurface {
 					'version'     => method_exists( $server, 'get_server_version' ) ? (string) $server->get_server_version() : '',
 					'endpoint'  => esc_url_raw( rest_url( trailingslashit( $namespace ) . ltrim( $route, '/' ) ) ),
 					'transport' => 'streamable-http',
-					'tools'     => count( $tool_list ),
-					// The server's real, directly-registered tools (name + description) —
-					// what's actually callable at this endpoint, by these exact names.
+					// ⭐ THE COUNT IS WHAT THE SERVER REALLY HOLDS, not what this
+					// document names. Withholding the list must never become a claim
+					// that there is nothing here — "34 tools, sign in to see them" is
+					// true and useful; "0 tools" would be a lie told by omission, and
+					// it is the shape a reader mistakes for "this server is empty".
+					'tools'     => $held,
+					// Only the tools something has actually marked publishable. On a
+					// stock install that is none of Agentimus's own, by its own
+					// declaration — an agent gets the full list over the protocol once
+					// it has a key.
 					'tool_list' => $tool_list,
 				);
-				// Link each tool-bearing server to its own SEP-2127 card, so an agent can
-				// enumerate servers here and jump straight to each card without guessing.
-				if ( '' !== $id && ! empty( $tool_list ) ) {
+				// Link each server to its own SEP-2127 card, so an agent can enumerate
+				// servers here and jump straight to each card without guessing.
+				// ⚠️ Gated on the ID, never on the tool list: withholding the names
+				// must not withdraw the card's ADDRESS, or a link we advertise here
+				// starts 404ing — advertising an address that does not exist fails
+				// the same honesty test as advertising a tool that is kept back.
+				if ( '' !== $id ) {
 					$entry['card'] = esc_url_raw( home_url( '/.well-known/mcp/' . rawurlencode( $id ) . '/server-card.json' ) );
 				}
 				$out[] = $entry;
@@ -347,10 +362,33 @@ final class McpSurface {
 	 * @param object $server An MCP server object.
 	 * @return array<int,array{name:string,description:string}>
 	 */
-	private static function server_tools( $server ) {
+	private static function server_tools( $server, array $publishable = null ) {
+		// ⛔⛔ THE SAME PUBLICATION RULE AS EVERY OTHER SURFACE — added 2026-08-24,
+		// after this path was found ignoring it for as long as it has existed.
+		//
+		// This asks the LIVE server what it holds, which is why it drifted: the
+		// per-tool `public` boundary is drawn over REGISTRY resources ({@see
+		// tools()} and Envelope::wire_resource()), and a server object knows
+		// nothing about that. So every Agentimus tool — all of them registered
+		// with `mcp.public => false`, deliberately, so their signatures stay off
+		// public surfaces — was printed into /.well-known/mcp.json with its full
+		// description anyway. Four surfaces, one of them saying the opposite of
+		// the other three, and the dashboard's own "0 listed" was the truthful one.
+		//
+		// ⭐ THE RULE, his call: we hold ourselves to what we hold other plugins
+		// to. A tool nobody has marked publishable is not named in a served
+		// document — ours included. An agent that connects still sees every one
+		// of them over the protocol, because that is a question asked WITH a key.
+		// ⚠️ The COUNT still goes out ({@see mcp_servers()}), so withholding the
+		// names never becomes "this server is empty".
+		//
+		// ⚠️ $publishable is the set of names {@see tools()} allows through. Null
+		// means the caller could not work it out, and then this fails CLOSED —
+		// naming nothing is recoverable, naming something kept back is not.
 		if ( ! is_object( $server ) || ! method_exists( $server, 'get_tools' ) ) {
 			return array();
 		}
+		$allow = null === $publishable ? array() : $publishable;
 		$tools = array();
 		foreach ( (array) $server->get_tools() as $tool ) {
 			if ( is_object( $tool ) && method_exists( $tool, 'get_name' ) ) {
@@ -367,11 +405,30 @@ final class McpSurface {
 			} else {
 				continue;
 			}
-			if ( '' !== $name ) {
+			if ( '' !== $name && isset( $allow[ $name ] ) ) {
 				$tools[] = array( 'name' => $name, 'description' => $desc );
 			}
 		}
 		return $tools;
+	}
+
+	/**
+	 * The names {@see tools()} lets into a served document, as a lookup.
+	 *
+	 * Built from the same resources and the same per-tool boundary, so the server
+	 * card can never name a tool discovery.json withholds — the two documents
+	 * disagreeing is exactly the bug this closes.
+	 *
+	 * @return array<string,true>
+	 */
+	private function publishable_tool_names() {
+		$names = array();
+		foreach ( $this->tools( $this->envelope->all_resources() ) as $tool ) {
+			if ( isset( $tool['name'] ) && '' !== $tool['name'] ) {
+				$names[ (string) $tool['name'] ] = true;
+			}
+		}
+		return $names;
 	}
 
 	/**

@@ -86,6 +86,30 @@ namespace Agentimus\Tests {
 			return ( new Envelope( new Settings(), Registry::instance() ) )->mcp_surface()['mcp'];
 		}
 
+		/**
+		 * Declare these tool names publishable, the way a plugin marking
+		 * `mcp.public` does — the card names only what something has published,
+		 * so a fixture that skips this gets an empty list and proves nothing.
+		 *
+		 * @param string ...$names Tool names.
+		 */
+		private function published( string ...$names ): void {
+			Registry::instance()->register(
+				array(
+					'id'     => 'fixture-published',
+					'title'  => 'Fixture',
+					'type'   => 'agent',
+					'public' => true,
+					'tools'  => array_map(
+						static function ( $n ) {
+							return array( 'name' => $n, 'title' => $n, 'description' => '', 'inputSchema' => array( 'type' => 'object' ), 'public' => true );
+						},
+						$names
+					),
+				)
+			);
+		}
+
 		public function test_adapter_server_is_detected_generically() {
 			$mcp = $this->mcp();
 			$this->assertTrue( $mcp['available'] );
@@ -99,6 +123,7 @@ namespace Agentimus\Tests {
 			// get_tools(); the projection must read them, or every server reads as
 			// tool-less — tools:0 in mcp.json and a 404 on its per-id server card.
 			\WP\MCP\Core\McpAdapter::$servers = array( new FakeDtoMcpServer() );
+			$this->published( 'acme-lookup' );
 			$mcp = $this->mcp();
 			$this->assertSame( 1, $mcp['tools'] );
 			$this->assertSame( 'acme-lookup', $mcp['servers'][0]['tool_list'][0]['name'] );
