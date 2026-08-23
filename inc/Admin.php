@@ -1005,7 +1005,7 @@ final class Admin {
 				array(
 					'icon'  => 'page',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'A half-finished cache clear now says how much of it landed instead of reading as a flat failure, and three screens that only said "nothing here" now say what would put something there. The changelog has the full list.',
+					'text'  => 'Links on the dashboard no longer look exactly like status text — you can tell what is clickable again. A half-finished cache clear says how much of it landed instead of reading as a flat failure, and three screens that only said "nothing here" now say what would put something there. The changelog has the full list.',
 				),
 			),
 		);
