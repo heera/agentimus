@@ -77,6 +77,13 @@ namespace Agentimus\Tests {
 			'agentimus/write-topics',
 			'agentimus/apply-fix',
 			'agentimus/set-aside-page',
+			// ⚠️ This list had drifted behind Registrar::WRITE_SLUGS — three write
+			// tools were registered and never checked here, so the gate they all
+			// depend on was proven for six of nine. Completed 2026-08-23.
+			'agentimus/write-search-fields',
+			'agentimus/retry-announcement',
+			'agentimus/review-client',
+			'agentimus/recheck-client',
 		);
 
 		private function server_args( array $settings ): array {

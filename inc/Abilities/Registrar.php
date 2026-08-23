@@ -59,7 +59,13 @@ use Agentimus\Search\Report as SearchReport;
 use Agentimus\BotVerifier;
 use Agentimus\Activity\Referrals;
 use Agentimus\Activity\Repository;
+use Agentimus\Activity\Review;
+use Agentimus\Activity\Catalog;
+use Agentimus\Guard;
+use Agentimus\VerifierRegistry;
 use Agentimus\AgentAccess\Module as AgentAccess;
+use Agentimus\AgentAccess\Store as AgentAccessStore;
+use Agentimus\AgentAccess\Events;
 use Agentimus\McpToken;
 use Agentimus\Oauth;
 use Agentimus\Visibility\Store as VisibilityStore;
@@ -87,7 +93,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
 
 	/** @var Settings */
 	private $settings;
@@ -530,6 +536,8 @@ final class Registrar {
 					'lastError'      => self::s( 'The most recent poll failure, empty after a clean poll.' ),
 					'lastPurgeAt'    => self::i( 'Unix time of the last edge cache purge; 0 = never purged.' ),
 					'lastPurgeError' => self::s( 'The most recent purge failure (e.g. the token lacks the Cache Purge permission), empty after a clean purge. Separate from lastError so healthy numbers cannot hide it.' ),
+					'lastPurgeUrls'    => self::i( 'How many URLs the last purge was asked to clear; 0 = never purged, or a purge-everything, which has no list.' ),
+					'lastPurgeCleared' => self::i( 'How many of them the edge confirmed it dropped. Lower than lastPurgeUrls means a PARTIAL purge — the list goes in batches and one failed partway, so the pages after it are still serving stale copies.' ),
 					'days'           => self::i(),
 					'totals'      => self::obj(
 						array(
@@ -732,6 +740,7 @@ final class Registrar {
 					'lastError' => self::s( 'The most recent sweep failure, empty after a clean sweep.' ),
 					'quotaHit'  => self::b( 'True when Google\'s daily inspection budget ran out mid-sweep — unreached rows keep their last good answers (see each row\'s inspectedAt).' ),
 					'pending'   => self::i( 'Pages of the current sweep still waiting — the sweep runs in short budgeted chunks so no web request runs long. 0 = the last sweep finished; rows not yet reached carry their previous answers.' ),
+					'pausedAt'  => self::i( 'Unix time the owner stopped the current sweep with Cancel; 0 = nothing is stopped. While this is set the pending pages are waiting on a deliberate restart or the daily check — nothing is working through them.' ),
 					'watched'   => self::obj(
 						array(
 							'busiest'       => self::i( 'How many busiest-in-Google pages the watchlist covers at most.' ),
@@ -1312,6 +1321,237 @@ final class Registrar {
 					return new \WP_Error( 'agentimus_bad_ip', __( 'A valid IP address is required.', 'agentimus' ), array( 'status' => 400 ) );
 				}
 				return BotVerifier::identify_ip( $ip );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-clients',
+			__( 'List the clients waiting on a decision', 'agentimus' ),
+			'Returns who has been fetching this site and what the owner has already decided about them — the '
+				. 'review queue first. A queue row is a client the site wants a verdict on: brand new, unusually '
+				. 'heavy, or caught claiming an identity that is not its own. `flags` says which of those it is '
+				. 'and `severity` how loud, `hits` is the volume behind the row, and `suggestedRule` is the exact '
+				. 'user-agent fragment a block or allow would match on — pass it nothing, pass review-client the '
+				. '`ua`. Then the standing decisions: `blocked` (turned away at the door), `allowed` (never '
+				. 'blocked, never queued again) and `ignored` (a not-now, no policy either way, which returns if '
+				. 'the client changes materially). `verifiers` is the separate list of crawlers whose identity '
+				. 'CAN be proved by reverse DNS or published IP ranges — recheck-client only works on those. '
+				. 'Empty queue plus enabled=true means nothing needs a verdict; enabled=false means the site is '
+				. 'not recording visits at all, which is not the same as nobody visiting.',
+			self::no_input(),
+			self::obj(
+				array(
+					'enabled'     => self::b( 'Whether this site records machine visits at all. False = the lists below are silence, not evidence.' ),
+					'identifyOn'  => self::b( 'Whether "identify every bot" is on, which is what fills in the owning network.' ),
+					'review'      => self::arr(
+						array(
+							'ua'            => self::s( 'The client’s user-agent, as sent. Pass this to review-client and recheck-client.' ),
+							'name'          => self::s( 'What it is, when this site recognises it; empty when nothing does.' ),
+							'operator'      => self::s( 'Who runs it, when recognised.' ),
+							'hits'          => self::i( 'Requests behind this row.' ),
+							'recentHits'    => self::i( 'How many of those are recent — the burst that raised it.' ),
+							'firstSeen'     => self::s( 'ISO 8601.' ),
+							'lastSeen'      => self::s( 'ISO 8601.' ),
+							'severity'      => self::i( 'How loud the row is; higher wants attention sooner.' ),
+							'isNew'         => self::b( 'First seen recently. Leaves the queue on its own if nothing else is wrong.' ),
+							'isHeavy'       => self::b( 'Fetching far more than the rest.' ),
+							'isSpoof'       => self::b( 'Claimed an identity the identity check disproved — the one flag that never ages out.' ),
+							'verdict'       => self::s( 'What the identity check makes of it: unchecked, verified or spoofed.' ),
+							'verifiable'    => self::b( 'Whether its claimed identity CAN be proved — recheck-client only works on these.' ),
+							'refused'       => self::b( 'Whether requests from it are already being turned away at the door.' ),
+							'blocked'       => self::b( 'Already on the block list.' ),
+							'suggestedRule' => self::s( 'The user-agent fragment a block or allow would match on. Empty means no safe rule can be derived, and review-client will refuse block and allow for this row.' ),
+						)
+					),
+					'reviewTotal' => self::i( 'Rows in the queue.' ),
+					'blocked'     => self::arr(
+						array(
+							'rule'      => self::s( 'The user-agent fragment being matched.' ),
+							'name'      => self::s( 'What it is, when recognised.' ),
+							'decidedAt' => self::i( 'Unix time the owner decided; 0 = the record predates the decision log.' ),
+						)
+					),
+					'allowed'     => self::arr(
+						array(
+							'rule'      => self::s( 'The user-agent fragment being matched.' ),
+							'name'      => self::s( 'What it is, when recognised.' ),
+							'decidedAt' => self::i( 'Unix time the owner decided; 0 = the record predates the decision log.' ),
+						)
+					),
+					'ignored'     => self::arr(
+						array(
+							// ⚠️ The store keys these by a dismissal identity, not by the
+							// user-agent — so this names the client the way the owner's own
+							// screen does, and there is no `ua` to hand back. Nothing here
+							// is meant to be passed to another tool.
+							'name' => self::s( 'The client that was set aside, as the owner sees it named.' ),
+							'at'   => self::i( 'Unix time it was ignored.' ),
+							'hits' => self::i( 'The volume the owner saw when they ignored it — the row returns if the client grows well past this.' ),
+						)
+					),
+					'verifiers'   => self::arr(
+						array(
+							'token'   => self::s( 'The registry key.' ),
+							'label'   => self::s( 'The crawler’s name.' ),
+							'ua'      => self::s( 'The user-agent fragment that claims this identity.' ),
+							'domains' => array(
+								'type'        => 'array',
+								'items'       => self::s(),
+								'description' => 'The hostnames a genuine one resolves to.',
+							),
+						)
+					),
+				)
+			),
+			function () {
+				$settings = $this->settings;
+				$stats    = Repository::stats( $settings );
+				// ⚠️ `threats` is a WRAPPER — sources / counts / blockingOn / … — and
+				// the rows are under `sources`. Iterating the wrapper itself yields
+				// one blank row per key and reads as "five clients, all unknown".
+				$threats  = isset( $stats['threats']['sources'] ) && is_array( $stats['threats']['sources'] ) ? $stats['threats']['sources'] : array();
+
+				$review = array();
+				foreach ( $threats as $row ) {
+					$known    = isset( $row['known'] ) && is_array( $row['known'] ) ? $row['known'] : array();
+					$flags    = isset( $row['flags'] ) && is_array( $row['flags'] ) ? $row['flags'] : array();
+					$review[] = array(
+						'ua'            => (string) ( isset( $row['ua'] ) ? $row['ua'] : '' ),
+						'name'          => (string) ( isset( $known['name'] ) ? $known['name'] : ( isset( $row['agent'] ) ? $row['agent'] : '' ) ),
+						'operator'      => (string) ( isset( $known['operator'] ) ? $known['operator'] : '' ),
+						'hits'          => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
+						'recentHits'    => (int) ( isset( $row['recent'] ) ? $row['recent'] : 0 ),
+						'firstSeen'     => (string) ( isset( $row['firstSeen'] ) ? $row['firstSeen'] : '' ),
+						'lastSeen'      => (string) ( isset( $row['lastSeen'] ) ? $row['lastSeen'] : '' ),
+						'severity'      => (int) ( isset( $row['severity'] ) ? $row['severity'] : 0 ),
+						'isNew'         => ! empty( $flags['new'] ),
+						'isHeavy'       => ! empty( $flags['heavy'] ),
+						'isSpoof'       => ! empty( $flags['spoof'] ),
+						'verdict'       => (string) ( isset( $row['verdict'] ) ? $row['verdict'] : '' ),
+						'verifiable'    => ! empty( $row['verifiable'] ),
+						'refused'       => ! empty( $row['refused'] ),
+						'blocked'       => ! empty( $row['blocked'] ),
+						'suggestedRule' => (string) ( isset( $row['token'] ) ? $row['token'] : '' ),
+					);
+				}
+
+				$decisions = Settings::decisions();
+				$listing   = static function ( $tokens, $dates ) {
+					$out = array();
+					foreach ( (array) $tokens as $token ) {
+						$token = (string) $token;
+						$known = Catalog::identify( $token );
+						$out[] = array(
+							'rule'      => $token,
+							'name'      => (string) ( is_array( $known ) && isset( $known['name'] ) ? $known['name'] : '' ),
+							'decidedAt' => (int) ( isset( $dates[ strtolower( $token ) ] ) ? $dates[ strtolower( $token ) ] : 0 ),
+						);
+					}
+					return $out;
+				};
+
+				$ignored = array();
+				foreach ( (array) Repository::dismissals() as $row ) {
+					$ignored[] = array(
+						'name' => (string) ( isset( $row['label'] ) ? $row['label'] : '' ),
+						'at'   => (int) ( isset( $row['at'] ) ? $row['at'] : 0 ),
+						'hits' => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
+					);
+				}
+
+				$verifiers = array();
+				foreach ( VerifierRegistry::entries() as $entry ) {
+					$verifiers[] = array(
+						'token'   => (string) ( isset( $entry['token'] ) ? $entry['token'] : '' ),
+						'label'   => (string) ( isset( $entry['label'] ) ? $entry['label'] : '' ),
+						'ua'      => (string) ( isset( $entry['ua'] ) ? $entry['ua'] : '' ),
+						'domains' => array_values( array_map( 'strval', (array) ( isset( $entry['domains'] ) ? $entry['domains'] : array() ) ) ),
+					);
+				}
+
+				return array(
+					'enabled'     => (bool) $settings->enabled( 'enable_activity' ),
+					'identifyOn'  => (bool) $settings->enabled( 'identify_bots' ),
+					'review'      => $review,
+					'reviewTotal' => count( $review ),
+					'blocked'     => $listing( $settings->get( 'blocked_agents', array() ), $decisions['block'] ),
+					'allowed'     => $listing( $settings->get( 'allowed_agents', array() ), $decisions['allow'] ),
+					'ignored'     => $ignored,
+					'verifiers'   => $verifiers,
+				);
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-agent-access',
+			__( 'Read the agent access record', 'agentimus' ),
+			'Returns what has actually been DONE on this site through a key rather than a browser: keys created '
+				. 'and used, abilities run, and requests refused. Newest first, cursor-paginated with `before`. '
+				. 'It is a record, not a guard — it names the key, never the person. `coverage` is the one field '
+				. 'to read before trusting an empty list: it says whether this WordPress can see ability runs at '
+				. 'all, so "nothing here" can be told apart from "nothing is being watched". Pair it with '
+				. 'read-clients, which answers the other half — who FETCHED pages, signed in or not.',
+			self::obj(
+				array(
+					'before' => self::s( 'Pagination cursor: pass the previous page’s `cursor` for older rows.' ),
+				)
+			),
+			self::obj(
+				array(
+					'events'        => self::arr(
+						array(
+							'kind'      => self::s( 'What happened: a key created or used, an ability run, a request refused.' ),
+							'user'      => self::s( 'The WordPress login the key acts as.' ),
+							'credName'  => self::s( 'Which key, by the name it was given.' ),
+							'subject'   => self::s( 'What it acted on — the ability name, for an ability run.' ),
+							'detail'    => self::s( 'Anything more the event carries.' ),
+							'hits'      => self::i( 'How many times this same event has happened.' ),
+							'firstSeen' => self::s( 'ISO 8601.' ),
+							'lastSeen'  => self::s( 'ISO 8601.' ),
+						)
+					),
+					'total'         => self::i( 'Events on record, which may exceed the page returned.' ),
+					'unseen'        => self::i( 'Events the owner has not looked at yet.' ),
+					'hasMore'       => self::b(),
+					'cursor'        => self::s( 'Pass as `before` for the next page; empty at the end.' ),
+					'coverage'      => self::s( 'Whether ability runs can be watched here at all — read this before treating an empty list as "nothing happened".' ),
+					'hasAbilities'  => self::b( 'Whether this WordPress exposes the Abilities API.' ),
+					'thirdParty'    => self::b( 'Whether abilities from OTHER plugins are visible too, or only Agentimus’s own.' ),
+					'retentionDays' => self::i( 'How long events are kept.' ),
+					'maxRows'       => self::i( 'The hard row cap; the oldest go first when it binds.' ),
+				)
+			),
+			function ( $input ) {
+				$before = isset( $input['before'] ) ? (string) $input['before'] : '';
+				$page   = AgentAccessStore::page( AgentAccessStore::DEFAULT_LIMIT, null, $before );
+				$rows   = array();
+				foreach ( (array) $page['events'] as $event ) {
+					$rows[] = array(
+						'kind'      => (string) ( isset( $event['kind'] ) ? $event['kind'] : '' ),
+						'user'      => (string) ( isset( $event['user'] ) ? $event['user'] : '' ),
+						'credName'  => (string) ( isset( $event['credName'] ) ? $event['credName'] : '' ),
+						'subject'   => (string) ( isset( $event['subject'] ) ? $event['subject'] : '' ),
+						'detail'    => (string) ( isset( $event['detail'] ) ? $event['detail'] : '' ),
+						'hits'      => (int) ( isset( $event['hits'] ) ? $event['hits'] : 0 ),
+						'firstSeen' => (string) ( isset( $event['firstSeen'] ) ? $event['firstSeen'] : '' ),
+						'lastSeen'  => (string) ( isset( $event['lastSeen'] ) ? $event['lastSeen'] : '' ),
+					);
+				}
+				$coverage = AgentAccess::coverage();
+				return array(
+					'events'        => $rows,
+					'total'         => (int) AgentAccessStore::total(),
+					'unseen'        => (int) AgentAccessStore::unseen_count(),
+					'hasMore'       => ! empty( $page['hasMore'] ),
+					'cursor'        => (string) ( isset( $page['cursor'] ) ? $page['cursor'] : '' ),
+					'coverage'      => (string) $coverage,
+					'hasAbilities'  => (bool) Events::has_abilities( $coverage ),
+					'thirdParty'    => (bool) Events::covers_third_party( $coverage ),
+					'retentionDays' => (int) apply_filters( 'agentimus_agent_access_retention_days', AgentAccessStore::RETENTION_DAYS ),
+					'maxRows'       => (int) AgentAccessStore::MAX_ROWS,
+				);
 			},
 			$manage
 		);
@@ -2563,8 +2803,88 @@ final class Registrar {
 			false // Writes.
 		);
 
+		/* -- The review queue (write) ---------------------------------------- */
 
+		$this->add(
+			'review-client',
+			__( 'Decide about a client in the review queue', 'agentimus' ),
+			'Files the owner’s verdict on ONE client from read-clients: block it, allow it, ignore it for now, '
+				. 'or forget a decision already made. This is the queue’s whole point — a row sits there until '
+				. 'somebody judges it. '
+				. 'block adds a user-agent rule to the denylist and turns enforcement on: matching clients are '
+				. 'refused at the door from then on. allow does the opposite and permanently — an allowed client '
+				. 'is never blocked and never queued again. ignore is neither: no policy changes, the row simply '
+				. 'leaves, and it comes back if the client grows well past the volume you saw. forget removes an '
+				. 'earlier block or allow (say which with `list`), putting the client back to undecided. '
+				. '⭐ It matches on a user-agent FRAGMENT, not on one visitor: blocking "SomeBot" blocks every '
+				. 'client whose user-agent contains it, now and later. Read `suggestedRule` on the row before '
+				. 'you decide — that is the exact fragment, and a row whose suggestedRule is empty cannot be '
+				. 'blocked or allowed at all. '
+				. '⛔ It cannot clear the log, and it cannot block a protected client — search engines, and '
+				. 'anything the owner has allowed, are refused here by the same guard the owner’s own screen '
+				. 'uses.',
+			self::obj(
+				array(
+					'ua'       => self::s( 'The client’s user-agent, exactly as read-clients returned it.' ),
+					'decision' => array(
+						'type'        => 'string',
+						'description' => 'block | allow | ignore | forget.',
+					),
+					'list'     => self::s( 'For forget only: which list to remove it from — "blocked" or "allowed".' ),
+				),
+				array( 'ua', 'decision' )
+			),
+			self::obj(
+				array(
+					'decided' => self::b( 'TRUE when the verdict was filed.' ),
+					'rule'    => self::s( 'The user-agent fragment the decision was recorded against; empty for ignore, which records the client itself.' ),
+					'message' => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return Review::decide(
+					$this->settings,
+					isset( $in['ua'] ) ? (string) $in['ua'] : '',
+					isset( $in['decision'] ) ? (string) $in['decision'] : '',
+					isset( $in['list'] ) ? (string) $in['list'] : ''
+				);
+			},
+			$manage,
+			false // Writes.
+		);
 
+		$this->add(
+			'recheck-client',
+			__( 'Re-check a client’s identity', 'agentimus' ),
+			'Asks, live, whether ONE client really is the crawler it claims to be — a fresh reverse-DNS lookup '
+				. 'against the addresses this site saw it use, falling back to the operator’s published IP '
+				. 'ranges. Use it when a row is flagged as an impostor and you want a second answer before '
+				. 'deciding, or when a client was flagged long ago and may have been fixed since. '
+				. 'Only works on a client claiming an identity from `verifiers` in read-clients: nothing else '
+				. 'has anything to check against. A verdict of 0 means the lookup gave no usable answer and '
+				. 'the client’s standing verdict is left alone — an inconclusive check never overwrites what '
+				. 'was known. '
+				. '⚠️ It makes real DNS requests, so it is rate-limited; a burst is refused rather than queued.',
+			self::obj( array( 'ua' => self::s( 'The client’s user-agent, exactly as read-clients returned it.' ) ), array( 'ua' ) ),
+			self::obj(
+				array(
+					'status'  => self::s( 'checked = an answer; no-ip = this site kept no address for the client, so there was nothing to look up.' ),
+					'verdict' => array(
+						'type'        => 'integer',
+						'description' => '0 = inconclusive (nothing was changed), 1 = confirmed genuine, 2 = confirmed impostor.',
+					),
+					'checked' => self::i( 'How many addresses were looked up.' ),
+					'message' => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return Review::recheck( $this->settings, isset( $in['ua'] ) ? (string) $in['ua'] : '' );
+			},
+			$manage,
+			false // Writes.
+		);
 	}
 
 	/* ---------------------------------------------------------------------- *
@@ -2594,6 +2914,13 @@ final class Registrar {
 			self::CATEGORY . '/read-search-performance',
 			self::CATEGORY . '/read-search-opportunities',
 			self::CATEGORY . '/identify-bot',
+			// The two halves of "who has been here": who FETCHED (read-clients, with
+			// the verdicts the owner has already filed) and who ACTED through a key
+			// (read-agent-access). Until these, an assistant could identify one bot
+			// by IP and read the raw log, and could not see the queue asking for a
+			// decision at all.
+			self::CATEGORY . '/read-clients',
+			self::CATEGORY . '/read-agent-access',
 			// ⭐ The finder, listed BEFORE the per-page reading it aims. Until it
 			// existed an agent could change a page but never learn which page
 			// needed changing: the findings tool named a number and handed back a
