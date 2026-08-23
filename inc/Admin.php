@@ -988,24 +988,24 @@ final class Admin {
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
 				array(
+					'icon'  => 'search',
+					'title' => 'The Google Check Stays Finished',
+					'text'  => 'It used to run to the end and then start over a few minutes later, again and again, spending part of Google\'s daily allowance each time. It stops when it is done now — and Cancel really stops it, on your site and not just in your browser.',
+				),
+				array(
 					'icon'  => 'link',
-					'title' => 'See What an AI Assistant Actually Fetches',
-					'text'  => 'On Discovery, any address open to everyone is now a link — click it and you see exactly what an assistant sees. Addresses that need a sign-in stay plain text, so a link never sends you to a refusal.',
+					'title' => 'Publishing Clears the Pages That Actually Changed',
+					'text'  => 'If you use Cloudflare, publishing now also clears the page your articles are listed on, your category and tag pages, your feed and your sitemap. Before, those could keep showing yesterday for hours.',
 				),
 				array(
 					'icon'  => 'shield',
-					'title' => 'Your Assistant Can See What Is Connected',
-					'text'  => 'A connected assistant can now read your announcement record — including why one failed — and check whether each channel is still delivering. It is never handed an address or a key, and the four actions your own screen asks you to confirm stay yours.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'The Sidebar Says What Its Files Are For',
-					'text'  => 'The two lists in the sidebar are named for what they hold rather than for the machinery behind them, and the files on your dashboard read in plain words.',
+					'title' => 'Your Assistant Can Answer the Review Queue',
+					'text'  => 'It can see the clients waiting on your verdict, with the same evidence you get, and block, allow or set one aside. Search engines are refused there just as they are on your screen, and clearing the log stays yours.',
 				),
 				array(
 					'icon'  => 'page',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'Real logos in the post editor\'s Share tab, a Readiness tip that pointed at a setting no longer called that, a page title that could reach an assistant still written in code, and a case where another plugin\'s change to your settings could be saved as your own. The changelog has the full list.',
+					'text'  => 'A half-finished cache clear now says how much of it landed instead of reading as a flat failure, and three screens that only said "nothing here" now say what would put something there. The changelog has the full list.',
 				),
 			),
 		);
