@@ -251,26 +251,31 @@ export default {
               <p v-if="row.evidence && row.evidence.length" class="ar-today__ev">
                 <span v-for="e in row.evidence" :key="e" class="ar-today__chip">{{ e }}</span>
               </p>
+              <!-- ⛔ Only on "later" rows, and the server enforces it too. A hide
+                   control on an urgent finding would be a way to bury a live
+                   problem; on a suggestion it is simply an answer.
+                   ⭐ INSIDE .ar-today__main, and named. His call 2026-08-24, and
+                   it fixes two things at once. It was a bare − icon pinned to
+                   `grid-column: 3` and revealed on hover: invisible until you
+                   went looking, unnamed when you found it, and — because it
+                   claimed the third column — it pushed this row's ACTION out of
+                   the column every other row's action sits in, onto a second
+                   grid row in the 18px marker track. Living in the text column
+                   it cannot collide with anything, and a row with no action
+                   still has somewhere to put it. -->
+              <button
+                v-if="row.tier === 'later'"
+                type="button"
+                class="ar-linkbtn ar-today__hide"
+                :aria-label="`Put away: ${row.title}`"
+                :disabled="busy"
+                @click="$emit('dismiss', { id: row.id, hidden: true })"
+              >Put this away</button>
             </div>
             <!-- Same button in every band. An optional or waiting finding is
                  still somewhere to go, and a text link beside five solid buttons
                  reads as a different KIND of thing rather than a quieter one —
                  the waiting rows say "look", not "fix", in their label. -->
-            <!-- ⛔ Only on "later" rows, and the server enforces it too. A hide
-                 control on an urgent finding would be a way to bury a live
-                 problem; on a suggestion it is simply an answer. -->
-            <button
-              v-if="row.tier === 'later'"
-              v-tip="'Put this suggestion away'"
-              type="button"
-              class="ar-iconbtn ar-today__hide"
-              :aria-label="`Put away: ${row.title}`"
-              :disabled="busy"
-              @click="$emit('dismiss', { id: row.id, hidden: true })"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
-                   stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8h10" /></svg>
-            </button>
             <div v-if="row.action" class="ar-today__act">
               <!-- ⚠️ `ar-btn--small`, not `ar-btn--sm`. The short form was a
                    class that exists nowhere in the stylesheet, so every finding's

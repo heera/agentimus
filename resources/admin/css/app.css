@@ -8182,7 +8182,14 @@ a.ar-work__name { color: var(--ar-accent); }
    ⭐ width + max-width instead: the fixed 214px is what makes the auto track
    resolve to 214px, and the max-width only bites where the track is definite —
    the 1fr column below 1080px, and a phone too narrow to hold 214. */
-.ar-today__act { width: var(--ar-today-ctl-w); max-width: 100%; min-width: 0; }
+/* ⛔ PINNED to column 3, and no percentage max-width. Both are lessons from the
+   put-away collision above: an auto-placed item is one stray `grid-column` away
+   from landing somewhere absurd, and `max-width: 100%` against the `auto` track
+   this sits in is the circular case — the percentage resolved against the 18px
+   cell it had been pushed into and crushed the button to 18px rather than
+   letting it overflow. The narrow breakpoint keeps a max-width because there
+   the column is a definite 1fr, where a percentage means what it says. */
+.ar-today__act { grid-column: 3; width: var(--ar-today-ctl-w); min-width: 0; }
 .ar-today__act .ar-btn { width: 100%; min-width: 0; padding-left: 10px; padding-right: 10px; }
 /* ⚠️ The safety net, because a measured width is only ever true for the labels
    that exist today IN ENGLISH — a translation of any of them can be half as long
@@ -8253,16 +8260,33 @@ a.ar-work__name { color: var(--ar-accent); }
 .ar-wn__older .ar-chlog__entry { margin-top: 14px; }
 .ar-support__foot { margin-right: auto; font-size: 12px; color: var(--ar-ink-faint); }
 
-/* The put-away control. It lives in the row's own grid rather than beside the
-   action button, so a row with no action still has somewhere to put it — and it
-   stays quiet until the row is hovered or it is focused, because a suggestion
-   should not arrive already offering to be dismissed. */
-.ar-today__hide { grid-column: 3; justify-self: end; opacity: 0; transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease; }
-.ar-today__row:hover .ar-today__hide,
-.ar-today__hide:focus-visible { opacity: 1; }
-/* ⚠️ Touch has no hover, so the control would be unreachable on a phone —
-   permanently visible there instead. */
-@media (hover: none) { .ar-today__hide { opacity: 1; } }
+/* The put-away control: named, always visible, on its own line under the text
+   it belongs to. His call 2026-08-24, replacing a bare − icon that lived in the
+   row's third grid column and faded in on hover.
+   ⛔ WHAT THE OLD PLACEMENT COST. `grid-column: 3` is the ACTION's column, so on
+   the one row that had both a put-away and an action, the put-away claimed the
+   cell and the auto-placed .ar-today__act flowed to a second grid row in the
+   18px marker track — measured 18 x 91 at the row's bottom-left, against
+   214 x 42 at the top-right on every other row. It now lives inside
+   .ar-today__main, where it cannot collide with anything and a row with no
+   action still has somewhere to put it.
+   ⛔ AND THE HOVER-REVEAL IS GONE WITH IT. "A suggestion should not arrive
+   already offering to be dismissed" was the argument, but the cost was a
+   control nobody could find and, when they did, a minus sign with no name on
+   it. The @media (hover: none) patch that made it permanent on touch went too:
+   there is no hover state left to patch around.
+   ⭐ Quieter than the action beside it by weight and ink, not by hiding — and
+   underlined, because a word that does something cannot say so with colour
+   alone. --ar-ink-soft, not --ar-ink-faint: faint fails 4.5:1 on this card in
+   nine of eleven night rooms, soft clears all eleven. */
+.ar-today__hide {
+  align-self: start; margin: 12px 0 0; padding: 0;
+  font-size: 12px; color: var(--ar-ink-soft);
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.ar-today__hide:hover:not(:disabled),
+.ar-today__hide:focus-visible { color: var(--ar-ink); text-decoration-color: currentColor; }
 
 /* The ledger. Never a hidden one: the count is always on screen, and every row
    in it can be brought back. */
@@ -8433,6 +8457,9 @@ a.ar-work__name { color: var(--ar-accent); }
   .ar-today__act {
     grid-column: 2; justify-content: flex-start;
     margin-top: 4px;
+    /* Safe here and only here: column 2 is a definite minmax(0, 1fr), so this
+       clamps a 214px button on a screen too narrow to hold one. */
+    max-width: 100%;
   }
   .ar-today__act .ar-btn { padding-left: 18px; padding-right: 18px; }
   .ar-today__why, .ar-today__points li { max-width: none; }
