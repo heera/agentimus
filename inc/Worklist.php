@@ -388,7 +388,22 @@ final class Worklist {
 			usort(
 				$rows,
 				static function ( $a, $b ) {
-					return (int) $b['impressions'] <=> (int) $a['impressions'];
+					$by_demand = (int) $b['impressions'] <=> (int) $a['impressions'];
+					if ( 0 !== $by_demand ) {
+						return $by_demand;
+					}
+					// ⚠️ A TIE MUST BREAK THE SAME WAY EVERY TIME. `usort` is not
+					// stable before PHP 8.0 — the floor this plugin supports — so
+					// two searches on equal impressions could come back in either
+					// order, and "the search this page is found for" would differ
+					// between one read and the next. Small sites live on ties: a
+					// page with two searches at 3 impressions each is ordinary.
+					// (Ordered by the search itself, so the choice is reproducible
+					// on any host and in any PHP version.)
+					// The verdict is stored against whichever search won, so an
+					// unstable winner means a stored answer to a question that
+					// changes by itself.
+					return strcmp( (string) $a['query'], (string) $b['query'] );
 				}
 			);
 		}
@@ -486,8 +501,21 @@ final class Worklist {
 		$search = $this->search_by_post();
 		// Both engines, read once for the whole page rather than once per row.
 		$maps   = $this->engine_maps();
+		// ⭐ Only to notice a verdict measured against another search
+		// {@see age_if_question_moved()} — every ROW below is re-read live, so
+		// this screen never SHOWS a stored verdict. What it does share with the
+		// agent's list is the RANK and the tab counts, and those come from the
+		// store: leaving the drift unnoticed here would rank the owner's list by
+		// answers to questions the engines have since moved on from. One indexed
+		// read for the whole page.
+		$stored = Grades::stored( $slice['ids'] );
 		$items  = array();
 		foreach ( $slice['ids'] as $id ) {
+			$post = get_post( $id );
+			if ( $post ) {
+				list( , $best ) = $this->focus_choice( $post, isset( $search[ $id ] ) ? $search[ $id ] : array() );
+				$this->age_if_question_moved( $post, $best, isset( $stored[ $id ]['hash'] ) ? $stored[ $id ]['hash'] : '' );
+			}
 			$item = $this->item( (int) $id, isset( $search[ $id ] ) ? $search[ $id ] : array(), in_array( (int) $id, $aside, true ) );
 			if ( $item ) {
 				$item['engines'] = $this->engine_blocks( (int) $id, (string) $item['url'], $maps );
@@ -598,6 +626,13 @@ final class Worklist {
 			// happens. An empty verdict must never print as a clean one.
 			$g = isset( $stored[ $id ] ) ? $stored[ $id ] : array( 'stale' => true );
 			list( $chosen, $best ) = $this->focus_choice( $post, isset( $search[ $id ] ) ? $search[ $id ] : array() );
+
+			// ⛔⛔ THIS ROW MUST NOT CARRY TWO CLOCKS — the verdict is the sweep's,
+			// the search beside it is the engines' as of a moment ago
+			// {@see age_if_question_moved()}.
+			if ( $this->age_if_question_moved( $post, $best, isset( $g['hash'] ) ? $g['hash'] : '' ) ) {
+				$g['stale'] = true;
+			}
 
 			$type  = get_post_type_object( $post->post_type );
 			$title = self::title_of( $post );
@@ -1181,6 +1216,57 @@ final class Worklist {
 		}
 
 		return array( $chosen, $best );
+	}
+
+	/**
+	 * Notice that a stored verdict answered a DIFFERENT question, and age it.
+	 *
+	 * ⭐⭐ A coverage verdict answers exactly one thing — does a passage of this
+	 * page answer THIS search — and the engines move which search a page is
+	 * found for without anybody touching the page. A list built from the store
+	 * therefore printed the search the engines report NOW beside the answer to
+	 * the one they reported at sweep time, and called it that search's verdict.
+	 *
+	 * Measured on a live site before this existed: of 32 rows whose search the
+	 * engines choose, 8 disagreed with a fresh reading — against 0 of 14 whose
+	 * focus the owner had chosen by hand. A query the owner picks cannot drift,
+	 * and that asymmetry is the fault's own signature.
+	 *
+	 * ⭐ The question was already being recorded — {@see Grades::hash()} folds
+	 * the focus in beside the title and the content — and nothing ever compared
+	 * it back. It cannot be a test in Grades: SQL can compare a ruleset or spot
+	 * an emptied fingerprint, but it cannot know which search a page is found
+	 * for today. So the comparison lives here, where the stored answer and the
+	 * live question are both in hand, and its result is written back the
+	 * ordinary way so the queues can see it too.
+	 *
+	 * ⛔ AGED, NEVER DELETED. The last reading is still the last reading; only
+	 * the fingerprint is cleared {@see Grades::mark_stale()}. Emptying the
+	 * verdict would empty the owner's list for a reason that has nothing to do
+	 * with their site.
+	 *
+	 * ⚠️ An UNKNOWN question is not a changed one. A row written before the
+	 * store recorded one carries '' here, and reading that as "different" would
+	 * mark every page on the site stale the moment somebody upgraded.
+	 *
+	 * The write is self-limiting: once the fingerprint is cleared, the next pass
+	 * reads '' and does nothing until a real reading has replaced it.
+	 *
+	 * @param \WP_Post   $post  The post the verdict describes.
+	 * @param array|null $best  The search it is found for now, or null for none.
+	 * @param string     $known The fingerprint recorded with the stored verdict.
+	 * @return bool True when the verdict was measured against another search.
+	 */
+	private function age_if_question_moved( $post, $best, $known ) {
+		$known = (string) $known;
+		if ( '' === $known ) {
+			return false;
+		}
+		if ( Grades::hash( $post, $best ? (string) $best['query'] : '' ) === $known ) {
+			return false;
+		}
+		Grades::mark_stale( (int) $post->ID );
+		return true;
 	}
 
 	private function item( $id, array $rows, $aside, $grade = false ) {

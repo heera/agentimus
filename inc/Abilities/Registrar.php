@@ -1703,7 +1703,9 @@ final class Registrar {
 				. 'No page is rendered to build this: every verdict is one the background sweep already measured, '
 				. 'which is what makes paging through a whole site affordable. The cost is that a verdict has an '
 				. 'age — `stale` is TRUE when the owner saved that page after it was read, so its issues describe '
-				. 'the earlier draft. ⛔ Never report a stale row as broken or as fixed; re-read that one page '
+				. 'the earlier draft, and TRUE when the engines have since moved which search the page is found '
+				. 'for, so its `coverage` answers a search other than the one in `search`. ⛔ Never report a '
+				. 'stale row as broken or as fixed; re-read that one page '
 				. 'with check-page and say what THAT found. `grading` (never read) and `rechecking` (read, then '
 				. 'edited) say how much of the site these numbers cannot speak for — above zero, this is a list '
 				. 'over part of the site and must be described as one.',
@@ -1770,7 +1772,7 @@ final class Registrar {
 							),
 							'stake'     => self::i( 'What fixing this page is worth: impressions already being earned, scaled by how far the page is from answering the search that earns them. The ranking’s tie-breaker — a page that already answers has nothing at stake however busy it is.' ),
 							'setAside'  => self::b( 'The owner excused this page from the worklist. ⛔ Never propose editing it unless they ask.' ),
-							'stale'     => self::b( 'TRUE when this verdict must not be repeated: the owner saved the page after it was read, the page has not been read yet, or the verdict was written by an older version of these checks. In all three cases `issues`, `coverage` and `points` describe something other than the page as it stands. ⛔ Re-read it with check-page and report what THAT found. The background sweep repairs these by itself, usually within a minute.' ),
+							'stale'     => self::b( 'TRUE when this verdict must not be repeated: the owner saved the page after it was read, the page has not been read yet, the verdict was written by an older version of these checks, or the engines have moved which search the page is found for since it was read — in that last case `coverage` is the answer to a DIFFERENT search than the one in `search`, and saying the page does not answer the search shown would be wrong. In all four cases `issues`, `coverage` and `points` describe something other than the page as it stands. ⛔ Re-read it with check-page and report what THAT found. The background sweep repairs these by itself, usually within a minute.' ),
 							'readAt'    => self::s( 'When the sweep last read this page (GMT), or empty when it never has — in which case this row is a place in the ranking, not a verdict.' ),
 						),
 						'One row per page, in the site’s own ranked order — the same order the owner sees.'

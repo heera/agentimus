@@ -323,6 +323,12 @@ final class Grades {
 	 * Called on save, where the owner is waiting for the editor to come back and
 	 * rendering their page again would be felt. The sweep picks it up.
 	 *
+	 * ⭐ And called when the SEARCH a verdict was measured against has changed
+	 * under it {@see \Agentimus\Worklist::rows()} — nothing the owner did, and
+	 * the same remedy: the reading is owed again. This is the only way that
+	 * state reaches the queues, which can compare a ruleset or an emptied
+	 * fingerprint but cannot know which search a page is found for today.
+	 *
 	 * ⭐⭐ THE LAST READING IS KEPT. Only the fingerprint is cleared, which is
 	 * what puts the page back in {@see ungraded()}'s queue.
 	 *
@@ -945,11 +951,19 @@ final class Grades {
 	 *
 	 * ⚠️ `stale` is the honesty of every row built from this, and it means ONE
 	 * thing to whoever reads it: do not repeat this verdict, read the page
-	 * again. Three states earn it — the owner saved the page since it was read
-	 * {@see mark_stale()}, the page has never been read (a migration cleared the
-	 * stamp), or the verdict was written by an older schema and cannot be read
-	 * now {@see UNREADABLE_SQL}. ⛔ Never drop those rows to hide it: a page
-	 * missing from a list reads as a page with nothing wrong.
+	 * again. Three states earn it here — the owner saved the page since it was
+	 * read {@see mark_stale()}, the page has never been read (a migration
+	 * cleared the stamp), or the verdict was written by an older schema and
+	 * cannot be read now {@see UNREADABLE_SQL}. ⛔ Never drop those rows to hide
+	 * it: a page missing from a list reads as a page with nothing wrong.
+	 *
+	 * ⭐ A FOURTH earns it, and only a caller can see it: the verdict was
+	 * measured against a DIFFERENT SEARCH than the one this page is found for
+	 * now. That cannot be a test in this file, because the question a coverage
+	 * verdict answered is per post and the engines move it without anybody
+	 * touching the page — so the row hands back `hash` and the one caller that
+	 * holds both halves compares them {@see \Agentimus\Worklist::rows()}, then
+	 * marks the row the ordinary way so the queues can see it too.
 	 *
 	 * @param array<int,int> $post_ids Post IDs.
 	 * @return array<int,array<string,mixed>> post_id => stored verdict.
@@ -989,6 +1003,14 @@ final class Grades {
 				'points'    => (int) $r['points'],
 				'flagIds'   => self::unpack_ids( isset( $r['flag_ids'] ) ? $r['flag_ids'] : '' ),
 				'stale'     => self::is_stale_row( $r ),
+				// ⭐ THE QUESTION THIS VERDICT ANSWERED {@see hash()} — the title,
+				// the content AND the search it was measured against. Handed back
+				// so a caller holding the post can ask whether any of the three
+				// has moved since. SQL cannot: the search a page is found for
+				// lives per post, so `content_hash = ''` catches a save and
+				// nothing catches a search changing underneath a stored verdict
+				// {@see \Agentimus\Worklist::rows()}.
+				'hash'      => (string) $r['content_hash'],
 				'gradedAt'  => $read ? (string) $r['graded_at'] : '',
 			);
 		}
