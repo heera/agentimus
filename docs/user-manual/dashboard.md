@@ -4,9 +4,19 @@ parent: User Manual
 nav_order: 3
 ---
 
+## The Dashboard opens with today
+
+Above everything else sits one line about the day you are in: **how many AI reads**, **how many people arrived from an AI answer**, and **what connected assistants did** — each against yesterday — followed by one sentence naming who did it ("Bingbot read you most · ChatGPT sent the visits").
+
+Only numbers that can honestly mean *today* appear there. Your score reads the same all week, so it stays in the rail beside the card rather than pretending to be a daily figure. **See any range →** opens the [Report screen](report.html), where the same reading is available for any two dates and every block dates itself.
+
+These counts are UTC calendar days. When that is not the date on your own clock, the line says "UTC day" and explains why — see [Report](report.html#days-here-are-counted-in-utc).
+
+---
+
 ## What the Dashboard shows
 
-The **Dashboard** is the first tab you land on when you open Agentimus. It answers one plain question with two sides:
+Below that line, the cards describe what your site **is** rather than what today held. It answers one plain question with two sides:
 
 - **Is AI sending readers *to* you?** The **Traffic from AI** card counts real people who clicked through to your site from an AI assistant like ChatGPT or Perplexity.
 - **Is AI reading *from* you?** The **agent activity log** records each time a bot or crawler fetches one of the machine-readable files Agentimus publishes (things like `/llms.txt` or a page's `.md` version).
@@ -23,8 +33,8 @@ The activity half of the Dashboard is powered by a single setting, **Agent activ
 
 Every Agentimus system's standing, in one card of four panels — so "what is running, and where does it stand" never needs a tour of the screens:
 
-- **Doors** — what machines can reach and do: the MCP server (on or off, how many tools, whether writes are allowed), how many assistants were active this month, WebMCP, and security.txt.
-- **Signals** — what your site announces on its own: IndexNow and when it last announced, the sitemap and robots.txt, the weekly digest, and Cloudflare.
+- **AI access** — what machines can reach and do: the MCP server (on or off, how many tools, whether writes are allowed), how many assistants were active this month, WebMCP, and security.txt.
+- **Telling engines** — what your site announces on its own: IndexNow and when it last announced, the sitemap and robots.txt, the weekly digest, and Cloudflare.
 - **Search** — what the engines hold: your watched pages in Google's index, which engines are connected, and unknown sources waiting to be named.
 - **Content** — what your writing holds: findings open across the site, the worklist, and how many pages carry a focus keyword.
 

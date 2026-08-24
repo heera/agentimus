@@ -153,6 +153,12 @@ Every question is listed with a small tag per engine so you can see exactly how 
 
 Answers that used a live web search carry a small **web** marker, and Agentimus lists the **actual pages each engine cited** as links — so you can see precisely where an AI is getting its information about you. This is often the most useful part: it tells you which of your (or a rival's) pages the AI is leaning on.
 
+Each source is named by the **site that was actually cited**. Some engines hand back a redirect address of their own rather than the page itself; where that happens Agentimus shows the real site and links the address, so a list of sources reads as a list of sites instead of a wall of the engine's own domain. Two redirect addresses for one site count as one source.
+
+> **Since 1.44.0:** Gemini's sources were previously stored as those redirect addresses only, which meant "linked your site" could never be true for a Gemini answer. Your first check after updating may show a higher **Linked your site** figure with nothing having changed on your site — it is now measuring something it could not measure before.
+
+Click the verdict on any answer to **read the whole thing** in a window — the excerpt on the card ends on a full sentence, and the full answer is fetched only when you open it. Each product or brand you track can be **folded away** once you have read it, so a check covering eight items is not half a screen of scrolling.
+
 ## How this feeds the "Cited" rung
 
 When **Track AI citations** is on, your latest check's **"Seen in answers"** rate becomes the **Cited** rung of your [AEO/GEO score](dashboard.html) — the one rung that measures a real *outcome* rather than your setup. Two things keep it honest:

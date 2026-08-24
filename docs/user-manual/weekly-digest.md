@@ -20,6 +20,8 @@ The subject line carries the headline — *"Your site's AI week: 143 agent reads
 
 A footer links to the dashboard and carries a one-click stop link.
 
+**The same reading, whenever you want it.** The [Report screen](report.html) is built by the same code as this email, so the two can never tell you different things — it is this note for any window you choose, on demand, and your dashboard opens with it for today.
+
 Comparisons work from a small snapshot stored at each successful send. The first digest has no previous note to compare against, and says so plainly rather than inventing a delta.
 
 ## When it arrives
