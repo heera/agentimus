@@ -124,11 +124,22 @@ export default {
         // stops at 62ch, which is 507.7px at 13px, and that cap does not depend
         // on the viewport — so "There are a couple of things worth knowing
         // below." needed 538.4px and wrapped on EVERY screen, orphaning the word
-        // "below." on a line of its own. This reads 462.8px, ~45px of slack.
-        // ⭐ "below" is the word that went, and it is the one that was doing the
-        // least: the "When you have time" divider sits directly beneath this
-        // sentence and already points at what it was pointing at.
-        if (this.later.length) return `Nothing is costing you anything today. A couple of things are worth knowing.${held}`;
+        // "below." on a line of its own.
+        // ⛔ AND "a couple" WAS NOT TRUE. Only two findings can ever be
+        // `later`-tier (never_measured, checking_off), and they rarely coincide,
+        // so the band almost always holds exactly ONE row while the sentence
+        // said two. Counted now, in the screen's own voice — the same spell()
+        // and the same capitalisation waitingLine() uses, so the two sentences
+        // that can sit side by side count the same way.
+        // ⚠️ Not capped at two: the payload is filterable, so an add-on can put
+        // a third `later` row on the screen. spell() gives words to five and
+        // digits after, which is the rule the rest of this file follows.
+        if (this.later.length) {
+          const n = this.later.length;
+          const word = this.spell(n);
+          const count = `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+          return `Nothing is costing you anything today. ${count} thing${1 === n ? '' : 's'} below ${1 === n ? 'is' : 'are'} worth knowing.${held}`;
+        }
         // Already one line at every width — left alone.
         return `Every check passes and no page is waiting on a fix.${held}`;
       }
