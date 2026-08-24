@@ -555,6 +555,19 @@ body { --ar-bar: var(--ar-accent); }
        :root[data-ar-theme="dark"] .ar-modal,
        :root[data-ar-theme="dark"] .ar-drawer) a:focus { color: var(--ar-chrome-bright); }
 
+/* Headings, the same floor as the bare anchors above. wp-admin's common.css
+   paints `h1 { color: #1d2327 }` and `h2, h3 { color: #1d2327 }` at (0,0,1) —
+   near-black, so any heading of ours that never names its own colour goes
+   invisible at night. His catch, 2026-08-24: "No Results Yet" on the citations
+   empty state was black on black. Six headings were living on core's colour;
+   each now declares one, and this is the floor under the seventh.
+   ⭐ The specificity is the whole trick — the element weight ties core and
+   wins on source order (ours is sheet #15, core's is #4), while every .ar-*
+   heading class at (0,1,0) still outranks it. :where() keeps the scope free. */
+:where(#agentimus-app, .ar-modal, .ar-drawer) :is(h1, h2, h3) {
+  color: var(--ar-ink);
+}
+
 #agentimus-app {
 
   /* Full-bleed: wp-admin's content padding is neutralized below, so the app
@@ -4241,7 +4254,7 @@ html { scrollbar-gutter: stable; }
    The size override outranks the header's 18px/16px .ar__logo rules. */
 .ar-wiz__welcome-mark--brand { background: var(--ar-ink); border-color: var(--ar-ink); }
 .ar-wiz__welcome-mark--brand .ar__logo { width: 26px; }
-.ar-wiz__welcome-title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0 0 10px; }
+.ar-wiz__welcome-title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0 0 10px; color: var(--ar-ink); }
 .ar-wiz__welcome-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 46ch; margin: 0 auto 18px; }
 .ar-wiz__welcome-points { list-style: none; margin: 0 auto; padding: 0; display: inline-flex; flex-direction: column; gap: 9px; text-align: left; }
 .ar-wiz__welcome-points li { display: flex; gap: 10px; font-size: 13.5px; color: var(--ar-ink); }
@@ -4250,7 +4263,7 @@ html { scrollbar-gutter: stable; }
 /* Done / first-run celebration */
 .ar-wiz__done { position: relative; text-align: center; padding: 10px 0 4px; }
 .ar-wiz__done-check { width: 66px; height: 66px; border-radius: 50%; background: var(--ar-good); color: var(--ar-on-signal); display: flex; align-items: center; justify-content: center; margin: 4px auto 18px; animation: ar-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1.5) both; }
-.ar-wiz__done-title { font-family: var(--ar-serif); font-size: 23px; font-weight: 600; margin: 0 0 9px; }
+.ar-wiz__done-title { font-family: var(--ar-serif); font-size: 23px; font-weight: 600; margin: 0 0 9px; color: var(--ar-ink); }
 .ar-wiz__done-lead { color: var(--ar-ink-soft); font-size: 14px; line-height: 1.6; max-width: 44ch; margin: 0 auto; }
 /* "Now explore" — jump-off cards to the capabilities added since first-run setup. */
 .ar-wiz__explore-label {
@@ -4428,7 +4441,7 @@ html { scrollbar-gutter: stable; }
   50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--ar-accent) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) { .ar-watch__pulse { animation: none; } }
-.ar-watch__title { font-family: var(--ar-serif); font-size: 19px; font-weight: 600; margin: 0; }
+.ar-watch__title { font-family: var(--ar-serif); font-size: 19px; font-weight: 600; margin: 0; color: var(--ar-ink); }
 .ar-watch__clock { margin: 0; font-family: var(--ar-mono); font-size: 13px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
 .ar-watch__lead { max-width: 44ch; }
 
@@ -6551,7 +6564,7 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-adv__chev { flex: 0 0 auto; color: var(--ar-ink-faint); transition: transform 0.18s ease; }
 .ar-adv__chev.is-open { transform: rotate(180deg); }
 .ar-adv__body { margin-top: 18px; border-top: 1px solid var(--ar-line); padding-top: 18px; }
-.ar-adv__title { font-family: var(--ar-serif); font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.ar-adv__title { font-family: var(--ar-serif); font-size: 16px; font-weight: 600; margin: 0 0 8px; color: var(--ar-ink); }
 .ar-oauth { display: flex; gap: 8px; align-items: stretch; }
 .ar-oauth .ar-input { flex: 1 1 auto; min-width: 0; } /* min-width:0 lets the field shrink below its intrinsic size on narrow screens */
 .ar-oauth__check { flex: 0 0 auto; }

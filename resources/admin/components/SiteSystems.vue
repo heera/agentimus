@@ -3,8 +3,8 @@
  * "What Your Site Runs" — the Dashboard's systems roll-up.
  *
  * Four panels, each led by ONE number in the audience card's own type, each
- * ending in the one link that opens its home screen: Doors (what machines can
- * reach and do), Signals (what the site announces to engines), Search (what
+ * ending in the one link that opens its home screen: AI access (what machines
+ * can reach and do), Telling engines (what the site announces), Search (what
  * the engines show), Content (what the writing holds). The card answers
  * "what is running, and where does it stand" — Findings keeps "what needs
  * you"; nothing here duplicates the rail (score), the bell (review queue) or
@@ -107,8 +107,8 @@ export default {
     <div class="ar-sys__head">
       <h2 id="ar-sys-title" class="ar-card__title">What Your Site Runs</h2>
       <p class="ar-card__lead">
-        Every Agentimus system in one look &mdash; the doors AI assistants use, the signals you announce,
-        what search shows, and what your writing holds.
+        Every Agentimus system in one look &mdash; how AI assistants reach you, what your site tells the
+        engines, what search shows, and what your writing holds.
       </p>
     </div>
 
@@ -127,15 +127,18 @@ export default {
 
     <div v-else class="ar-sys__grid">
 
-      <!-- DOORS — what machines can reach and do. security.txt lives here,
-           not under a "safety" heading: it is about who to contact regarding
-           what is reachable, the same question the doors answer. -->
+      <!-- AI ACCESS — what machines can reach and do. Was "Doors": his call,
+           2026-08-25, that a normal owner does not read a door as a feature.
+           The label now says what its own button says (Open Agent access), so
+           the card and the screen it opens share one word. security.txt lives
+           here, not under a "safety" heading: it is about who to contact
+           regarding what is reachable, the same question access answers. -->
       <div class="ar-sys__panel">
         <p class="ar-sys__kind">
           <span class="ar-sys__mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="12" height="12"><path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M3 21h18M12.2 12.6h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
-          Doors
+          AI access
         </p>
         <p class="ar-sys__n">{{ n(doors ? doors.runsTotal : 0) }}</p>
         <p class="ar-sys__unit">tool runs by AI assistants recorded</p>
@@ -178,7 +181,7 @@ export default {
           <span class="ar-sys__mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 20v-7M8.6 9.7a4.8 4.8 0 0 1 6.8 0M5.8 6.9a8.8 8.8 0 0 1 12.4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
-          Signals
+          Telling engines
         </p>
         <p class="ar-sys__n">{{ signalsLive.on }}</p>
         <p class="ar-sys__unit">of {{ signalsLive.of }} signals live, telling search engines what changed</p>

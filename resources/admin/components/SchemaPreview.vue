@@ -870,6 +870,7 @@ export default {
 .agentimus-jsonld__viewtitle h3 {
   margin: 0 0 6px;
   font-size: 15px;
+  color: var(--ar-ink);
 }
 /* The "Open live" links cluster, top-right of the header (Copy moved to the code
    block's corner). Wraps under the title on narrow screens. */
