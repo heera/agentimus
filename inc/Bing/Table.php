@@ -15,6 +15,22 @@
  * API's reach), 0 means "reported: none". Readers skip NULL days; printing
  * them as zeros would claim "nobody came" where the truth is "unknown".
  *
+ * ⭐⭐ THE CRAWL COLUMNS ANSWER THE SAME QUESTION A DIFFERENT WAY, and the
+ * difference is worth knowing before you change either. They are NOT NULL,
+ * so they cannot hold that distinction in a column — and they needed it:
+ * Bing answers with a row per date in its window whether or not it has
+ * numbers for that date, and every absent field lands as 0. So a day it
+ * said nothing about looked exactly like a site that had left the index.
+ * {@see reported()} is the test that separates them: every counter at zero
+ * is a non-answer, because a genuinely quiet day still carries its index
+ * size. Same law as the NULL rule above — "unknown" must never print as a
+ * measurement — reached without a schema migration.
+ *
+ * ⛔ Do not "tidy" these into one mechanism by making the crawl columns
+ * NULLABLE. That is a v3 migration across every stored row for a
+ * distinction the all-zero test already draws, and NULL would then have to
+ * mean the same thing in nine columns that Bing only ever sends together.
+ *
  * @package Agentimus
  */
 
