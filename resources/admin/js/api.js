@@ -329,7 +329,16 @@ export function createApi(boot) {
     getVisibilityConfig: () => request('/visibility/config'),
     saveVisibilityConfig: (config) =>
       request('/visibility/config', { method: 'POST', body: JSON.stringify(config) }),
+    // The Report screen — one window's worth of what AI did here, from the same
+    // producers the weekly email reads.
+    // Called with no dates for "today" — the server owns which day that is,
+    // because the rows are counted in UTC days and the browser's clock is not.
+    getReport: ({ from, to } = {}) =>
+      request(from && to ? `/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : '/report'),
     getVisibilityDashboard: () => request('/visibility/dashboard'),
+    // One stored check in full — asked for only when someone opens it, so the
+    // dashboard read stays a summary.
+    getVisibilityAnswer: (id) => request(`/visibility/answer/${encodeURIComponent(id)}`),
     runVisibility: () => request('/visibility/run', { method: 'POST' }),
     testVisibilityKey: (payload) =>
       request('/visibility/test', { method: 'POST', body: JSON.stringify(payload) }),

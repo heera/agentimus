@@ -82,6 +82,30 @@ final class Rest {
 			)
 		);
 
+		// The Report screen: what AI did here between two dates. One read for a
+		// whole window — the screens each own their own numbers, and this asks
+		// the same producers for the same window so the page, the dashboard's
+		// Today line and the weekly email can never disagree.
+		register_rest_route(
+			self::NAMESPACE,
+			'/report',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_report' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'from' => array(
+						'type'        => 'string',
+						'description' => 'First day of the window (YYYY-MM-DD). Defaults to today.',
+					),
+					'to'   => array(
+						'type'        => 'string',
+						'description' => 'Last day of the window, inclusive (YYYY-MM-DD). Defaults to today.',
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NAMESPACE,
 			'/settings/reset',
@@ -453,6 +477,30 @@ final class Rest {
 	 *
 	 * @return \WP_REST_Response
 	 */
+	/**
+	 * GET /report — one window's worth of what AI did here.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function get_report( \WP_REST_Request $request ) {
+		// ⛔ The GMT day, the one this data is stamped and counted in — see
+		// Report\Data::today_gmt(). The screen asks with no dates for "today"
+		// and takes the answer's own range back, so the browser's clock never
+		// gets a vote either.
+		$today = gmdate( 'Y-m-d' );
+		$from  = (string) $request->get_param( 'from' );
+		$to    = (string) $request->get_param( 'to' );
+
+		return rest_ensure_response(
+			\Agentimus\Report\Data::collect(
+				$this->settings,
+				'' === $from ? $today : $from,
+				'' === $to ? $today : $to
+			)
+		);
+	}
+
 	public function get_settings() {
 		return rest_ensure_response(
 			array(

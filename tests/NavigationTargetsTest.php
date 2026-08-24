@@ -135,6 +135,67 @@ final class NavigationTargetsTest extends TestCase {
 	}
 
 	/**
+	 * ⚠️ EVERY SCREEN IN THE NAV SURVIVES A REFRESH.
+	 *
+	 * A cold load validates the #hash against a list written in `data()` —
+	 * `tabs()` only governs a hashchange — so a screen that is in the menu but
+	 * missing from that list opens fine by click and silently drops onto the
+	 * dashboard when the page is refreshed on it. That is exactly what the
+	 * Report screen did on the day it shipped, and the comment above the list
+	 * had warned about it. Nothing at runtime complains; it just looks like the
+	 * nav forgot where you were.
+	 */
+	public function test_every_nav_screen_survives_a_cold_load() {
+		$app = (string) file_get_contents( dirname( __DIR__ ) . '/resources/admin/App.vue' );
+
+		// The list a refresh is checked against.
+		$this->assertSame( 1, preg_match( '/let startTab = \[(.*?)\]\.includes/s', $app, $m ), 'the cold-load list is still where it was' );
+		preg_match_all( "/'([a-z-]+)'/", $m[1], $listed );
+		$cold = $listed[1];
+
+		// ⚠️ The list splices in other arrays (`...activityTabs`), whose members
+		// are just as reachable — reading only the literals here reported them
+		// as missing. Follow every spread to its own declaration.
+		preg_match_all( '/\\.\\.\\.([A-Za-z_]+)/', $m[1], $spreads );
+		foreach ( $spreads[1] as $name ) {
+			$this->assertSame( 1, preg_match( '/const ' . preg_quote( $name, '/' ) . ' = \\[(.*?)\\];/s', $app, $sm ), "$name is still declared as a list" );
+			preg_match_all( "/'([a-z-]+)'/", $sm[1], $members );
+			$cold = array_merge( $cold, $members[1] );
+		}
+
+		// Every id the nav offers as a destination. Rows carrying an `action`
+		// open a dialog or leave the app — they are not screens and own no hash.
+		$screens = array();
+		foreach ( array( 'primaryTabs()', 'moreTabs()' ) as $fn ) {
+			$at = strpos( $app, $fn . ' {' );
+			$this->assertNotFalse( $at, "$fn is still where it was" );
+			// ⚠️ To the END of that method, not a fixed window: these lists carry
+			// long comments, and a short slice silently parsed to nothing — which
+			// made the first version of this test pass while the bug was in.
+			$end  = strpos( $app, '];', $at );
+			$this->assertNotFalse( $end, "$fn still ends in an array literal" );
+			$body = substr( $app, $at, $end - $at );
+			preg_match_all( "/\{\s*id:\s*'([a-z-]+)'(.*?)\}/s", $body, $rows, PREG_SET_ORDER );
+			$found = 0;
+			foreach ( $rows as $row ) {
+				$found++;
+				if ( false === strpos( $row[2], 'action:' ) ) {
+					$screens[] = $row[1];
+				}
+			}
+			$this->assertGreaterThan( 0, $found, "$fn parsed to no rows at all — this test would pass while blind" );
+		}
+
+		// The parse itself is pinned: these two are in the nav by different
+		// routes, and if either stops being seen the loop above proves nothing.
+		$this->assertContains( 'dashboard', $screens, 'the primary tabs were read' );
+		$this->assertContains( 'visibility', $screens, 'the More menu was read' );
+		foreach ( $screens as $id ) {
+			$this->assertContains( $id, $cold, "#$id is in the nav but a refresh on it lands on the dashboard" );
+		}
+	}
+
+	/**
 	 * The two names for one destination stay bridged.
 	 *
 	 * Readiness calls an outward link `href` and its own panel renders that;

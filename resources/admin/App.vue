@@ -30,6 +30,8 @@ import OnboardingWizard from './components/OnboardingWizard.vue';
 import AboutPanel from './components/AboutPanel.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import VisibilityPanel from './components/VisibilityPanel.vue';
+import ReportPanel from './components/ReportPanel.vue';
+import TodayLine from './components/TodayLine.vue';
 import TodayPanel from './components/TodayPanel.vue';
 import ContentWorklist from './components/ContentWorklist.vue';
 import CheckScopePanel from './components/CheckScopePanel.vue';
@@ -60,7 +62,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, ReportPanel, TodayLine, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -81,7 +83,11 @@ export default {
     // Dashboard is where a cold load lands. Findings is reachable — its tab, and
     // #findings — but it is not the default: opening the plugin on a worklist
     // puts a to-do list in front of someone who came to look at something.
-    let startTab = ['findings', 'dashboard', ...activityTabs, 'agent-access', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    // ⚠️ 'report' belongs here for exactly the reason written above: it is
+    // always mounted and always in the menu, but a cold load on #report was
+    // dropping onto the dashboard because this list — not tabs() — is what a
+    // refresh validates against. His catch, 2026-08-24.
+    let startTab = ['findings', 'dashboard', 'report', ...activityTabs, 'agent-access', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -392,6 +398,13 @@ export default {
     // and switching recording off is a deliberate act, so it simply goes.
     moreTabs() {
       return [
+        // ⭐ First in More, and deliberately NOT a fifth top-level tab. The bar
+        // names the site's standing jobs; a report is a reading OF them, and
+        // the daily glance it exists for already sits on the dashboard as the
+        // Today line. A fifth tab would also cost width on every screen — the
+        // header wraps to two rows at 1024px and nothing folds into More any
+        // more. His question, 2026-08-24: "or should we move it inside More".
+        { id: 'report', label: 'Report' },
         // Always on: the screen hosts two tenants (citation checks + AI Search),
         // each gated by its own key INSIDE the screen — never by the nav.
         { id: 'visibility', label: 'Visibility' },
@@ -440,7 +453,11 @@ export default {
         // the nav claiming you were somewhere you had already left.
         { id: 'whatsnew', label: 'What’s New', action: 'whatsnew' },
         { id: 'help', label: 'Get Help', action: 'help', ext: true },
-        { id: 'report', label: 'Report an Issue', action: 'report', ext: true },
+        // ⚠️ id 'report-issue', not 'report': the Report SCREEN owns that id now,
+        // and two menu rows sharing one id collide as v-for keys and would make
+        // "More" claim you were on the screen while a dialog was open. The
+        // ACTION keeps its own name — that is what pick() switches on.
+        { id: 'report-issue', label: 'Report an Issue', action: 'report', ext: true },
       ];
     },
     // True when the screen you're on lives inside the menu, so "More" can carry the active
@@ -485,6 +502,10 @@ export default {
             // already names each finding, and a head that summarised them twice
             // would push the first row below the fold for no new information.
             description: 'Everything open across your site, in one place: pages losing a click they already earn, and anything the setup checks caught. Clients waiting on a verdict stay with the bell.',
+          },
+          report: {
+            title: 'Report',
+            description: 'What AI did on your site between two dates — reads, visits, actions and where you stand. Each block says how fresh it can be: some numbers are live, search is published a day or more behind, and the score describes the site as it stands.',
           },
           dashboard: {
             title: 'Dashboard',
@@ -2437,6 +2458,17 @@ export default {
             assistants read, the log of AI visits and identity checks, and your AI-usage signals.
           </p>
         </section>
+        <!-- ⭐ Above everything: what happened TODAY. The cards below say what
+             the site IS — a standing description that reads the same all week —
+             and this is the one line about the day you are actually in. Only
+             the live numbers appear here; anything that cannot honestly mean
+             "today" lives on the Report screen, where each block dates itself. -->
+        <TodayLine
+          v-show="tab === 'dashboard'"
+          :api="api"
+          :active="tab === 'dashboard'"
+          @navigate="goTo"
+        />
         <!-- What the site exposes — the first thing on the page, because the
              page's own subtitle asks "what you expose" before "who is reading
              it". Lives here rather than inside ActivityPanel so it can sit
@@ -2558,6 +2590,14 @@ export default {
              their own key. The citations tenant is gated by its toggle
              (checks-on), the index and performance cards by their data-source
              connections — no key opens or closes the room itself. -->
+        <!-- Always mounted so its hash always lands, like the screens above.
+             Reads on every reveal — a report has to be current when it is
+             looked at, not when it was first opened. -->
+        <ReportPanel
+          :api="api"
+          :active="tab === 'report'"
+          @navigate="goTo"
+        />
         <VisibilityPanel
           v-show="tab === 'visibility'"
           ref="visibilityPanel"

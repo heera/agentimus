@@ -146,3 +146,35 @@ export function relTimeShort(ms) {
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
 }
+
+/**
+ * Why a day-scoped card can name a date the reader's own clock has left — or
+ * '' when the two agree and there is nothing to explain.
+ *
+ * ⛔⛔ THE COUNTS ARE UTC DAYS AND CANNOT BE ANYTHING ELSE. Reads are stamped
+ * in GMT and the referral store keeps one row per (day, source, path) with the
+ * day baked in at write time — there is no per-visit stamp to re-bucket, here
+ * or in the history already stored. Counting one of them on the site's clock
+ * and the other on UTC would put two different days in one row.
+ *
+ * ⭐ SO THE DAY STAYS UTC AND THE LABEL SAYS SO — but only in the hours when
+ * that matters. His site is six hours ahead: at 01:47 on August 25 the card
+ * read "August 24" and was right, and there was no way to know that from the
+ * screen. 2026-08-25.
+ *
+ * ⛔ Measured against THIS BROWSER, not the site's timezone option: the
+ * setting says where the site keeps its calendar, never where the person
+ * reading is. wpftest is set to UTC and gets read on a +06 laptop — the
+ * server cannot see that, and a note keyed to the option stays silent for
+ * exactly the reader who needs it.
+ *
+ * @param {string} serverToday The day the server calls today, 'YYYY-MM-DD' UTC.
+ * @returns {string}
+ */
+export function utcDayNote(serverToday) {
+  if (!serverToday) return '';
+  const now = new Date();
+  const here = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (here === serverToday) return '';
+  return `Days here are counted in UTC, the same as your weekly email. Your own clock is on ${formatDate(now)}.`;
+}

@@ -264,8 +264,13 @@ export default {
         <p class="ar-aud__unit">fetched your agent files</p>
         <!-- Same shape as the humans half: the second cut of the SAME
              instrument sits with the headline, and only the rows that answer
-             a different question go below the caption. -->
-        <p class="ar-aud__second">{{ n(machines.today) }} today</p>
+             a different question go below the caption.
+             ⛔ It used to print "N today" — the point being that this half runs
+             to NOW while the engines' half ends before today. The dashboard's
+             Today line owns the day now, so the number was the same fact twice
+             on one screen; the CONTRAST it was making is what matters here, and
+             it says that in words. -->
+        <p class="ar-aud__second">counted to this minute</p>
 
         <p class="ar-aud__group">Who did the fetching</p>
         <ul class="ar-aud__rows">

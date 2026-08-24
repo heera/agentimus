@@ -988,24 +988,24 @@ final class Admin {
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
 				array(
-					'icon'  => 'search',
-					'title' => 'The Google Check Stays Finished',
-					'text'  => 'It used to run to the end and then start over a few minutes later, again and again, spending part of Google\'s daily allowance each time. It stops when it is done now — and Cancel really stops it, on your site and not just in your browser.',
+					'icon'  => 'page',
+					'title' => 'Your Site\'s Days, on One Page',
+					'text'  => 'A new Report screen under More: what AI read, who arrived from an AI answer, what assistants did, where you stand — for today, yesterday, a week, a month, or any dates you pick. Your dashboard opens with the same reading for today.',
 				),
 				array(
-					'icon'  => 'link',
-					'title' => 'Publishing Clears the Pages That Actually Changed',
-					'text'  => 'If you use Cloudflare, publishing now also clears the page your articles are listed on, your category and tag pages, your feed and your sitemap. Before, those could keep showing yesterday for hours.',
+					'icon'  => 'search',
+					'title' => 'Citations Name Who Cited You',
+					'text'  => 'The sources under each answer are the real sites now, not the redirect the assistant wrapped them in — and "linked your site" is finally a measurement rather than a zero it could never leave. Click a verdict to read the whole answer.',
 				),
 				array(
 					'icon'  => 'shield',
-					'title' => 'Your Assistant Can Answer the Review Queue',
-					'text'  => 'It can see the clients waiting on your verdict, with the same evidence you get, and block, allow or set one aside. Search engines are refused there just as they are on your screen, and clearing the log stays yours.',
+					'title' => 'Citation Cards Fold, and Say What Changed',
+					'text'  => 'Each tracked product keeps its verdict in view and folds the detail away, so a few of them no longer make one very long page. Under each, a line says what moved since the run before — linked when it did not, named less often than last time, or nothing changed.',
 				),
 				array(
-					'icon'  => 'page',
+					'icon'  => 'link',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'Links on the dashboard no longer look exactly like status text — you can tell what is clickable again. A half-finished cache clear says how much of it landed instead of reading as a flat failure, and three screens that only said "nothing here" now say what would put something there. The changelog has the full list.',
+					'text'  => 'A headline that was black on black at night is readable. The refresh mark in the citations bar sits with the reading it re-reads, and stops offering itself while a check is running. A stored answer no longer stops mid-word, and the dashboard counts today once instead of twice. The changelog has the full list.',
 				),
 			),
 		);
@@ -1048,6 +1048,18 @@ final class Admin {
 			// prints reads like the rest of this admin (see wpDate.js for the renderer).
 			'dateFormat'  => get_option( 'date_format' ) ? get_option( 'date_format' ) : 'F j, Y',
 			'timeFormat'  => get_option( 'time_format' ) ? get_option( 'time_format' ) : 'g:i a',
+			// Which day a week starts on here (Settings → General). A calendar that
+			// always starts on Sunday is wrong for most of the world, and the answer
+			// is already an option this site set — the Report screen's date picker
+			// lays its columns out from this.
+			'startOfWeek' => (int) get_option( 'start_of_week', 1 ),
+			// ⛔ The day THIS SERVER calls today, in the clock its activity is
+			// stamped in (GMT — see Report\Data::today_gmt()). The Report
+			// screen's presets count back from it, so "7 days" is seven of the
+			// days the log actually has, never seven of the browser's. Seeded
+			// here so the first click has an answer; every report read replaces
+			// it with the one the answer carries.
+			'todayGmt'    => gmdate( 'Y-m-d' ),
 			// Where the weekly email actually goes when its override is empty — shown
 			// as the recipient field's placeholder, so "the site admin email" is a real
 			// address on screen, not a riddle. Admin-only payload; it's the owner's own.
