@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.44.0-dev1
+Stable tag: 1.44.0-dev20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 
 **Visibility — who is reading you**
 
+* **Report** — what AI did on your site between any two dates: reads, visits from AI answers, and where you stand. Today, a week, or dates you pick; every block says how fresh its numbers are.
 * **Agent activity log** — which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party, with no IP logging by default.
 * **Activity to review** — a nav-bar queue surfaces clients worth a second look, with one-click **Block** or **Allow**. Nothing is blocked unless you say so.
 * **Request Log** — every recorded request, one row each. Filter by client, endpoint, network, user-agent and date to see what a single bot fetched.
@@ -253,7 +254,7 @@ Yes — there is no minified-only code. The admin interface is built from Vue 3 
 
 == Screenshots ==
 
-1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, then what your site runs: every system's standing in four panels — the doors agents use, the signals you announce, what search shows, what your writing holds — each led by one number that links to its full screen. Beneath them, the two audiences counted apart — the people who came to read, and the machines that fetched — then a first-party log of which AI agents and crawlers reached each endpoint, who reads you most, and the real visitors AI assistants sent. Every day bar opens that day's full report.
+1. Dashboard — your AEO/GEO score across five plain rungs (Findable, Readable, Trusted, Optimized, Cited) with the one next step worth taking, then what your site runs: every system's standing in four panels — how agents reach you, what your site tells the engines, what search shows, what your writing holds — each led by one number that links to its full screen. Beneath them, the two audiences counted apart — the people who came to read, and the machines that fetched — then a first-party log of which AI agents and crawlers reached each endpoint, who reads you most, and the real visitors AI assistants sent. Every day bar opens that day's full report.
 2. Visibility → In the index — whether the engines' indexes actually hold your pages, Bing's and Google's on one screen. Bing is the index ChatGPT search and Copilot read today: how much of your site it holds, how cleanly its crawler gets in, and a live question you can ask about any single page. Google's is walked in rotation and re-checked daily — healthy pages stay a count, while anything that needs a look earns a row in Google's own words, each with a link straight to that URL in Search Console.
 3. Visibility → Search — what people searched, how often you appeared, how often those results were clicked, and the pages that earned them; every number the engine's own. Connect both Google and Bing and a switch appears, because the two count different searchers and are never merged. Directly beneath it, Search Opportunities turns those same numbers into a worklist: pages sitting just off page one, and pages on page one being scrolled past, each wired to the exact field that fixes it. It also names the searches several of your pages are splitting between them — the clicks divide, so each ranks lower than one page would — with the page that earns the click stated, and one decision on every other.
 4. Readiness report — a plain-English pass/warn/fail checklist of what's enabled and what's still missing, grouped by rung, each row carrying its own fix in the site's own words. Buttons at the top preview your site the way an agent sees it, re-run every check live, and scan for files that shouldn't be public. Beneath the checklist your content is summarised rather than listed: how many pieces are graded, how many carry something worth fixing, and which issue is the most common — with a way in page by page, a way in by issue, and the set-aside list of everything you have deliberately left out of the score.
@@ -295,6 +296,21 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.44.0 =
+* New: a Report screen, under More. What AI did on your site between two dates — how many AI crawlers read you and which ones, how many people arrived from an AI answer, what assistants did here, where you stand in search, whether a citation check ran, your score and the one thing worth doing. Today, yesterday, seven days, thirty, or any two dates from a calendar that names both ends and lets you change either one. It is built by the same code as your weekly email, so the page and that email can never tell you two different things, and every block links to the screen that owns its detail.
+* New: the dashboard opens with today — what AI read, who arrived from an AI answer, and what acted here since midnight, each against yesterday. Only the numbers that can honestly mean "today" appear there; the ones that cannot say so on the Report screen, where each block dates itself. Days are counted in UTC — the same clock as the daily chart and your weekly email — and the label says "UTC day" whenever that isn't the date on your own clock.
+* New: click a citation verdict and read the whole answer — what was asked, which assistant answered, what it said, and every site it cited, as text you can select. Answers are kept in full from now on; checks from before this release show their opening and say that is what was stored.
+* Fixed: the sites listed under a citation answer were Google's, not the ones cited. A grounded Gemini answer hands back a redirect address for every source it used, and names the real site in a field beside it. Agentimus kept only the address, so every source row named Google. It keeps the site now, and lists it by name.
+* Fixed: "never linked its site" was arithmetic, not a reading. Because those addresses were all Google's, a Gemini answer could never be counted as linking to you. It is a real measurement now, and on your first run after this release it may go up: nothing changed on your site, it simply became possible to see.
+* Fixed: a heading could be black on black. Six headings never named their own colour and inherited WordPress's near-black, invisible on every dark admin scheme — "No Results Yet" on the citations screen was the one you would meet first.
+* Fixed: the refresh mark in the citations bar sat in the middle of the row, belonging to nothing, and kept offering itself while a check was running. It sits with the reading it re-reads, and no disabled control in the plugin wears a tooltip now.
+* Fixed: a stored answer stopped mid-word, cut at 600 bytes with nothing to say it had been cut. It ends on a full sentence now and says there was more; a provider's error message was cut the same way and now says so too.
+* Improved: each tracked product's citation card folds — the verdict stays in view, the detail folds away — so tracking a few products no longer makes one very long page. Under each, a line says what moved since the run before.
+* Improved: the verdict chip is a button now, shaped like one, and the engine's own words arrive as prose rather than raw Markdown.
+* Improved: two panels on the dashboard say what they hold in plainer words. "Doors" is now "AI access" — the same words as the button beneath it — and "Signals" is "Telling engines", which is what its own line underneath already said. Nothing moved; they are the same four panels.
+* Improved: a citation check you start yourself no longer messages your channels. Telegram, Slack, Discord and your sheet exist to carry what happened while nobody was looking; you pressed the button and the screen is already filling in. Scheduled runs announce themselves exactly as before.
+* Improved: the dashboard counted today twice; the machines tile now says what it was there to say without repeating the number.
 
 = 1.43.0 =
 * Fixed: the Google index check would not stay finished. It ran to the end, said so, and then started over a few minutes later — again and again, spending a slice of Google's daily allowance on every lap. The check leaves a safety net behind it in case you close the tab mid-run, and that net was never taken down when the run ended; an empty queue is how the check is told to begin a new one. It now stands down with the run it was watching.
@@ -364,6 +380,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The five most recent releases are listed here. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.44.0 =
+A new Report screen under More says what AI did on your site between any two dates, and the dashboard now opens with today. Citation sources name the site that was actually cited instead of Google's redirect, so "linked your site" is a real reading at last — it may go up on your first run without anything changing on your site. You can also click a verdict and read the whole answer. A heading that was invisible on dark admin schemes is readable again. No breaking changes.
 
 = 1.43.0 =
 The Google index check no longer restarts itself after finishing, and Cancel really stops it now. Publishing also clears your listing pages from Cloudflare — the page your articles are listed on, category and tag pages, your feed and your sitemap. Links on the dashboard no longer look identical to status text. A connected assistant can see the clients waiting on a verdict and answer them.
