@@ -269,6 +269,25 @@
   --ar-ink-faint: #a4abb2;
   --ar-line: #51575e;
   --ar-line-strong: #5e666e;
+  /* ⛔ THE ACCENT IS RE-KEYED HERE BECAUSE THIS ROOM'S GROUNDS ARE TOO LIGHT FOR
+     THE BASE GREEN. His ask 2026-08-24: every night card must carry the accent.
+     #8ab685 measured 4.47 on this card and 3.67 on the raised one
+     (.ar-card--muted, the notes) — under the 4.5 text floor on both, and
+     .ar-linkbtn paints the accent on exactly those grounds. Same hue and
+     saturation, lifted in lightness only until both clear: #a7c8a3 reads 5.61 on
+     the card and 4.61 on the raised ground.
+     ⭐ --ar-good, --ar-chrome and the four washes are deliberately NOT restated,
+     and that is measured rather than assumed: they are declared at
+     :root[data-ar-theme="dark"] as var(--ar-accent) references, and a body-level
+     re-key DOES reach them — forcing --ar-accent to #ff0000 on the body
+     repainted a probe's --ar-good, --ar-chrome and --ar-good-wash to red.
+     ⚠️ These two DO need restating, because they are LITERALS in the base rule:
+     it mixes the green hex, not the token, so nothing carries a new accent into
+     them. The bright is the base pair's own +0.082 L step taken at this value;
+     the line is the same 24% mix. */
+  --ar-accent: #a7c8a3;
+  --ar-chrome-bright: #c0d8bd;
+  --ar-chrome-line: color-mix(in srgb, #a7c8a3 24%, var(--ar-line));
 }
 /* The hue-carrying literal left in app.css's dark overrides: the About snippet
    sits below the page. ⭐ The button hover that used to be re-keyed here is
@@ -503,19 +522,21 @@
        accent #7c8841   page 4.12:1   card 3.39:1   raised 3.16:1
        chrome #95a353   page 5.77:1   card 4.75:1   raised 4.43:1
 
-   ⚠️⚠️ WHAT IT STILL COSTS, and he has the numbers: the ACCENT is under the 4.5
-   text floor on both the card and the raised ground, and the PASS pill — which
-   reads --ar-good, and --ar-good aliases the accent at night — lands at 3.03:1,
-   exactly on the graphic floor. What this replaced read 5.66 / 5.28 / 4.79.
-   ⛔ So the accent's reach is the thing to watch, not the rail: links, tab
-   underlines, numbers, chart bars and every verdict mark take #7c8841.
-   ⭐ The same hue two stops lighter is already in this file — #a3b745, his own
-   08-20 pick for the pre-7.1 room below, reads 5.85 here — if he ever wants the
-   family without the cost.
+   ⭐ THE COST IS PAID, 2026-08-24, because he asked for it: every night card
+   must carry the accent. What stood here recorded that the accent sat under the
+   4.5 text floor on both the card (3.39) and the raised ground (3.16) while
+   links, tab underlines, numbers, chart bars and every verdict mark took
+   #7c8841 — and it named its own way out: "the same hue two stops lighter is
+   already in this file — #a3b745, his own 08-20 pick for the pre-7.1 room
+   below, reads 5.85 here". That is the value now. It reads 5.85 on the card and
+   5.46 on the raised ground, and both generations of this room wear one green.
+   ⚠️ --ar-good and --ar-chrome below are NOT folded back into it. They were set
+   to their own literals on 2026-08-21 to work around the deep accent, and they
+   clear the floor on their own (4.77 and 4.75) — his calls, left standing.
    ⛔ SLUG-LEVEL ON PURPOSE, so the variation below still wins for the older
    generation: that room keeps the #a3b745 he chose for it. */
 :root[data-ar-theme="dark"] body.admin-color-ectoplasm {
-  --ar-accent: #7c8841;
+  --ar-accent: #a3b745;
   /* ⛔ NOT var(--ar-accent) EITHER — his call, 2026-08-21, and it is the one
      that answers the cost written above. The verdict marks were riding the
      accent at 3.39:1 on the card and 3.03 on the PASS pill; on #95a446 they
@@ -662,6 +683,25 @@
   --ar-ink-faint: #8a9294;
   --ar-line: #41585f;
   --ar-line-strong: #516b72;
+  /* ⛔ THE ACCENT IS RE-KEYED HERE BECAUSE THIS ROOM'S GROUNDS ARE TOO LIGHT FOR
+     THE BASE GREEN. His ask 2026-08-24: every night card must carry the accent.
+     #8ab685 measured 4.45 on this card and 3.56 on the raised one
+     (.ar-card--muted, the notes) — under the 4.5 text floor on both, and
+     .ar-linkbtn paints the accent on exactly those grounds. Same hue and
+     saturation, lifted in lightness only until both clear: #abcba7 reads 5.78 on
+     the card and 4.62 on the raised ground.
+     ⭐ --ar-good, --ar-chrome and the four washes are deliberately NOT restated,
+     and that is measured rather than assumed: they are declared at
+     :root[data-ar-theme="dark"] as var(--ar-accent) references, and a body-level
+     re-key DOES reach them — forcing --ar-accent to #ff0000 on the body
+     repainted a probe's --ar-good, --ar-chrome and --ar-good-wash to red.
+     ⚠️ These two DO need restating, because they are LITERALS in the base rule:
+     it mixes the green hex, not the token, so nothing carries a new accent into
+     them. The bright is the base pair's own +0.082 L step taken at this value;
+     the line is the same 24% mix. */
+  --ar-accent: #abcba7;
+  --ar-chrome-bright: #c4dbc1;
+  --ar-chrome-line: color-mix(in srgb, #abcba7 24%, var(--ar-line));
 }
 /* The grey-warmed sand Fresh and Midnight take — these grounds are cool, and the
    base brass ran hot on them. ⭐ Slug-only: both Oceans are cool, so this one
@@ -762,6 +802,25 @@
   --ar-ink-faint: #a09392;
   --ar-line: #7e4846;
   --ar-line-strong: #915856;
+  /* ⛔ THE ACCENT IS RE-KEYED HERE BECAUSE THIS ROOM'S GROUNDS ARE TOO LIGHT FOR
+     THE BASE GREEN. His ask 2026-08-24: every night card must carry the accent.
+     #8ab685 measured 4.18 on this card and 3.97 on the raised one
+     (.ar-card--muted, the notes) — under the 4.5 text floor on both, and
+     .ar-linkbtn paints the accent on exactly those grounds. Same hue and
+     saturation, lifted in lightness only until both clear: #9dc298 reads 4.87 on
+     the card and 4.62 on the raised ground.
+     ⭐ --ar-good, --ar-chrome and the four washes are deliberately NOT restated,
+     and that is measured rather than assumed: they are declared at
+     :root[data-ar-theme="dark"] as var(--ar-accent) references, and a body-level
+     re-key DOES reach them — forcing --ar-accent to #ff0000 on the body
+     repainted a probe's --ar-good, --ar-chrome and --ar-good-wash to red.
+     ⚠️ These two DO need restating, because they are LITERALS in the base rule:
+     it mixes the green hex, not the token, so nothing carries a new accent into
+     them. The bright is the base pair's own +0.082 L step taken at this value;
+     the line is the same 24% mix. */
+  --ar-accent: #9dc298;
+  --ar-chrome-bright: #b6d2b2;
+  --ar-chrome-line: color-mix(in srgb, #9dc298 24%, var(--ar-line));
 }
 :root[data-ar-theme="dark"] body.admin-color-sunrise .ar-about-snippet { background: #372727; }
 /* ⭐ HIS PICK, 2026-08-20, set by eye and arrived at in three steps: the bar

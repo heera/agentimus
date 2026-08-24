@@ -120,7 +120,16 @@ export default {
       // work needs to see that it registered.
       const held = this.waiting.length ? ` ${this.waitingLine}` : '';
       if (!this.open.length) {
-        if (this.later.length) return `Nothing is costing you anything today. There are a couple of things worth knowing below.${held}`;
+        // ⚠️ ONE LINE, same measured cap as the ranked line below: .ar-today__sub
+        // stops at 62ch, which is 507.7px at 13px, and that cap does not depend
+        // on the viewport — so "There are a couple of things worth knowing
+        // below." needed 538.4px and wrapped on EVERY screen, orphaning the word
+        // "below." on a line of its own. This reads 462.8px, ~45px of slack.
+        // ⭐ "below" is the word that went, and it is the one that was doing the
+        // least: the "When you have time" divider sits directly beneath this
+        // sentence and already points at what it was pointing at.
+        if (this.later.length) return `Nothing is costing you anything today. A couple of things are worth knowing.${held}`;
+        // Already one line at every width — left alone.
         return `Every check passes and no page is waiting on a fix.${held}`;
       }
       // ⚠️ ONE LINE, and that is a measured constraint rather than a stylistic

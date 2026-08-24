@@ -272,8 +272,21 @@ body { --ar-bar: var(--ar-accent); }
      the same weight — too close to read as a deliberate pair, too far to read
      as one colour — so "good" IS the accent here, and a verdict is carried by
      the word (PASS), the filled dot, and amber/red for anything needing you.
-     A scheme block below that re-keys --ar-accent should re-key these two
-     with it: they resolve the accent at :root, not at body. */
+     ⛔ THIS USED TO SAY that a scheme block re-keying --ar-accent "should re-key
+     these two with it: they resolve the accent at :root, not at body." That is
+     WRONG, and it sent me down a wrong path on 2026-08-24 until a probe settled
+     it: forcing --ar-accent to #ff0000 on the BODY repainted a test element's
+     --ar-good, --ar-chrome and --ar-good-wash to red. A var() inside a custom
+     property is substituted against the element the value is inherited onto, so
+     all of these follow a body-level re-key on their own and restating them is
+     a no-op.
+     ⚠️ What does NOT follow is a LITERAL: --ar-chrome-bright and --ar-chrome-line
+     below mix the green HEX rather than the token, so a room that re-keys the
+     accent must restate those two by hand or it ends up wearing two greens.
+     That is the real rule, and it is close to the opposite of the old one.
+     ⭐ Measure this with a PAINTED probe, never getComputedStyle() on the custom
+     property itself — that reads the token stream and resolves it against
+     whichever element you asked, which answers a different question. */
   --ar-good: var(--ar-accent);
   --ar-warn: #e0b24c;
   --ar-bad: #e08a72;
