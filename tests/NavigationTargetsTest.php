@@ -211,4 +211,50 @@ final class NavigationTargetsTest extends TestCase {
 		$bridged = \Agentimus\Findings::check_action( array( 'label' => 'x', 'href' => 'https://example.test/a' ) );
 		$this->assertSame( 'https://example.test/a', $bridged['url'] );
 	}
+
+	/**
+	 * ⭐⭐ EVERY ROW IN THE "MORE" MENU CARRIES A MARK — and the lookup is by the
+	 * row's own id, which is exactly what a rename moves.
+	 *
+	 * 1.44.0 gave the Report SCREEN the id `report`. The icon map had been using
+	 * that key for "Report an Issue", so the screen quietly put on a flag
+	 * meaning "a bug raised for the maintainer", and the issue row — renamed to
+	 * `report-issue` to stop the two colliding as v-for keys — matched nothing
+	 * and rendered an `<svg>` with no paths inside it. A blank seat in a column
+	 * where every sibling has a mark reads as broken, and nothing at runtime
+	 * says a word about it: the element is there, the right size, and empty.
+	 *
+	 * Two lookups can answer, so both count: the menu's own 16px set, and the
+	 * nav set a tab folded out of the bar keeps {@see groupIcons.js}.
+	 */
+	public function test_every_more_menu_row_resolves_to_an_icon() {
+		$vue = (string) file_get_contents( dirname( __DIR__ ) . '/resources/admin/App.vue' );
+
+		// The rows, from moreTabs() alone — not the whole file, or every id in
+		// the app would count as a menu row.
+		$start = strpos( $vue, 'moreTabs() {' );
+		$end   = strpos( $vue, 'moreActive() {' );
+		$this->assertNotFalse( $start, 'moreTabs() still builds the menu' );
+		$this->assertNotFalse( $end );
+		preg_match_all( "/id: '([^']+)'/", substr( $vue, $start, $end - $start ), $rows );
+		$this->assertNotEmpty( $rows[1], 'The menu still has rows to check' );
+
+		// The menu's own set.
+		$icon_start = strpos( $vue, 'moreIcon(id) {' );
+		$this->assertNotFalse( $icon_start );
+		preg_match_all( "/^\s*'?([a-z][a-z-]*)'?:\s*\[/m", substr( $vue, $icon_start, 2600 ), $icons );
+
+		// The nav set, which the template falls back to for a folded-out tab.
+		$groups = (string) file_get_contents( dirname( __DIR__ ) . '/resources/admin/js/groupIcons.js' );
+		preg_match_all( "/^\s*'?([a-z][a-z-]*)'?:\s*/m", $groups, $nav );
+
+		$have = array_merge( $icons[1], $nav[1] );
+		foreach ( array_unique( $rows[1] ) as $id ) {
+			$this->assertContains(
+				$id,
+				$have,
+				"The “More” row '$id' has no icon in either set, so it renders an empty <svg> beside rows that all have one."
+			);
+		}
+	}
 }

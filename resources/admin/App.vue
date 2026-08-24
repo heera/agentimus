@@ -907,8 +907,17 @@ export default {
         whatsnew: ['M8 1.8 9.7 5.6 13.8 6l-3 2.9.8 4.1L8 11.1 4.4 13l.8-4.1-3-2.9 4.1-.4Z'],
         // A speech bubble: somebody answers you there.
         help: ['M2.5 3.5h11v7.5h-6L4 13.5V11H2.5Z'],
+        // ⚠️ KEYED BY THE MENU ROW'S id, AND TWO OF THEM MOVED. 1.44.0 gave the
+        // Report SCREEN the id 'report', which this map had been using for
+        // "Report an Issue" — so the screen quietly put on a flag meaning "a
+        // bug raised for the maintainer", and the issue row, renamed to
+        // 'report-issue', matched nothing and rendered an <svg> with no paths:
+        // a blank seat in a column where every other row has a mark.
+        //
+        // A calendar page: the Report screen's whole claim is any two dates.
+        report: ['M2.6 3.8h10.8v9.6H2.6Z', 'M2.6 6.6h10.8', 'M5.6 2.4v2.4', 'M10.4 2.4v2.4'],
         // A flag: something raised for the maintainer to look at.
-        report: ['M3.5 13.5v-11', 'M3.5 3h7l-1.4 2.2L10.5 7.5h-7'],
+        'report-issue': ['M3.5 13.5v-11', 'M3.5 3h7l-1.4 2.2L10.5 7.5h-7'],
       }[id] || [];
     },
     /**
