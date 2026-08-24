@@ -166,7 +166,33 @@ namespace Agentimus\Tests {
 
 		public function test_citation_payload_shape() {
 			$payload = Events::citation_payload( array( 'ran' => true, 'runId' => 1723400000, 'checks' => 12, 'capped' => false ) );
-			$this->assertSame( array( 'runId' => 1723400000, 'checks' => 12, 'capped' => false ), $payload );
+			$this->assertSame( array( 'runId' => 1723400000, 'checks' => 12, 'capped' => false, 'trigger' => 'scheduled' ), $payload );
+		}
+
+		/**
+		 * ⛔ A run the owner started is not announced to their channels.
+		 *
+		 * He pressed "Run check now", watched the screen fill in, and Telegram
+		 * told him it had finished — news to nobody. These channels carry what
+		 * happened while nobody was looking.
+		 */
+		public function test_a_manual_run_is_not_announced_but_a_scheduled_one_is() {
+			$this->connect();
+			$events = new Events( $this->settings() );
+
+			$events->on_citation_run_finished( array( 'ran' => true, 'runId' => 1, 'checks' => 8, 'trigger' => 'manual' ) );
+			$this->assertSame( 0, ( new Dispatcher( $this->settings() ) )->depth_for( Webhook::ID ), 'a run you are watching announces nothing' );
+
+			$events->on_citation_run_finished( array( 'ran' => true, 'runId' => 2, 'checks' => 8, 'trigger' => 'scheduled' ) );
+			$this->assertSame( 1, ( new Dispatcher( $this->settings() ) )->depth_for( Webhook::ID ), 'the one nobody saw is the one worth sending' );
+		}
+
+		/** A result from before this field existed is a scheduled run — that is
+		 *  what every run was until the button learned to say otherwise. */
+		public function test_a_result_without_a_trigger_still_announces() {
+			$this->connect();
+			( new Events( $this->settings() ) )->on_citation_run_finished( array( 'ran' => true, 'runId' => 3, 'checks' => 4 ) );
+			$this->assertSame( 1, ( new Dispatcher( $this->settings() ) )->depth_for( Webhook::ID ) );
 		}
 
 		public function test_wrote_payload_shape_and_action_vocabulary() {

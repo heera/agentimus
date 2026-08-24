@@ -6,7 +6,10 @@
  * needs no vendor SDK and stays as light as the free core.
  *
  * A query() returns a normalized array:
- *   [ 'text' => string, 'citations' => string[], 'error' => string ]
+ *   [ 'text' => string, 'citations' => array[], 'error' => string ]
+ * where each citation is a { url, label } record — see {@see \Agentimus\Visibility\Sources}
+ * for why a bare URL is not enough (Gemini's URL is Google's redirector, and the
+ * site that was actually read is only ever named in the label).
  * On success `error` is '' and `text` holds the model's answer; on failure `text`
  * is '' and `error` explains why.
  *
@@ -26,6 +29,8 @@
  */
 
 namespace Agentimus\Visibility\Providers;
+
+use Agentimus\Visibility\Sources;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -184,16 +189,18 @@ abstract class Provider {
 	}
 
 	/**
-	 * A normalized success result.
+	 * A normalized success result. Citations arrive either way — a bare URL from
+	 * an engine that hands back real addresses, a { url, label } record from one
+	 * that wraps them — and leave in the single shape everything downstream reads.
 	 *
-	 * @param string   $text      Answer text.
-	 * @param string[] $citations Cited URLs.
+	 * @param string $text      Answer text.
+	 * @param array  $citations Cited sources: URL strings and/or { url, label } records.
 	 * @return array
 	 */
 	protected function ok( $text, array $citations = array() ) {
 		return array(
 			'text'      => (string) $text,
-			'citations' => array_values( array_filter( array_map( 'strval', $citations ) ) ),
+			'citations' => Sources::normalize( $citations ),
 			'error'     => '',
 		);
 	}
@@ -208,9 +215,9 @@ abstract class Provider {
 	 * An empty answer WITH the right shape (e.g. a safety refusal) is a legitimate
 	 * "not mentioned" and passes through untouched.
 	 *
-	 * @param string   $text      Extracted answer text.
-	 * @param string[] $citations Extracted cited URLs.
-	 * @param bool     $shaped    Whether the expected answer container was present.
+	 * @param string $text      Extracted answer text.
+	 * @param array  $citations Extracted cited sources.
+	 * @param bool   $shaped    Whether the expected answer container was present.
 	 * @return array { text, citations, error }
 	 */
 	protected function answer( $text, array $citations, $shaped ) {

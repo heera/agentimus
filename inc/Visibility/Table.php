@@ -5,6 +5,14 @@
  * check, clean time-series queries) rather than an option, exactly as the free
  * core does for its agent-hit log.
  *
+ * ⭐ v5 added `answer` beside `answer_excerpt`, and the pair is deliberate: the
+ * excerpt is the SUMMARY every list read carries (and the MCP payload with it),
+ * the answer is the whole thing, read one row at a time when someone opens it.
+ * Keeping only the excerpt meant an owner could never read what an engine
+ * actually said about them; putting the whole answer in the list payload would
+ * have made every dashboard read carry every answer. Rows written before v5
+ * have an empty `answer` — an absence the screen names rather than papers over.
+ *
  * @package Agentimus
  */
 
@@ -15,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '4';
+	const VERSION        = '5';
 	const VERSION_OPTION = 'agentimus_visibility_db_version';
 
 	/**
@@ -65,6 +73,7 @@ final class Table {
   position smallint(6) NOT NULL DEFAULT 0,
   competitors text NOT NULL,
   answer_excerpt text NOT NULL,
+  answer longtext NOT NULL,
   sources text NOT NULL,
   error varchar(191) NOT NULL DEFAULT '',
   PRIMARY KEY  (id),

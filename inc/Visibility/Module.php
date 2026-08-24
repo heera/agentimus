@@ -68,7 +68,10 @@ final class Module {
 	 */
 	public function run_now_job() {
 		try {
-			( new Runner( $this->settings ) )->run();
+			// 'manual': the owner pressed Run check now and is watching the
+			// screen fill in. The integrations use this to stay quiet — see the
+			// completion hook in Runner::run().
+			( new Runner( $this->settings ) )->run( 'manual' );
 		} finally {
 			delete_transient( self::RUNNING );
 		}

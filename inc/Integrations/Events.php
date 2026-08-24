@@ -339,13 +339,17 @@ final class Events {
 	 * citation_run_finished: the run's summary counts, as the runner reported them.
 	 *
 	 * @param array $result Visibility\Runner run result.
-	 * @return array{runId:int,checks:int,capped:bool}
+	 * @return array{runId:int,checks:int,capped:bool,trigger:string}
 	 */
 	public static function citation_payload( array $result ) {
 		return array(
-			'runId'  => isset( $result['runId'] ) ? (int) $result['runId'] : 0,
-			'checks' => isset( $result['checks'] ) ? (int) $result['checks'] : 0,
-			'capped' => ! empty( $result['capped'] ),
+			'runId'   => isset( $result['runId'] ) ? (int) $result['runId'] : 0,
+			'checks'  => isset( $result['checks'] ) ? (int) $result['checks'] : 0,
+			'capped'  => ! empty( $result['capped'] ),
+			// Always 'scheduled' on a delivered event today, but carried anyway:
+			// a webhook's own automation may want to know, and a payload that
+			// drops the field would make a later change to this rule invisible.
+			'trigger' => isset( $result['trigger'] ) && 'manual' === $result['trigger'] ? 'manual' : 'scheduled',
 		);
 	}
 
@@ -430,12 +434,24 @@ final class Events {
 	/**
 	 * A citation run completed.
 	 *
+	 * ⛔ A run the owner STARTED is not announced. His catch, 2026-08-25: he
+	 * pressed "Run check now", watched the screen fill in, and Telegram told him
+	 * it had finished — news to nobody. These channels exist to carry what
+	 * happened while you were not looking, which is the same reasoning that took
+	 * the review-queue row off Findings once the bell already carried it.
+	 * ⭐ The HOOK still fires for every run, with `trigger` on it, so a listener
+	 * of one's own can have them all.
+	 *
 	 * @param array $result Runner result.
 	 */
 	public function on_citation_run_finished( $result ) {
-		if ( is_array( $result ) && ! empty( $result['ran'] ) ) {
-			$this->emit( self::CITATION_RUN_FINISHED, self::citation_payload( $result ) );
+		if ( ! is_array( $result ) || empty( $result['ran'] ) ) {
+			return;
 		}
+		if ( 'manual' === ( isset( $result['trigger'] ) ? $result['trigger'] : '' ) ) {
+			return;
+		}
+		$this->emit( self::CITATION_RUN_FINISHED, self::citation_payload( $result ) );
 	}
 
 	/**

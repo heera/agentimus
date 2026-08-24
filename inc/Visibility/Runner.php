@@ -56,9 +56,17 @@ final class Runner {
 	 *     @type string $reason Why it didn't run (when $ran is false).
 	 *     @type int    $runId  The run identifier (unix time of the run).
 	 *     @type int    $checks Number of (prompt × provider) checks stored.
+	 *     @type string $trigger What started it: 'scheduled' or 'manual'.
 	 * }
+	 *
+	 * @param string $trigger What started this run — 'scheduled' (the cron
+	 *                        cadence) or 'manual' (the owner pressed Run check
+	 *                        now). It travels in the result and the completion
+	 *                        hook because the two are not the same event to
+	 *                        anyone listening: nobody is watching a scheduled
+	 *                        run, and somebody is always watching a manual one.
 	 */
-	public function run() {
+	public function run( $trigger = 'scheduled' ) {
 		$reason = $this->blocking_reason();
 		if ( '' !== $reason ) {
 			return array( 'ran' => false, 'reason' => $reason );
@@ -169,17 +177,24 @@ final class Runner {
 		update_option( self::LAST_RUN_OPTION, $run_id, false );
 
 		$result = array(
-			'ran'    => true,
-			'runId'  => $run_id,
-			'checks' => $checks,
-			'capped' => $capped,
+			'ran'     => true,
+			'runId'   => $run_id,
+			'checks'  => $checks,
+			'capped'  => $capped,
+			'trigger' => 'manual' === $trigger ? 'manual' : 'scheduled',
 		);
 
 		/**
 		 * Fires when a citation monitoring run completed and its results are
 		 * stored. Integrations relay the summary counts from here.
 		 *
-		 * @param array $result { ran, runId, checks, capped }.
+		 * ⭐ `trigger` says whether anybody was watching. The built-in
+		 * integrations announce the scheduled runs only — see
+		 * {@see \Agentimus\Integrations\Events::on_citation_run_finished()} —
+		 * but the hook reports every run, so a listener that wants them all
+		 * still gets them.
+		 *
+		 * @param array $result { ran, runId, checks, capped, trigger }.
 		 */
 		do_action( 'agentimus_citation_run_finished', $result );
 

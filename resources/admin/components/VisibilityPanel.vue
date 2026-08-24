@@ -19,6 +19,7 @@ import { confirm } from '../js/confirm.js';
 import { bindDocEsc } from '../js/docEsc.js';
 import { groupIcon } from '../js/groupIcons.js';
 import { formatStamp } from '../js/wpDate.js';
+import { answerText, answerParagraphs } from '../js/answerText.js';
 
 export default {
   name: 'VisibilityPanel',
@@ -62,6 +63,15 @@ export default {
       sugg: {}, // Per-product prompt suggestions, keyed by card index: { loading, aiLoading, items }.
       aiAvailable: false, // Site has an AI provider configured (WP 7.0 connectors) — gates "Suggest with AI".
       errorDialog: null, // { id, label, msg, helpUrl } when a Test failure dialog is open.
+      // The open answer, when someone clicks a verdict chip: what was asked, who
+      // answered, and the answer itself — fetched one row at a time.
+      answerDialog: null, // { prompt, label, state, loading, error, data }
+      // Which product cards are open, by product name. A card holds its stats,
+      // its rivals and every question with every engine's verdict, so a site
+      // tracking a few products is metres of page before the second one starts.
+      // A choice made here survives a refresh; only names never seen before take
+      // the default.
+      productOpen: {},
       form: {
         // One card per product. Competitors and questions are chip lists (arrays).
         targets: [{ name: '', category: '', domain: '', active: true, competitors: [], prompts: [] }],
@@ -140,6 +150,11 @@ export default {
     products() {
       return (this.dashboard && this.dashboard.products) || [];
     },
+    // The cards as they are drawn: each product plus the one line that says what
+    // happened to it since the run before.
+    productCards() {
+      return this.products.map((p) => ({ ...p, movement: this.movementOf(p) }));
+    },
   },
   created() {
     if (this.checksOn) {
@@ -154,6 +169,7 @@ export default {
     this.clearPoll();
     this.flushTargets(); // best-effort: persist a pending chip edit before teardown.
     if (this._unEscError) this._unEscError();
+    if (this._unEscAnswer) this._unEscAnswer();
   },
   watch: {
     // Document-level Esc while the test-failure dialog is open — the panel-scoped
@@ -161,6 +177,16 @@ export default {
     errorDialog(open) {
       if (this._unEscError) this._unEscError();
       this._unEscError = open ? bindDocEsc(() => this.closeError()) : null;
+    },
+    answerDialog(open) {
+      if (this._unEscAnswer) this._unEscAnswer();
+      this._unEscAnswer = open ? bindDocEsc(() => this.closeAnswer()) : null;
+    },
+    products: {
+      handler() {
+        this.syncProductFolds();
+      },
+      immediate: true,
     },
     // The parent seats screen-mates by sub-view (the index cards belong to
     // Results only), so the current view is announced upward.
@@ -787,12 +813,129 @@ export default {
       return (this.providersMeta[id] && this.providersMeta[id].label) || id;
     },
     // Compact label for a cited source: its host, without the www. prefix.
-    srcHost(url) {
+    // A cited source is { url, label }: the address to open, and the name the
+    // engine gave for the site it stands for. Gemini hands back Google's own
+    // redirector as the url on every chunk, so the label is the only place the
+    // site that was actually read is ever named — and rows stored before 1.44
+    // are bare strings with no label at all, which still read as they did.
+    srcUrl(source) {
+      return typeof source === 'string' ? source : (source && source.url) || '';
+    },
+    srcLabel(source) {
+      const label = typeof source === 'string' ? '' : (source && source.label) || '';
+      if (label) return label.replace(/^www\./, '');
+      const url = this.srcUrl(source);
       try {
         return new URL(url).hostname.replace(/^www\./, '');
       } catch (e) {
         return url;
       }
+    },
+    // The engine's own words, with the Markdown it wrote them in taken off —
+    // neither surface renders `**bold**`, so raw syntax is just noise. One line
+    // for the hover hint, paragraphs for the dialog that has room to read them.
+    answerText,
+    answerParagraphs,
+
+    /**
+     * What happened to this product since the run before — the one thing a
+     * number alone cannot say, and the only way to tell at a glance which
+     * folded card moved.
+     *
+     * ⭐ ONE line, not a badge farm: an arrow, a tone, and words that hold the
+     * whole meaning on their own. Colour never carries it by itself (a reader
+     * who cannot see the green still reads "up from 33%"), and the strongest
+     * fact wins the line — a link gained or lost outranks a percentage move,
+     * because a link is the strongest sign this screen has.
+     *
+     * ⭐ It is also where a card admits it is OUT OF STEP with the run above
+     * it: a product paused or added since the last run shows older numbers,
+     * and it says so rather than reading as current.
+     */
+    movementOf(p) {
+      const s = p.summary || {};
+      if (!p.checkedAt) return null; // never checked — the card's own line says that.
+
+      if (!p.inLatestRun) {
+        return { tone: 'flat', arrow: '·', text: `Last checked ${this.fmtDate(p.checkedAt)}` };
+      }
+      if (!s.checks) return null; // every check failed; the summary line says so.
+
+      const prev = p.previous;
+      if (!prev || !prev.checks) return { tone: 'flat', arrow: '·', text: 'First check for this one' };
+
+      const linked = (s.citations || 0) > 0;
+      const wasLinked = (prev.citations || 0) > 0;
+      if (linked && !wasLinked) return { tone: 'up', arrow: '↑', text: 'Linked its site — it didn’t in the run before' };
+      if (!linked && wasLinked) return { tone: 'down', arrow: '↓', text: 'Stopped linking its site' };
+
+      const now = s.visibilityScore;
+      const was = prev.visibilityScore;
+      if (now > was) return { tone: 'up', arrow: '↑', text: `Named in ${now}% of answers, up from ${was}%` };
+      if (now < was) return { tone: 'down', arrow: '↓', text: `Named in ${now}% of answers, down from ${was}%` };
+      return { tone: 'flat', arrow: '·', text: 'No change since the run before' };
+    },
+    // A card with nothing in it (paused, no questions, no results yet) says its
+    // one line and has nothing to fold away.
+    productFoldable(p) {
+      return !!(p.summary && (p.summary.checks || p.summary.errors));
+    },
+    productIsOpen(p) {
+      return this.productOpen[p.name] !== false;
+    },
+    toggleProduct(p) {
+      this.productOpen = { ...this.productOpen, [p.name]: !this.productIsOpen(p) };
+    },
+    // ⭐ One product opens; several start folded. The card's own summary line
+    // stays above the fold either way, so a folded card still answers "how is
+    // this one doing" — the fold hides the detail, never the verdict.
+    syncProductFolds() {
+      const list = this.products;
+      const many = list.length > 1;
+      const next = { ...this.productOpen };
+      let changed = false;
+      list.forEach((p) => {
+        if (!(p.name in next)) {
+          next[p.name] = !many;
+          changed = true;
+        }
+      });
+      if (changed) this.productOpen = next;
+    },
+
+    /**
+     * Open one check in full.
+     *
+     * ⭐ A hover bubble is a HINT — one line, no interaction, gone when the
+     * pointer moves. An answer is something you read: you want to select it,
+     * reach it from a phone (where nothing hovers) and keep it still while you
+     * do. So the chip is a button, the answer is a dialog, and the tooltip goes
+     * back to saying what the click will do. His call, 2026-08-24.
+     *
+     * The row is fetched on open rather than carried in the dashboard payload:
+     * a list read (and the MCP tool that shares it) should not drag every
+     * answer along to draw a summary.
+     */
+    async openAnswer(pr, prompt) {
+      const state = this.chipState(pr);
+      this.answerDialog = {
+        prompt,
+        label: this.providerLabel(pr.provider),
+        state,
+        loading: true,
+        error: '',
+        data: null,
+      };
+      try {
+        const data = await this.api.getVisibilityAnswer(pr.id);
+        // A second click while the first was in flight wins; drop a late reply.
+        if (this.answerDialog) this.answerDialog = { ...this.answerDialog, loading: false, data };
+      } catch (e) {
+        if (this.answerDialog) this.answerDialog = { ...this.answerDialog, loading: false, error: e.message };
+      }
+    },
+    closeAnswer() {
+      this.answerDialog = null;
     },
   },
 };
@@ -894,16 +1037,21 @@ export default {
           <!-- The run summary is one sheet; each tracked product below is its own card. -->
           <div class="agv-sheet">
           <div class="agv-runbar">
-            <span class="agv-runbar__meta">Last run · {{ fmtDate(lastRunAt) }}</span>
             <!-- The hand-crank half of the freshness rule — same mark as every
-                 other data card. Re-reads stored results; it never starts a run. -->
-            <RefreshCrank
-              :busy="quietBusy"
-              :disabled="busy"
-              aria-label="Re-read the citation results"
-              title="Re-read the citation results"
-              @refresh="quietReload"
-            />
+                 other data card. Re-reads stored results; it never starts a run.
+                 It sits WITH the reading it re-reads, the way it sits beside a
+                 card title everywhere else: loose in a space-between row it
+                 drifted to the middle of the bar and belonged to nothing. -->
+            <div class="agv-runbar__lead">
+              <span class="agv-runbar__meta">Last run · {{ fmtDate(lastRunAt) }}</span>
+              <RefreshCrank
+                :busy="quietBusy"
+                :disabled="busy"
+                :aria-label="quietBusy ? 'Re-reading the citation results…' : 'Re-read the citation results'"
+                :title="quietBusy ? 'Re-reading…' : 'Re-read the citation results'"
+                @refresh="quietReload"
+              />
+            </div>
             <div class="agv-runbar__actions">
               <button v-if="hasData" type="button" class="ar-btn ar-btn--ghost agv-btn-sm agv-btn-danger" :disabled="busy" @click="clearData">Clear history</button>
               <button type="button" class="ar-btn agv-btn-sm" :disabled="busy" @click="run">{{ busy ? 'Running…' : 'Run check now' }}</button>
@@ -970,14 +1118,49 @@ export default {
 
           <!-- One self-contained card per product, a peer of the summary sheet. -->
           <template v-if="hasData">
-            <section v-for="p in products" :key="p.name" class="agv-panel agv-product">
+            <section v-for="(p, pi) in productCards" :key="p.name" class="agv-panel agv-product">
               <div class="agv-product__head">
                 <h3 class="agv-product__name">{{ p.name || 'Your site' }}</h3>
                 <a v-if="p.domain" class="agv-product__site" :href="'https://' + p.domain" target="_blank" rel="noopener">{{ p.domain }}</a>
                 <span v-if="p.paused" class="agv-paused-pill">Paused</span>
+                <!-- The fold. Its own control on the right of the head, never the
+                     whole row: the product's site link lives here too, and a link
+                     inside a button is neither. -->
+                <button
+                  v-if="productFoldable(p)"
+                  type="button"
+                  class="agv-fold"
+                  :class="{ 'is-open': productIsOpen(p) }"
+                  :aria-expanded="productIsOpen(p) ? 'true' : 'false'"
+                  :aria-controls="`agv-product-body-${pi}`"
+                  :aria-label="`${productIsOpen(p) ? 'Hide' : 'Show'} the detail for ${p.name || 'this product'}`"
+                  @click="toggleProduct(p)"
+                >
+                  <span class="agv-fold__word">{{ productIsOpen(p) ? 'Hide' : 'Detail' }}</span>
+                  <svg class="agv-fold__mark" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
               </div>
 
+              <!-- ⭐ Above the fold, always: the plain sentence, the same order
+                   the run sheet reads in (headline first, numbers under it). A
+                   folded card still says how this product did. -->
+              <p v-if="p.summary.checks || p.summary.errors" class="agv-product__line">{{ productSummary(p) }}</p>
+              <p v-else-if="p.paused" class="agv-muted">Paused — this one isn’t being checked. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Turn it back on</button>.</p>
+              <p v-else-if="p.checkedAt" class="agv-muted">The last run didn’t check this one — <button type="button" class="agv-linkbtn" :disabled="busy" @click="run">run a check</button>.</p>
+              <p v-else-if="p.hasQuestions" class="agv-muted">No results for this one yet — <button type="button" class="agv-linkbtn" :disabled="busy" @click="run">run a check</button>.</p>
+              <p v-else class="agv-muted">No questions to ask yet, so there’s nothing to score. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Add a question</button>.</p>
+
+              <!-- ⛔ And this sits OUTSIDE all of them, deliberately. Written
+                   inside the checked branch it never appeared in the one case it
+                   was written for — a product the last run DIDN'T check, whose
+                   card has to say it is older than the run above it. Caught by
+                   staging that state, not by reading the code. -->
+              <p v-if="p.movement" class="agv-move" :class="'is-' + p.movement.tone">
+                <span class="agv-move__arrow" aria-hidden="true">{{ p.movement.arrow }}</span>{{ p.movement.text }}
+              </p>
+
               <template v-if="p.summary.checks || p.summary.errors">
+                <div v-show="productIsOpen(p)" :id="`agv-product-body-${pi}`">
                 <div class="agv-product__stats">
                   <div class="agv-stat" :data-tone="scoreTone(p.summary.visibilityScore)">
                     <span class="agv-stat__val">{{ p.summary.visibilityScore }}%</span>
@@ -992,8 +1175,6 @@ export default {
                     <span class="agv-stat__label">Rank vs rivals</span>
                   </div>
                 </div>
-
-                <p class="agv-product__line">{{ productSummary(p) }}</p>
 
                 <div v-if="p.shareOfVoice && p.shareOfVoice.length > 1" class="agv-product__block">
                   <h4 class="agv-sub">Who AI names — {{ p.name || 'you' }} vs rivals</h4>
@@ -1010,22 +1191,34 @@ export default {
                     <div class="agv-prompt__q">{{ q.prompt }}</div>
                     <div class="agv-prompt__providers">
                       <div v-for="(pr, j) in q.providers" :key="j" class="agv-pr">
-                        <span class="agv-chip" :data-state="chipState(pr).cls" v-tip="pr.error || pr.excerpt || ''">{{ providerLabel(pr.provider) }} · {{ chipState(pr).label }}</span>
+                        <!-- ⭐ No tooltip, and NOT the badge's shape. The verdict
+                             is the one thing here you can press, so it is built
+                             like the app's own buttons — square corners, a raised
+                             ground, and a press that answers — while the WEB tag
+                             beside it stays the flat pill it is. Shape says it at
+                             rest, on a phone, and without colour. His call,
+                             2026-08-24. -->
+                        <button
+                          type="button"
+                          class="agv-chip agv-chip--open"
+                          :data-state="chipState(pr).cls"
+                          :aria-label="`${providerLabel(pr.provider)} · ${chipState(pr).label} — read this answer`"
+                          @click="openAnswer(pr, q.prompt)"
+                        >{{ providerLabel(pr.provider) }} · {{ chipState(pr).label }}</button>
                         <span v-if="pr.error" class="agv-err">{{ pr.error }}</span>
                         <span v-if="pr.sources && pr.sources.length" class="agv-web" v-tip="`Answered using a live web search`">web</span>
                         <ul v-if="pr.sources && pr.sources.length" class="agv-src">
-                          <li v-for="(u, k) in pr.sources" :key="k">
-                            <a :href="u" v-tip="u" target="_blank" rel="noopener nofollow">{{ srcHost(u) }}</a>
+                          <li v-for="(source, k) in pr.sources" :key="k">
+                            <a v-if="srcUrl(source)" :href="srcUrl(source)" v-tip="srcUrl(source)" target="_blank" rel="noopener nofollow">{{ srcLabel(source) }}</a>
+                            <span v-else>{{ srcLabel(source) }}</span>
                           </li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 </div>
+                </div><!-- /the folded body -->
               </template>
-              <p v-else-if="p.paused" class="agv-muted">Paused — this one isn’t being checked. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Turn it back on</button>.</p>
-              <p v-else-if="p.hasQuestions" class="agv-muted">No results for this one yet — <button type="button" class="agv-linkbtn" :disabled="busy" @click="run">run a check</button>.</p>
-              <p v-else class="agv-muted">No questions to ask yet, so there’s nothing to score. <button type="button" class="agv-linkbtn" @click="citView = 'settings'">Add a question</button>.</p>
             </section>
           </template>
         </div>
@@ -1276,6 +1469,83 @@ export default {
       </div>
     </div>
 
+    <!-- One check, whole: what was asked, who answered, how it was graded, the
+         answer in full and every source it cited. A dialog rather than a hover
+         bubble because an answer is READ — selectable, still while you read it,
+         and reachable on a phone, where nothing hovers. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="answerDialog" class="ar-modal" @click.self="closeAnswer">
+          <div
+            class="ar-modal__panel agv-answer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="agv-answer-title"
+            tabindex="-1"
+            @keydown.esc="closeAnswer"
+          >
+            <div class="ar-modal__head">
+              <h2 id="agv-answer-title" class="ar-modal__title">{{ answerDialog.prompt }}</h2>
+              <p class="ar-modal__lead agv-answer__meta">
+                <span class="agv-chip agv-chip--static" :data-state="answerDialog.state.cls">{{ answerDialog.label }} · {{ answerDialog.state.label }}</span>
+                <template v-if="answerDialog.data">
+                  <span class="agv-answer__model">{{ answerDialog.data.model }}</span>
+                  <span class="agv-answer__when">{{ fmtDate(answerDialog.data.checkedAt) }}</span>
+                </template>
+              </p>
+            </div>
+
+            <div class="ar-modal__body">
+              <div class="ar-modal__scroll">
+                <p v-if="answerDialog.loading" class="agv-muted">Reading this check…</p>
+                <p v-else-if="answerDialog.error" class="agv-answer__err">{{ answerDialog.error }}</p>
+
+                <template v-else-if="answerDialog.data">
+                  <!-- A check that never finished has no answer to show; the
+                       engine's own words about why are what there is. -->
+                  <template v-if="answerDialog.data.error">
+                    <h3 class="agv-answer__h">This check didn’t finish</h3>
+                    <p class="agv-answer__err">{{ answerDialog.data.error }}</p>
+                  </template>
+
+                  <template v-else>
+                    <p
+                      v-for="(para, k) in answerParagraphs(answerDialog.data.hasFullAnswer ? answerDialog.data.answer : answerDialog.data.excerpt)"
+                      :key="k"
+                      class="agv-answer__p"
+                    >{{ para }}</p>
+
+                    <!-- ⭐ An absence names itself: a check from before answers
+                         were kept whole shows its opening, and says that is
+                         what it is, rather than passing a fragment off as the
+                         whole answer. -->
+                    <p v-if="!answerDialog.data.hasFullAnswer" class="agv-answer__note">
+                      This check ran before Agentimus kept answers in full, so only its opening was
+                      stored. Answers from your next check onwards are kept whole.
+                    </p>
+                  </template>
+
+                  <div v-if="answerDialog.data.sources && answerDialog.data.sources.length" class="agv-answer__sources">
+                    <h3 class="agv-answer__h">What it cited</h3>
+                    <ul class="agv-src agv-src--stacked">
+                      <li v-for="(source, k) in answerDialog.data.sources" :key="k">
+                        <a v-if="srcUrl(source)" :href="srcUrl(source)" target="_blank" rel="noopener nofollow">{{ srcLabel(source) }}</a>
+                        <span v-else>{{ srcLabel(source) }}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn" @click="closeAnswer">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
     <!-- Test-failure dialog: the full provider error, wrapped and readable, with
          any URLs in it turned into real clickable links. -->
     <Teleport to="body">
@@ -1367,6 +1637,7 @@ export default {
 
 /* Run bar */
 .agv-runbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.agv-runbar__lead { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .agv-runbar__meta { color: var(--ar-ink-soft); font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
 .agv-runbar__actions { display: flex; align-items: center; gap: 8px; }
 
@@ -1407,7 +1678,14 @@ export default {
 .agv-stat[data-tone="warn"] .agv-stat__val { color: var(--ar-warn, #b7791f); }
 .agv-stat[data-tone="bad"] .agv-stat__val { color: var(--ar-bad); }
 .agv-stat__label { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ar-ink-soft); }
-.agv-product__line { margin: 0 0 14px; font-size: 13.5px; color: var(--ar-ink-soft); }
+.agv-product__line { margin: 0 0 6px; font-size: 13.5px; color: var(--ar-ink-soft); }
+/* What moved, in the app's own trend idiom (.ar-rd__trend): an arrow, a tone
+   and words — never colour on its own. */
+.agv-move { display: flex; align-items: baseline; gap: 7px; margin: 0 0 14px; font-size: 12.5px; line-height: 1.5; }
+.agv-move.is-up { color: var(--ar-good); }
+.agv-move.is-down { color: var(--ar-bad); }
+.agv-move.is-flat { color: var(--ar-ink-faint); }
+.agv-move__arrow { font-weight: 700; font-size: 13px; }
 .agv-product__block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ar-line); }
 .agv-sub { margin: 0 0 10px; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint); }
 
@@ -1527,6 +1805,39 @@ export default {
 .agv-prompt__providers { display: flex; flex-direction: column; gap: 8px; }
 .agv-pr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .agv-chip { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--ar-line); background: var(--ar-surface-2); color: var(--ar-ink-soft); }
+/* The verdict chip is a button now — it opens the answer. It keeps the chip's
+   look (a button's UA styles are reset above by the shared declaration) and
+   gains what a control owes: a pointer, a hover, a visible focus ring, and the
+   chevron that tells it apart from the WEB badge sitting next to it. */
+button.agv-chip { cursor: pointer; font-weight: inherit; line-height: inherit; }
+button.agv-chip:hover { border-color: var(--ar-line-strong); background: var(--ar-surface); }
+button.agv-chip:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+/* Square corners against the badge's pill, a little more room, and the press
+   the app's own buttons have — an .ar-btn in miniature, keeping the verdict
+   colour it has always carried. */
+.agv-chip--open { border-radius: var(--ar-radius); padding: 4px 11px; transition: transform 0.12s, background 0.22s ease, border-color 0.22s ease; }
+.agv-chip--open:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .agv-chip--open { transition: none; } }
+.agv-chip--static { cursor: default; }
+/* The card's fold: a quiet control, and a WORD beside the mark — a lone chevron
+   makes a reader guess which way it points. It sits at the end of the head row,
+   pushed there by its own margin so the title and site link keep their places. */
+.agv-fold { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border: 1px solid var(--ar-line); border-radius: var(--ar-radius); background: transparent; color: var(--ar-ink-soft); font-family: var(--ar-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; transition: transform 0.12s, background 0.22s ease, border-color 0.22s ease; }
+.agv-fold:hover { background: var(--ar-surface); border-color: var(--ar-line-strong); color: var(--ar-ink); }
+.agv-fold:active { transform: translateY(1px); }
+.agv-fold:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
+.agv-fold__mark { flex: 0 0 auto; transition: transform 0.16s ease; }
+.agv-fold.is-open .agv-fold__mark { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .agv-fold, .agv-fold__mark { transition: none; } }
+.agv-answer .ar-modal__scroll { max-width: 74ch; }
+.agv-answer__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.agv-answer__model, .agv-answer__when { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ar-ink-faint); }
+.agv-answer__p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.65; color: var(--ar-ink); }
+.agv-answer__h { margin: 18px 0 8px; font-family: var(--ar-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ar-ink-faint); }
+.agv-answer__note { margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line); font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
+.agv-answer__err { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ar-bad); }
+.agv-src--stacked { gap: 6px 12px; }
+.agv-src--stacked::before { content: none; }
 .agv-chip[data-state="cited"] { color: var(--ar-good); border-color: color-mix(in srgb, var(--ar-good) 35%, var(--ar-line)); }
 .agv-chip[data-state="mention"] { color: var(--ar-accent); border-color: color-mix(in srgb, var(--ar-accent) 35%, var(--ar-line)); }
 .agv-chip[data-state="err"] { color: var(--ar-bad); border-color: color-mix(in srgb, var(--ar-bad) 35%, var(--ar-line)); }
@@ -1543,7 +1854,7 @@ export default {
 
 /* Empty state */
 .agv-empty { text-align: center; background: var(--ar-surface); border: 1px dashed var(--ar-line-strong); border-radius: var(--ar-radius); padding: 40px 20px; }
-.agv-empty h2 { margin: 0 0 6px; font-family: var(--ar-serif); }
+.agv-empty h2 { margin: 0 0 6px; font-family: var(--ar-serif); color: var(--ar-ink); }
 .agv-empty p { color: var(--ar-ink-soft); max-width: 460px; margin: 0 auto 16px; font-size: 13.5px; }
 .agv-empty__actions { display: flex; gap: 10px; justify-content: center; }
 

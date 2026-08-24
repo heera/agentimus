@@ -118,6 +118,27 @@ final class Rest {
 			)
 		);
 
+		// One check, whole — the answer an engine gave, read on demand when someone
+		// opens it. A separate route ON PURPOSE: the dashboard read stays a summary,
+		// so a screen (or an assistant reading the same payload) never drags every
+		// answer along to show a list.
+		register_rest_route(
+			self::NS,
+			'/visibility/answer/(?P<id>\d+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_answer' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'id' => array(
+						'type'              => 'integer',
+						'required'          => true,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NS,
 			'/visibility/clear',
@@ -127,6 +148,24 @@ final class Rest {
 				'permission_callback' => array( $this, 'can_manage' ),
 			)
 		);
+	}
+
+	/**
+	 * GET /visibility/answer/<id> — one stored check in full.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_answer( \WP_REST_Request $request ) {
+		$answer = Store::answer( (int) $request['id'] );
+		if ( null === $answer ) {
+			return new \WP_Error(
+				'agentimus_answer_not_found',
+				__( 'That check is no longer stored — history may have been cleared, or it aged out of the retention window.', 'agentimus' ),
+				array( 'status' => 404 )
+			);
+		}
+		return rest_ensure_response( $answer );
 	}
 
 	/**

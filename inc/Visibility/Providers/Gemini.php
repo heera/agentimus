@@ -56,25 +56,55 @@ final class Gemini extends Provider {
 	}
 
 	/**
-	 * Cited source URLs from grounding metadata:
-	 * candidates[0].groundingMetadata.groundingChunks[].web.uri. Empty when the
+	 * Cited sources from grounding metadata:
+	 * candidates[0].groundingMetadata.groundingChunks[].web. Empty when the
 	 * answer was not grounded (search tool off, or the model chose not to search).
 	 *
+	 * ⛔ `web.uri` is NEVER the source. Google hands back its own redirector —
+	 * `https://vertexaisearch.cloud.google.com/grounding-api-redirect/…` — for
+	 * every chunk of every answer, so a list of them names Google three times
+	 * and the site that was actually read not at all. The real site is in
+	 * `web.domain` where the response carries one, else in `web.title`, which
+	 * grounding fills with the source's host ("aljazeera.com" in Google's own
+	 * sample).
+	 *
+	 * ⭐ Keeping only the uri did more than spoil a label: {@see Analyzer} matches
+	 * this site against the HOST of each citation, and that host was always
+	 * Google's, so a Gemini row could never be counted as linking the owner's
+	 * site. "0% linked · never linked its site" was a structural zero — the one
+	 * number on that screen that had never been measured. His catch, 2026-08-24.
+	 *
 	 * @param array $json Decoded response.
-	 * @return string[]
+	 * @return array[] List of { url, label }.
 	 */
 	private function citations_from( array $json ) {
 		$chunks = isset( $json['candidates'][0]['groundingMetadata']['groundingChunks'] )
 			? $json['candidates'][0]['groundingMetadata']['groundingChunks']
 			: array();
 
-		$urls = array();
+		$sources = array();
 		foreach ( (array) $chunks as $chunk ) {
-			if ( isset( $chunk['web']['uri'] ) ) {
-				$urls[] = (string) $chunk['web']['uri'];
+			$web = isset( $chunk['web'] ) && is_array( $chunk['web'] ) ? $chunk['web'] : array();
+
+			$label = '';
+			foreach ( array( 'domain', 'title' ) as $field ) {
+				if ( isset( $web[ $field ] ) && '' !== trim( (string) $web[ $field ] ) ) {
+					$label = trim( (string) $web[ $field ] );
+					break;
+				}
 			}
+
+			$url = isset( $web['uri'] ) ? trim( (string) $web['uri'] ) : '';
+			if ( '' === $url && '' === $label ) {
+				continue; // A chunk that names nothing is not a source.
+			}
+
+			$sources[] = array(
+				'url'   => $url,
+				'label' => $label,
+			);
 		}
-		return $urls;
+		return $sources;
 	}
 
 	/**

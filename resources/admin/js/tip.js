@@ -34,11 +34,19 @@ function hide() {
   if (bubble) bubble.style.display = 'none';
 }
 
+// A control that goes disabled while the pointer is on it stops dispatching
+// mouse events, so its `mouseleave` never arrives — the bubble would hang
+// there offering an action the button no longer offers. Nothing disabled gets
+// a tooltip, and one already showing is dropped the moment its button locks.
+function isDisabled(el) {
+  return !!el.disabled || el.getAttribute('aria-disabled') === 'true';
+}
+
 // Position off the element's rect in the fixed viewport, the same geometry the
 // uaTip mixin uses: anchored ABOVE by default (caret points down), dropped BELOW
 // when there isn't room, and clamped so a right-edge bubble never leaves the page.
 function show(el, text) {
-  if (!text) return;
+  if (!text || isDisabled(el)) return;
   ensureBubble();
   activeEl = el;
   uaSpan.textContent = text;
@@ -75,8 +83,11 @@ export const tip = {
   },
   updated(el, binding) {
     el.__tipVal = binding.value;
-    // Refresh the text live if this element's bubble is the one showing.
-    if (activeEl === el) show(el, el.__tipVal == null ? '' : String(el.__tipVal));
+    // Refresh the text live if this element's bubble is the one showing —
+    // and take the bubble away if the button has just locked under it.
+    if (activeEl !== el) return;
+    if (isDisabled(el)) hide();
+    else show(el, el.__tipVal == null ? '' : String(el.__tipVal));
   },
   beforeUnmount(el) {
     const h = handlers.get(el);
