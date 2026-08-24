@@ -105,14 +105,66 @@ final class Table {
 	 * @param array $rows Rows shaped like Client::crawl_stats() returns.
 	 * @return void
 	 */
+	/**
+	 * Did Bing actually report anything for this day?
+	 *
+	 * ⭐⭐ A DAY WITH NO COUNTERS IS A NON-ANSWER, NOT A ZERO. Bing hands back a
+	 * row per date in its window whether or not it has numbers for that date,
+	 * and every absent field arrives here as 0 {@see Client::crawl_stats()}. A
+	 * site does not hold 230 pages on Saturday, 0 on Sunday and 229 on Monday —
+	 * that middle row is Bing saying nothing, and storing it as a measurement is
+	 * how "0 pages in Bing's index" ends up on screen under a heading that means
+	 * it.
+	 *
+	 * ⛔ NOT `in_index === 0` on its own. A quiet day — nothing crawled, no
+	 * errors — is a real day, and its index count still stands at 229, so it is
+	 * not all-zero and is never dropped by this. Only a row where every counter
+	 * is zero cannot be something Bing measured.
+	 *
+	 * @param array<string,mixed> $row A crawl row, either shape.
+	 * @return bool
+	 */
+	public static function reported( array $row ) {
+		foreach ( array( 'crawled', 'in_index', 'in_links', 'blocked_robots', 'code_2xx', 'code_301', 'code_302', 'code_4xx', 'code_5xx' ) as $k ) {
+			if ( (int) ( isset( $row[ $k ] ) ? $row[ $k ] : 0 ) > 0 ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static function upsert( array $rows ) {
 		global $wpdb;
 		if ( empty( $rows ) ) {
 			return;
 		}
-		$table  = self::name();
-		$values = array();
+		$table = self::name();
+
+		// ⚠️ AN EMPTY ROW MUST NEVER OVERWRITE A REAL ONE. Bing re-sends its
+		// whole window on every poll, so a date it reported properly yesterday
+		// can come back today carrying nothing — and ON DUPLICATE KEY UPDATE
+		// would happily replace good numbers with zeros. Empty rows are still
+		// worth INSERTing when the date is new: that is how the screen can show
+		// a day Bing answered for and said nothing about, rather than closing
+		// the gap and pretending the day never existed.
+		$full  = array();
+		$empty = array();
 		foreach ( $rows as $row ) {
+			if ( self::reported( $row ) ) {
+				$full[] = $row;
+			} else {
+				$empty[] = $row;
+			}
+		}
+		if ( $empty ) {
+			self::insert_missing( $empty );
+		}
+		if ( empty( $full ) ) {
+			return;
+		}
+
+		$values = array();
+		foreach ( $full as $row ) {
 			$values[] = $wpdb->prepare(
 				'(%s,%d,%d,%d,%d,%d,%d,%d,%d,%d)',
 				(string) $row['date_at'],
@@ -133,6 +185,26 @@ final class Table {
 				crawled = VALUES(crawled), in_index = VALUES(in_index), in_links = VALUES(in_links),
 				blocked_robots = VALUES(blocked_robots), code_2xx = VALUES(code_2xx), code_301 = VALUES(code_301),
 				code_302 = VALUES(code_302), code_4xx = VALUES(code_4xx), code_5xx = VALUES(code_5xx)'
+		);
+	}
+
+	/**
+	 * Record dates Bing answered for but reported nothing about — and only when
+	 * the date is new. INSERT IGNORE, never an upsert: the whole point is that
+	 * these must not touch a row that already holds numbers.
+	 *
+	 * @param array<int,array> $rows Rows that carry no counters.
+	 * @return void
+	 */
+	private static function insert_missing( array $rows ) {
+		global $wpdb;
+		$table  = self::name();
+		$values = array();
+		foreach ( $rows as $row ) {
+			$values[] = $wpdb->prepare( '(%s)', (string) $row['date_at'] );
+		}
+		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- every tuple prepared above; table name is our own.
+			"INSERT IGNORE INTO $table (date_at) VALUES " . implode( ',', $values )
 		);
 	}
 

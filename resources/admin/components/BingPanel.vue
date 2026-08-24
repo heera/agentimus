@@ -113,18 +113,35 @@ export default {
     },
     // Bar heights: the index trend usually moves a little on a big base, so a
     // 0-scaled chart would render as a flat wall. Scale min→max into 30→100%.
+    //
+    // ⛔⛔ THE SCALE READS REPORTED DAYS ONLY. Bing answers for dates it has no
+    // numbers for, and those arrive as zeros; letting one into min→max pinned
+    // the floor at 0, so every real day crushed against the top of the chart
+    // and the silent day drew as a collapse to nothing. Both halves of that
+    // were wrong: the day was not a collapse, and the other twenty-nine were
+    // not identical.
     bars() {
-      const vals = this.trend.map((t) => t.inIndex);
-      if (!vals.length) return [];
+      const vals = this.trend.filter((t) => t.reported).map((t) => t.inIndex);
+      if (!vals.length) return this.trend.map(() => 0);
       const min = Math.min(...vals);
       const max = Math.max(...vals);
-      return vals.map((v) => (max === min ? 65 : 30 + Math.round(((v - min) / (max - min)) * 70)));
+      // ⭐ null, never a height — a day Bing said nothing about has no size to
+      // draw, and the template gives it a slot that says so instead.
+      return this.trend.map((t) =>
+        !t.reported ? null : max === min ? 65 : 30 + Math.round(((t.inIndex - min) / (max - min)) * 70)
+      );
     },
+    // The captions name the ends of what was actually MEASURED. Printing a
+    // silent day's date beside "0" would put the very number this card exists
+    // to stop believing under the chart in the owner's own words.
     trendFirst() {
-      return this.trend.length ? this.trend[0] : null;
+      return this.trend.find((t) => t.reported) || null;
     },
     trendLast() {
-      return this.trend.length ? this.trend[this.trend.length - 1] : null;
+      for (let i = this.trend.length - 1; i >= 0; i--) {
+        if (this.trend[i].reported) return this.trend[i];
+      }
+      return null;
     },
     selected() {
       return this.selectedDay >= 0 && this.selectedDay < this.trend.length ? this.trend[this.selectedDay] : null;
@@ -132,7 +149,10 @@ export default {
     dayOptions() {
       return this.trend.map((t, i) => ({
         value: String(i),
-        label: `${this.day(t.date)} · ${this.n(t.inIndex)} pages`,
+        // ⛔ "· 0 pages" in a picker is the same false claim as the bar was.
+        label: t.reported
+          ? `${this.day(t.date)} · ${this.n(t.inIndex)} pages`
+          : `${this.day(t.date)} · nothing reported`,
       }));
     },
     // The crawl picture as rank rows, bars scaled to the day's crawled count.
@@ -371,16 +391,25 @@ export default {
                NEWEST days (rtl outside, ltr inside — the dashboard's recipe). -->
           <div class="ar-bing__scrollwrap">
           <div class="ar-bing__trend">
+            <!-- ⭐ A day Bing said nothing about keeps its PLACE in the row —
+                 closing the gap would hide that the day existed at all, and
+                 the days either side of it would read as consecutive. It draws
+                 as an outline, not a bar: nothing to compare, and it says so
+                 to a pointer and to a screen reader alike. -->
             <button
               v-for="(h, i) in bars"
               :key="i"
               type="button"
               class="ar-bing__bar"
-              :class="{ 'is-active': selectedDay === i }"
-              :style="{ height: h + '%' }"
-              :aria-label="`${day(trend[i].date)} — ${n(trend[i].inIndex)} pages in Bing's index`"
+              :class="{ 'is-active': selectedDay === i, 'is-silent': h === null }"
+              :style="h === null ? null : { height: h + '%' }"
+              :aria-label="h === null
+                ? `${day(trend[i].date)} — Bing reported nothing for this day`
+                : `${day(trend[i].date)} — ${n(trend[i].inIndex)} pages in Bing's index`"
               @click="pickDay(i)"
-              @mouseenter="showUaTip($event, `${day(trend[i].date)} · ${n(trend[i].inIndex)} pages`, '', 'cursor')"
+              @mouseenter="showUaTip($event, h === null
+                ? `${day(trend[i].date)} · Bing reported nothing`
+                : `${day(trend[i].date)} · ${n(trend[i].inIndex)} pages`, '', 'cursor')"
               @mouseleave="hideUaTip"
             ></button>
           </div>
@@ -484,9 +513,17 @@ export default {
                   </button>
                 </div>
               </div>
-              <p class="ar-modal__lead">
+              <!-- ⚠️ The lead promises a crawl picture. On a day Bing said
+                   nothing about there isn't one, and promising it above a line
+                   explaining the absence sets up the reader to look for numbers
+                   that were never there. -->
+              <p v-if="selected.reported" class="ar-modal__lead">
                 Bing's crawl picture for this day — every answer your site gave its crawler,
                 and where the index stood.
+              </p>
+              <p v-else class="ar-modal__lead">
+                Bing had no crawl picture for this day. The days either side of it stand on
+                their own.
               </p>
             </div>
 
@@ -495,18 +532,33 @@ export default {
                 <!-- One story, full width — .ar-daybreak is the two-column grid
                      and a lone column in it packs everything left. -->
                 <div class="ar-bing__daybody">
-                  <h3 class="ar-daybreak__h">Pages in the index <span class="ar-daybreak__n">{{ n(selected.inIndex) }}</span></h3>
-                  <ul class="ar-act-rank">
-                    <li v-for="r in dayRows" :key="r.label">
-                      <span class="ar-act-rank__label">{{ r.label }}</span>
-                      <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :class="{ 'ar-bing__bar--warn': r.warn }" :style="{ width: barPct(r.value) }"></span></span>
-                      <span class="ar-act-rank__n" :class="{ 'ar-warn': r.warn }">{{ n(r.value) }}</span>
-                    </li>
-                  </ul>
-                  <p class="ar-act-more-note">
-                    Answers are Bing's own daily counts — one row per day, so there are no
-                    per-request times here.
-                  </p>
+                  <!-- ⛔ A day Bing said nothing about must NOT print six zeros
+                       under real headings. Every one of them would be a
+                       measurement nobody made, and "Pages in the index 0" is
+                       the worst of them: it says the site left the index. -->
+                  <template v-if="!selected.reported">
+                    <h3 class="ar-daybreak__h">Bing reported nothing for this day</h3>
+                    <p class="ar-bing__silent">
+                      Bing answered for {{ day(selected.date) }} without any numbers in it — no
+                      index count, no crawl, no answers. That is a gap in Bing's own reporting,
+                      not a day your site was missing from the index or went uncrawled. The days
+                      either side of it stand on their own.
+                    </p>
+                  </template>
+                  <template v-else>
+                    <h3 class="ar-daybreak__h">Pages in the index <span class="ar-daybreak__n">{{ n(selected.inIndex) }}</span></h3>
+                    <ul class="ar-act-rank">
+                      <li v-for="r in dayRows" :key="r.label">
+                        <span class="ar-act-rank__label">{{ r.label }}</span>
+                        <span class="ar-act-rank__track"><span class="ar-act-rank__bar" :class="{ 'ar-bing__bar--warn': r.warn }" :style="{ width: barPct(r.value) }"></span></span>
+                        <span class="ar-act-rank__n" :class="{ 'ar-warn': r.warn }">{{ n(r.value) }}</span>
+                      </li>
+                    </ul>
+                    <p class="ar-act-more-note">
+                      Answers are Bing's own daily counts — one row per day, so there are no
+                      per-request times here.
+                    </p>
+                  </template>
                 </div>
               </div>
             </div>

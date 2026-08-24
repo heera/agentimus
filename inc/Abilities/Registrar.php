@@ -632,6 +632,7 @@ final class Registrar {
 					'trend'          => self::arr(
 						array(
 							'date'            => self::s( 'Y-m-d.' ),
+							'reported'        => self::b( 'FALSE when Bing answered for this date without numbers. ⛔ Every count below is then 0 because Bing said nothing, NOT because the site scored zero — never read such a day as an index collapse or a crawl stopping, and never average it in. The tiles above already skip these days.' ),
 							'inIndex'         => self::i(),
 							'crawled'         => self::i(),
 							'ok'              => self::i( '2xx answers.' ),

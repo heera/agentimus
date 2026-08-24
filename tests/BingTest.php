@@ -134,12 +134,34 @@ final class BingTest extends TestCase {
 
 	public function test_a_clean_most_recent_day_keeps_the_warning_quiet() {
 		// The currency rule: a big week fires only while the site still errors.
+		// ⚠️ The clean day carries REAL crawl numbers. A row with nothing in it
+		// at all is Bing saying nothing about that date, not a day it crawled
+		// cleanly {@see \Agentimus\Bing\Table::reported()} — and the two must
+		// never be written the same way, here least of all.
 		$conflicts = $this->conflicts_for( array(
 			array( 'code_4xx' => 60, 'code_5xx' => 0 ),
-			array( 'code_4xx' => 0, 'code_5xx' => 0 ),
+			array( 'code_4xx' => 0, 'code_5xx' => 0, 'crawled' => 49, 'code_2xx' => 260, 'in_index' => 229 ),
 		) );
 
 		$this->assertSame( array(), $conflicts );
+	}
+
+	/**
+	 * ⭐⭐ A DAY BING SAID NOTHING ABOUT IS NOT A DAY THE ERRORS STOPPED.
+	 *
+	 * Bing answers for dates it has no numbers for, and every counter arrives as
+	 * zero. Read as a reading, that silences this warning on a site that is
+	 * still erroring — the currency rule defeated by a non-answer instead of by
+	 * a fix. The last day Bing actually reported is the one that decides.
+	 */
+	public function test_a_silent_most_recent_day_does_not_quiet_the_warning() {
+		$conflicts = $this->conflicts_for( array(
+			array( 'code_4xx' => 60, 'code_5xx' => 0, 'crawled' => 49, 'code_2xx' => 260, 'in_index' => 229 ),
+			array( 'code_4xx' => 0, 'code_5xx' => 0 ), // Bing answered; Bing said nothing.
+		) );
+
+		$this->assertCount( 1, $conflicts, 'Nothing has been fixed, so nothing may go quiet.' );
+		$this->assertSame( 'bing-crawl-errors', $conflicts[0]['id'] );
 	}
 
 	public function test_errors_under_the_floor_stay_a_fact_not_a_warning() {

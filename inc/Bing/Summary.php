@@ -35,8 +35,22 @@ final class Summary {
 			return array_merge( $view, array( 'days' => $days ) );
 		}
 
-		$rows   = Table::window( $days );
-		$latest = ! empty( $rows ) ? $rows[ count( $rows ) - 1 ] : null;
+		$rows = Table::window( $days );
+
+		// ⛔⛔ THE HEADLINE TILES MUST COME FROM A DAY BING ACTUALLY REPORTED.
+		// They read the most recent row, and Bing answers for dates it has no
+		// numbers for {@see Table::reported()} — so a window ending on one of
+		// those printed "0 pages in Bing's index" under a heading that means it,
+		// beside a chart whose other twenty-nine days said 229. The newest day
+		// that carries numbers is the honest "where the index stands"; a day
+		// that says nothing cannot speak for the site.
+		$latest = null;
+		for ( $i = count( $rows ) - 1; $i >= 0; $i-- ) {
+			if ( Table::reported( $rows[ $i ] ) ) {
+				$latest = $rows[ $i ];
+				break;
+			}
+		}
 
 		$errors = 0;
 		$trend  = array();
@@ -46,6 +60,11 @@ final class Summary {
 			// crawl picture without another request.
 			$trend[] = array(
 				'date'            => $row['date_at'],
+				// ⭐ Whether this day is a reading at all. Every number below it
+				// is 0 when this is false, and those zeros are Bing's silence,
+				// not the site's. The screen draws the day as a gap it can name
+				// rather than as a collapse to nothing.
+				'reported'        => Table::reported( $row ),
 				'inIndex'         => $row['in_index'],
 				'crawled'         => $row['crawled'],
 				'ok'              => $row['code_2xx'],
@@ -110,10 +129,17 @@ final class Summary {
 		// ── the crawler keeps hitting errors ───────────────────────────────
 		// Currency rule: the week made it significant, but only a still-erroring
 		// site fires — the most recent day must carry errors too.
+		// ⚠️ The most recent day BING REPORTED, not the most recent row. A date
+		// Bing answered for without numbers {@see Table::reported()} carries
+		// zeros, and reading those as "no errors today" would switch this
+		// warning off on a site that is still erroring — the currency rule
+		// defeated by a non-answer rather than by a fix.
 		$last_day_errors = 0;
-		if ( ! empty( $rows ) ) {
-			$last            = $rows[ count( $rows ) - 1 ];
-			$last_day_errors = $last['code_4xx'] + $last['code_5xx'];
+		for ( $i = count( $rows ) - 1; $i >= 0; $i-- ) {
+			if ( Table::reported( $rows[ $i ] ) ) {
+				$last_day_errors = $rows[ $i ]['code_4xx'] + $rows[ $i ]['code_5xx'];
+				break;
+			}
 		}
 		if ( $totals['crawlErrors'] >= self::MIN_ERRORS && $last_day_errors > 0 ) {
 			$errors_4xx = 0;
