@@ -988,24 +988,14 @@ final class Admin {
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
 				array(
-					'icon'  => 'page',
-					'title' => 'Your Site\'s Days, on One Page',
-					'text'  => 'A new Report screen under More: what AI read, who arrived from an AI answer, what assistants did, where you stand — for today, yesterday, a week, a month, or any dates you pick. Your dashboard opens with the same reading for today.',
-				),
-				array(
 					'icon'  => 'search',
-					'title' => 'Citations Name Who Cited You',
-					'text'  => 'The sources under each answer are the real sites now, not the redirect the assistant wrapped them in — and "linked your site" is finally a measurement rather than a zero it could never leave. Click a verdict to read the whole answer.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Citation Cards Fold, and Say What Changed',
-					'text'  => 'Each tracked product keeps its verdict in view and folds the detail away, so a few of them no longer make one very long page. Under each, a line says what moved since the run before — linked when it did not, named less often than last time, or nothing changed.',
+					'title' => 'A Day Bing Says Nothing About Now Says So',
+					'text'  => 'Bing answers for some days without any numbers in them. Those days were drawn as a drop to zero pages in the index, which never happened. They now show as a gap you can hover, and the big number above the chart can no longer read zero because Bing stayed quiet.',
 				),
 				array(
 					'icon'  => 'link',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'A headline that was black on black at night is readable. The refresh mark in the citations bar sits with the reading it re-reads, and stops offering itself while a check is running. A stored answer no longer stops mid-word, and the dashboard counts today once instead of twice. The changelog has the full list.',
+					'text'  => 'A page could be listed as not answering a search it is no longer found for, and is read again now when the search changes. The warning about Bing crawl errors no longer goes quiet on a day Bing said nothing. Report an Issue got its icon back. The changelog has the full list.',
 				),
 			),
 		);

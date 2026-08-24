@@ -298,6 +298,14 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.45.0 =
+* Fixed: a page could be told it does not answer a search it is no longer found for. That reading is measured in the background against the search the engines showed the page for at the time, and the engines move that search without anybody touching the page — so the reading beside it became an answer to a different question. Pages are read again when their search changes, and the old reading stays on screen, marked, until the new one replaces it.
+* Fixed: a day Bing reported nothing about was drawn as a drop to zero pages in the index. Bing answers for every date in its window whether or not it holds numbers for that date, so a date with nothing in it was stored and drawn as a measurement — a fall to zero and back, on a site that never left the index. Those days now keep their place in the chart as a gap you can hover, and say what they are when opened.
+* Fixed: for the same reason the "Pages in Bing's index" figure above that chart could have read zero, and the warning about Bing's crawler hitting errors could have gone quiet on a site that was still erroring. Both now read the most recent day Bing actually reported.
+* Fixed: fresh numbers from Bing could be overwritten by an empty answer, because Bing re-sends its whole window on every poll. An empty answer can no longer overwrite a reading.
+* Fixed: "Report an Issue" in the More menu had no icon, and the Report screen wore the flag drawn for it. Both have their own mark again.
+* Improved: where two searches on a page are tied for busiest, the same one wins every time — the order could vary between readings, which meant the search a page was measured against could change on its own.
+
 = 1.44.0 =
 * New: a Report screen, under More. What AI did on your site between two dates — how many AI crawlers read you and which ones, how many people arrived from an AI answer, what assistants did here, where you stand in search, whether a citation check ran, your score and the one thing worth doing. Today, yesterday, seven days, thirty, or any two dates from a calendar that names both ends and lets you change either one. It is built by the same code as your weekly email, so the page and that email can never tell you two different things, and every block links to the screen that owns its detail.
 * New: the dashboard opens with today — what AI read, who arrived from an AI answer, and what acted here since midnight, each against yesterday. Only the numbers that can honestly mean "today" appear there; the ones that cannot say so on the Report screen, where each block dates itself. Days are counted in UTC — the same clock as the daily chart and your weekly email — and the label says "UTC day" whenever that isn't the date on your own clock.
@@ -381,6 +389,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The five most recent releases are listed here. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.45.0 =
+Two readings that could be quietly wrong are fixed. A page could be listed as not answering a search it is no longer found for; those pages are read again now when their search changes. And a day Bing reported nothing about was drawn as a fall to zero pages in the index — those days now show as a gap that says so, and the index figure above the chart can no longer read zero because Bing stayed quiet. No breaking changes.
 
 = 1.44.0 =
 A new Report screen under More says what AI did on your site between any two dates, and the dashboard now opens with today. Citation sources name the site that was actually cited instead of Google's redirect, so "linked your site" is a real reading at last — it may go up on your first run without anything changing on your site. You can also click a verdict and read the whole answer. A heading that was invisible on dark admin schemes is readable again. No breaking changes.
