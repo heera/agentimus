@@ -1068,9 +1068,6 @@ body.admin-color-light {
 :root[data-ar-theme="dark"] body.admin-color-light .ar-aud__rows li {
   border-color: var(--ar-line);
 }
-/* And the Findings score, which at night drops its green for plain ink — a
-   choice that belongs to a dark card, not to this one. */
-:root[data-ar-theme="dark"] body.admin-color-light .ar-today__score-n { color: var(--ar-good); }
 /* ⚠️ THREE MORE THE FAST SWEEP COULD NOT SEE. .ar-btn transitions its
    background over 0.15s, and reading a computed style straight after flipping
    the mode reads the value MID-FLIGHT — both reads landed on the same stale

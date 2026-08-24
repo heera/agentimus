@@ -443,9 +443,6 @@ body { --ar-bar: var(--ar-accent); }
    surfaces are dark in both themes). */
 :root[data-ar-theme="dark"] .ar-rung[data-state="current"] { color: var(--ar-warn-on-ink); }
 :root[data-ar-theme="dark"] .ar-rung__todo { color: var(--ar-warn-on-ink); }
-/* The big score numerals read as ink at night, like the gauge number —
-   color belongs to words and marks; a neon number bites. */
-:root[data-ar-theme="dark"] .ar-today__score-n { color: var(--ar-ink); }
 /* A 0.3-alpha black shadow reads on cream but not on near-black: the stuck
    pagehead deepens to true black and gains a hairline edge (as a shadow
    layer, so nothing shifts by a pixel). */
@@ -7622,7 +7619,30 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
    that there IS only one list. Rank is carried by order alone; the only visual
    weight is the severity mark, so nothing shouts over the sentence next to it.
    --------------------------------------------------------------------------- */
-.ar-today__card { padding: 0; overflow: hidden; }
+/* ONE control height for this screen. The head's score pill and the rows' action
+   buttons sit 300px apart down the same card, and the eye reads them as the same
+   kind of object — so a 5.7px difference (36.5 against 42.2, measured
+   2026-08-24, his catch) reads as a mistake rather than as two sizes.
+   ⛔ It is written as .ar-btn's OWN recipe rather than as the number 42.2px,
+   because that is what it has to keep matching: 12px of padding top and bottom,
+   1px of border top and bottom, and a 12px label at the 1.35 line-height the
+   rows give it. If .ar-btn's padding or size ever moves, this moves with it —
+   and both surfaces below take their floor from here, so neither can drift on
+   its own. */
+.ar-today__card {
+  padding: 0; overflow: hidden;
+  --ar-today-ctl-h: calc(12px * 2 + 1px * 2 + 12px * 1.35);
+  /* And one control WIDTH, for the same reason. 214px is the rows' measured
+     figure (the widest label, "Turn on robots.txt rules", against the content
+     box this leaves); the head's pill now takes it instead of sizing itself to
+     whatever the score happens to say.
+     ⛔ It was 215.6px — 1.6px off the buttons, and matching them only by
+     accident. Worse, it MOVED with the reading: measured 2026-08-24, "9 / 100"
+     and "86 / 100" both gave 215.6 but "100 / 100" gave 222.6, so the pill would
+     have grown 8.6px past the buttons on the one day the site scored full
+     marks — the day nobody would think to check. */
+  --ar-today-ctl-w: 214px;
+}
 
 .ar-today__head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -7632,11 +7652,14 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 .ar-today__headings { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .ar-today__title { font-family: var(--ar-serif); font-size: 24px; font-weight: 600; margin: 0; color: var(--ar-ink); }
 .ar-today__sub { margin: 0; font-size: 13px; color: var(--ar-ink-soft); max-width: 62ch; }
-.ar-today__meta { display: flex; align-items: center; gap: 16px; }
 /* Deliberately quiet: the score answers "is my setup right", which is not the
-   question this screen exists to answer. It stays available, never dominant. */
-.ar-today__score { text-align: right; white-space: nowrap; }
-/* ⚠️ --ar-accent, not --ar-good. This number has ONE class and no state
+   question this screen exists to answer. It stays available, never dominant —
+   which is why the pill below is 15px and not a hero numeral.
+   ⛔ `.ar-today__meta { display: flex }` and `.ar-today__score { text-align:
+   right }` used to open this cluster. The first was overridden property for
+   property by the grid further down; the second named a class no markup has
+   carried for several releases. Both removed with the four-generation stack.
+   ⚠️ --ar-accent, not --ar-good. This number has ONE class and no state
    variant: it is green at 99/100 and green at 12/100, so the colour was telling
    you nothing — it only looked like a verdict. Anything whose colour never
    changes with what it reports is chrome, and chrome follows the scheme.
@@ -7645,7 +7668,6 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
    beside a verified log line only renders when the line is verified. This one
    renders always. */
 .ar-today__score-n { display: block; font-family: var(--ar-mono); font-size: 15px; font-weight: 600; color: var(--ar-accent); font-variant-numeric: tabular-nums; }
-.ar-today__score-l { display: block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-ink-faint); }
 .ar-today__refresh { font-size: 12px; }
 
 .ar-today__list { list-style: none; margin: 0; padding: 0; }
@@ -8147,7 +8169,20 @@ a.ar-work__name { color: var(--ar-accent); }
    ⚠️ It was 4px too narrow until 2026-08-18, for one label, in one condition:
    the button asked for a size class that did not exist (`ar-btn--sm`; the
    stylesheet has only `--small`), so it rendered at 12px instead of 11px. */
-.ar-today__act { width: 214px; min-width: 0; }
+/* The shared width is the point: a ragged right edge down a list of five reads
+   as five unrelated controls rather than one repeated affordance. It now holds
+   at EVERY width instead of desktop only — see the two breakpoints below, which
+   used to hand it back.
+   ⛔⛔ `width: min(214px, 100%)` DOES NOT WORK HERE, measured 2026-08-24: on
+   desktop this sits in the row grid's third column, which is `auto`, so a
+   percentage resolves against a track whose size depends on this element — the
+   circular case. `100%` collapses to the content width and min() then picks it,
+   which silently un-did the equal width on the ONE layout where it already
+   worked (measured 128.4 / 103.9 / 120.2 across three buttons).
+   ⭐ width + max-width instead: the fixed 214px is what makes the auto track
+   resolve to 214px, and the max-width only bites where the track is definite —
+   the 1fr column below 1080px, and a phone too narrow to hold 214. */
+.ar-today__act { width: var(--ar-today-ctl-w); max-width: 100%; min-width: 0; }
 .ar-today__act .ar-btn { width: 100%; min-width: 0; padding-left: 10px; padding-right: 10px; }
 /* ⚠️ The safety net, because a measured width is only ever true for the labels
    that exist today IN ENGLISH — a translation of any of them can be half as long
@@ -8157,9 +8192,15 @@ a.ar-work__name { color: var(--ar-accent); }
    it reads as a rendering fault rather than as a long label. Wrapping costs a
    second line and is correct for a label nobody has written yet. */
 .ar-today__act .ar-btn { white-space: normal; line-height: 1.35; text-wrap: balance; }
-@media (max-width: 782px) {
-  .ar-today__act, .ar-today__act .ar-btn { width: auto; }
-}
+/* The same floor the head's pill takes. Today this is exactly the height the
+   padding already produces, so nothing moves — it is here so the two surfaces
+   read from one value instead of arriving at the same number by coincidence,
+   and a min-height still lets a long label wrap to a second line. */
+.ar-today__act .ar-btn { min-height: var(--ar-today-ctl-h); }
+/* ⛔ `@media (max-width: 782px) { .ar-today__act, .ar-today__act .ar-btn
+   { width: auto } }` used to sit here and undid the shared width on a phone —
+   each button back to the size of its own label. The min() above already does
+   what this was reaching for, without giving up the alignment. */
 
 /* ---- The two doors out: Get Help / Report an Issue ---------------------- */
 /* The facts block is STATED, NOT TYPED. No field border and no caret, because it
@@ -8232,44 +8273,86 @@ a.ar-work__name { color: var(--ar-accent); }
   font-size: 13px; color: var(--ar-ink-soft);
 }
 
-/* Check again and the score share one line. The "Setup score" caption is gone:
-   a two-line block beside a one-line control forced the head taller than either
-   needed, and the number reads clearly enough next to what re-reads it. */
-.ar-today__meta { align-items: baseline; gap: 14px; }
-.ar-today__score-n { display: inline; }
+/* The reading and the control that re-takes it, as ONE segmented control: two
+   cells in a single bordered pill, split by one hairline. His call 2026-08-24.
+   Stacked as two loose lines they read as a pair of buttons — same colour, same
+   centre line, nothing saying which one you press. A shared frame says the
+   opposite: one object, the value on the left and the action that changes it on
+   the right, the way a segmented control always has.
 
-/* Score above, its re-check directly beneath — right-aligned so both hang off
-   the same edge as the action column below them. */
-.ar-today__meta { flex-direction: column; align-items: flex-end; gap: 3px; }
-.ar-today__meta .ar-today__refresh { font-size: 11.5px; }
+   ⛔ FOUR generations of these exact selectors used to sit here, each silently
+   overriding the last by source order — one line, then a right-aligned column,
+   then a max-content column, then an inline-grid. Only the fourth ever painted.
+   They are collapsed into this one block; adding a fifth on top would have left
+   three dead ancestors for the next reader to diff.
 
-/* Both the same width, set by whichever is wider. A column of max-content sized
-   to its widest child, with the children stretched to fill it — so the button
-   and the number it re-takes read as one control, not two things that happen to
-   sit near each other. */
-.ar-today__meta { align-items: stretch; width: max-content; }
-.ar-today__score-n { display: block; text-align: center; }
-.ar-today__meta .ar-today__refresh { width: 100%; text-align: center; }
-
-/* The score and its re-check, exactly the same width.
-   A single-column inline-grid: the column takes the width of the wider child
-   and both stretch into it. Flex could not do this reliably here because
-   .ar-linkbtn carries a 4px left nudge for its hover pill, which pushed the
-   button off the shared edge however the widths were set — so it is zeroed.
-   Uppercase mono to match the buttons below; this is a control, not prose. */
+   ⭐ grid-auto-columns: 1fr, not two declared columns. The score is v-if'd away
+   while a reading is blocked or missing, and the button must still fill the pill
+   on its own — auto-columns give whatever children exist an equal share, so one
+   child means one full-width cell and no empty half. */
 .ar-today__meta {
-  display: inline-grid; grid-auto-flow: row; justify-items: stretch;
-  gap: 4px; width: auto;
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  align-items: stretch; gap: 0;
+  width: var(--ar-today-ctl-w); max-width: 100%;
+  border: 1px solid var(--ar-line); border-radius: var(--ar-radius);
+  overflow: hidden;
+  /* A floor, not a height: the single auto row stretches to fill it and both
+     cells stretch with it, so the two halves stay the same height as each other
+     and as the buttons in the rows. */
+  min-height: var(--ar-today-ctl-h);
 }
-.ar-today__score-n { display: block; text-align: center; }
+/* The value half. The divider is its right border, not a rule between cells, so
+   it leaves with the number instead of hanging off an empty edge. */
+/* ⚠️ 10px, not 14px. Each half is now a fixed (214 - 2) / 2 = 106px, which
+   leaves an 86px content box — and the widest things that have to fit inside one
+   are the reading at "100 / 100" (82.3px, the true worst case since the numerals
+   are tabular and the score stops at 100) and the label "Check again" (78.8px).
+   At 14px of padding the box was 78px and BOTH overflowed, into an
+   `overflow: hidden` that would have clipped them. The cells are stretched by
+   the grid, so this padding is a floor rather than something you can see. */
+.ar-today__score-n {
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 10px; text-align: center;
+  border-right: 1px solid var(--ar-line);
+}
+/* The action half — a button at rest, not only under the pointer. His call
+   2026-08-24: an affordance you have to find with the mouse is not an
+   affordance. The fill is what makes it read as pressable; uppercase mono at
+   10.5px against the number's 15px keeps the two cells apart on weight too.
+
+   ⭐ THE LABEL IS NOT THE PLAIN ACCENT, and this is the whole reason the fill is
+   safe. --ar-surface-2 lifts the ground, and pure accent on it measures 3.16
+   (ectoplasm), 3.56 (ocean), 3.97 (sunrise), 3.67 (midnight's 363b3f) — four
+   rooms under 4.5 for a decoration, which is why this tint was a hover-only
+   effect until now. Mixing the accent toward the ink lifts the LABEL by the same
+   move that lifted the ground: at 45/55 the worst room in the app is ocean at
+   4.61, and every other room clears comfortably. 55/45 was measured first (it is
+   what the hover already used) and left ocean at 4.38 — ten points short, so the
+   mix went one step inkier rather than the fill coming off. */
 .ar-today__meta .ar-today__refresh {
-  margin-left: 0; width: 100%; text-align: center;
+  margin-left: 0; width: 100%; padding: 6px 10px; text-align: center;
+  border-radius: 0;
+  background: var(--ar-surface-2);
+  color: color-mix(in srgb, var(--ar-accent) 45%, var(--ar-ink));
   font-family: var(--ar-mono); font-size: 10.5px;
   letter-spacing: 0.08em; text-transform: uppercase;
 }
+/* Hover now has to say something the resting fill does not: the ground lifts one
+   more step and the label goes to full ink. Measured on the lifted ground, the
+   worst room is ocean at 4.79 — so the hover reads better than the rest, which is
+   the right direction for a state you enter deliberately.
+   ⛔ (0,4,0) on purpose — .ar-linkbtn:hover further down is (0,2,0) and would
+   otherwise put an underline inside a cell already shaped like a button, and
+   blank the background back to none. */
+.ar-today__meta .ar-today__refresh:hover:not(:disabled),
+.ar-today__meta .ar-today__refresh:focus-visible {
+  background: color-mix(in srgb, var(--ar-ink) 8%, var(--ar-surface-2));
+  color: var(--ar-ink);
+  text-decoration: none;
+}
 
 /* The reserve twin is an inline-grid, which would override the full-width
-   stretch this button needs to match the score above it. Keep both. */
+   stretch this button needs to fill its half of the pill. Keep both. */
 .ar-today__meta .ar-today__refresh.ar-btn--reserve { display: grid; width: 100%; }
 
 /* ---------------------------------------------------------------------------
@@ -8343,11 +8426,15 @@ a.ar-work__name { color: var(--ar-accent); }
    --------------------------------------------------------------------------- */
 @media (max-width: 1080px) {
   .ar-today__row { grid-template-columns: 18px minmax(0, 1fr); padding: 15px 20px; }
+  /* ⛔ `width: auto` on both of these used to live here, and it is why the
+     buttons matched on a desktop and nowhere else — his catch 2026-08-24. Moving
+     the column under the text changes where the buttons hang, not whether they
+     agree on a width: only the alignment flips to the left edge. */
   .ar-today__act {
-    grid-column: 2; width: auto; justify-content: flex-start;
+    grid-column: 2; justify-content: flex-start;
     margin-top: 4px;
   }
-  .ar-today__act .ar-btn { width: auto; min-width: 0; padding-left: 18px; padding-right: 18px; }
+  .ar-today__act .ar-btn { padding-left: 18px; padding-right: 18px; }
   .ar-today__why, .ar-today__points li { max-width: none; }
   .ar-today__head { padding: 20px 20px 16px; }
   .ar-today__divider, .ar-today__clear, .ar-today__failed { padding-left: 20px; padding-right: 20px; }
@@ -8356,8 +8443,12 @@ a.ar-work__name { color: var(--ar-accent); }
   /* The head's score + re-check stop hugging the right edge, which on a narrow
      column reads as a stray fragment far from the heading it belongs to. */
   .ar-today__head { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .ar-today__meta { justify-items: start; }
-  .ar-today__score-n, .ar-today__meta .ar-today__refresh { text-align: left; }
+  /* ⛔ `justify-items: start` and a left text-align used to live here, from when
+     this was a stacked column that hung off the right edge. Both are wrong for a
+     segmented control: `start` sized each cell to its own text, so the two
+     halves matched above 1080px and nowhere below it, and left-aligned text
+     inside a framed cell reads as a mistake. The pill keeps its own geometry at
+     every width; the head above is what moves it to the left edge. */
 }
 
 /* The content rows collapse at the same width, so the two halves of Today never
