@@ -123,7 +123,16 @@ export default {
         if (this.later.length) return `Nothing is costing you anything today. There are a couple of things worth knowing below.${held}`;
         return `Every check passes and no page is waiting on a fix.${held}`;
       }
-      return `Ranked by what each one costs — visitors lost, AI assistants turned away, or a page underselling itself.${held}`;
+      // ⚠️ ONE LINE, and that is a measured constraint rather than a stylistic
+      // wish: .ar-today__sub caps at 62ch, which is 507.7px at 13px. The three
+      // costs used to be verb phrases ("visitors lost, AI assistants turned
+      // away, or a page underselling itself") and needed 617.3px — always two
+      // lines, on every screen, since the cap does not depend on the viewport.
+      // As bare nouns the same three costs measure 449.1px, leaving ~59px of
+      // slack for a font fallback or a translation. Anything that reads well
+      // but measures over ~500px is back to two lines, so measure before
+      // rewording — do not count characters, the glyphs are not equal widths.
+      return `Ranked by what each one costs — visitors, AI assistants, undersold pages.${held}`;
     },
     // "Your side is done" said once, in the screen's own voice.
     waitingLine() {
