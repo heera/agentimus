@@ -14,12 +14,18 @@
  * thing the agent surface could not do.
  *
  * ⛔ IT ONLY EVER ADDS A DESCRIPTION, OR CORRECTS ONE IT IS TOLD TO. An image
- * that already carries alt text is REFUSED unless the caller passes replace=true
- * and has therefore read what is there. That asymmetry is the whole safety
- * argument for letting an agent loose on "fix everything": the checks only flag
- * images with no description at all, so a fixing run never needs to replace one
- * — and an agent paraphrasing sentences the owner wrote, at scale, quietly,
- * would be exactly the kind of damage a fixing run must not be able to do.
+ * that is already DESCRIBED is REFUSED unless the caller passes replace=true and
+ * has therefore read what is there. That asymmetry is the whole safety argument
+ * for letting an agent loose on "fix everything": an agent paraphrasing
+ * sentences the owner wrote, at scale, quietly, would be exactly the kind of
+ * damage a fixing run must not be able to do.
+ *
+ * ⛔⛔ AND "DESCRIBED" IS NOT "THE FIELD IS NOT EMPTY". {@see PageCheck::counts_as_described()}
+ * owns that question, because the CHECKS own it: a field holding the file name
+ * is flagged as undescribed, and a guard that read it as somebody's writing
+ * refused the one row the worklist was pointing at (heera.it, 2026-08-25 — the
+ * refusal even claimed the checks were satisfied). Ask the checks; never keep a
+ * second opinion here.
  *
  * ⭐ AND IT CLOSES THE LOOP. Alt text lives on the attachment, not on the page,
  * so writing it does not save the page and nothing marks the page's stored
@@ -35,6 +41,8 @@
 namespace Agentimus\Abilities;
 
 use Agentimus\Grades;
+use Agentimus\PageCheck;
+use Agentimus\Content;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -84,14 +92,40 @@ final class MediaWriter {
 		}
 
 		if ( $post_id > 0 ) {
-			if ( ! get_post( $post_id ) instanceof \WP_Post ) {
+			$post = get_post( $post_id );
+			if ( ! $post instanceof \WP_Post ) {
 				return new \WP_Error( 'agentimus_not_found', __( 'No post with that id.', 'agentimus' ), array( 'status' => 404 ) );
 			}
 			$attachment = (int) get_post_thumbnail_id( $post_id );
 			if ( $attachment < 1 ) {
+				// ⛔ NOT EVERY SITE IS A BLOG. A content type that does not support
+				// featured images has no picture to aim at AND is never flagged for
+				// one — check_featured_image() passes such a type outright. Telling
+				// its owner's agent to go and set one would send it chasing a box
+				// that does not exist on the screen.
+				if ( ! post_type_supports( $post->post_type, 'thumbnail' ) ) {
+					$pto   = get_post_type_object( $post->post_type );
+					$label = $pto && ! empty( $pto->labels->singular_name ) ? $pto->labels->singular_name : $post->post_type;
+					return new \WP_Error(
+						'agentimus_no_featured_support',
+						sprintf(
+							/* translators: %s: the content type's singular name, e.g. "Product". */
+							__( '“%s” does not use featured images, so there is none to describe and no content check asks for one. To describe a picture that belongs to this item, find it with search-media and aim this tool with attachment_id instead.', 'agentimus' ),
+							$label
+						),
+						array( 'status' => 409 )
+					);
+				}
+				// It CAN hold one and does not. Only point at update-content when
+				// update-content would actually take this type — it refuses
+				// anything outside the owner's agent-visible set, and advice that
+				// ends in a refusal is worse than no advice.
+				$reachable = in_array( $post->post_type, Content::post_types(), true );
 				return new \WP_Error(
 					'agentimus_no_featured_image',
-					__( 'This page has no featured image, so there is nothing to describe — the flag on it is “no featured image”, not “not described”. update-content sets one: pass featured_image with featured_image_alt and it arrives already described.', 'agentimus' ),
+					$reachable
+						? __( 'This item has no featured image, so there is nothing to describe — the flag on it is “no featured image”, not “not described”. update-content sets one: pass featured_image with featured_image_alt and it arrives already described.', 'agentimus' )
+						: __( 'This item has no featured image, so there is nothing to describe — the flag on it is “no featured image”, not “not described”. Set one in the editor; this content type is outside the set the write tools may touch.', 'agentimus' ),
 					array( 'status' => 409 )
 				);
 			}
@@ -152,15 +186,21 @@ final class MediaWriter {
 
 		$current = trim( (string) get_post_meta( $attachment, '_wp_attachment_image_alt', true ) );
 
+		// ⭐ ASK THE CHECKS, don't hold a second opinion — {@see PageCheck::counts_as_described()}
+		// carries the reasoning. A field with the file name in it is not a
+		// description, and guarding on "not empty" made this tool refuse the exact
+		// rows the checks were raising.
+		$described = PageCheck::counts_as_described( $current, (string) wp_get_attachment_url( $attachment ) );
+
 		// ⛔ THE GUARD THIS TOOL IS BUILT AROUND. See the class docblock: a
 		// description that already exists is somebody's writing, and replacing it
 		// has to be asked for by name.
-		if ( '' !== $current && empty( $input['replace'] ) ) {
+		if ( $described && empty( $input['replace'] ) ) {
 			return new \WP_Error(
 				'agentimus_already_described',
 				sprintf(
 					/* translators: %s: the description already stored. */
-					__( 'This image is already described: “%s”. Nothing was written. The content checks only flag images with NO description, so a fixing run never needs to change one — if this one is genuinely wrong, read it, then send replace=true with the correction.', 'agentimus' ),
+					__( 'This image is already described: “%s”. Nothing was written. A description somebody wrote is not something a fixing run replaces, and no content check asks for that — if this one is genuinely wrong, read it, then send replace=true with the correction.', 'agentimus' ),
 					$current
 				),
 				array( 'status' => 409 )
@@ -205,10 +245,29 @@ final class MediaWriter {
 			$current,
 			true,
 			$this->refresh_pages( $attachment ),
-			'' === $current
-				? __( 'Described. Image search and screen readers can read it now.', 'agentimus' )
-				: __( 'Description replaced.', 'agentimus' )
+			$this->written_message( $current, $described )
 		);
+	}
+
+	/**
+	 * What actually happened, in the caller's terms.
+	 *
+	 * ⭐ Three outcomes, not two. "Description replaced" over a field holding
+	 * the file name would report a correction nobody made — the picture had no
+	 * description, and what was overwritten was never one.
+	 *
+	 * @param string $current  What the field held before the write.
+	 * @param bool   $described Whether that counted as a description.
+	 * @return string
+	 */
+	private function written_message( $current, $described ) {
+		if ( '' === $current ) {
+			return __( 'Described. Image search and screen readers can read it now.', 'agentimus' );
+		}
+		if ( ! $described ) {
+			return __( 'Described. What stood in the field was the file name, which tells a reader nothing — this is the picture’s first real description.', 'agentimus' );
+		}
+		return __( 'Description replaced.', 'agentimus' );
 	}
 
 	/**

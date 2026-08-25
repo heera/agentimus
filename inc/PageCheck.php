@@ -41,6 +41,31 @@ final class PageCheck {
 	 */
 	const SUBSTANCE_ARTICLES_ONLY = true;
 
+	/**
+	 * A caption is evidence against alt="".
+	 *
+	 * ⭐ The rule: an empty alt on its own is respected as the WAI marker it is
+	 * — a spacer or a divider is never flagged. An empty alt on a figure whose
+	 * author wrote a CAPTION under it is a contradiction, and the caption is the
+	 * author's own evidence that the picture means something
+	 * {@see has_caption()}.
+	 *
+	 * ⚠️⚠️ A CONSTANT FOR THE REASON THE ONE ABOVE IS, and this rule is why the
+	 * warning there is worth repeating: it shipped first WITHOUT declaring
+	 * itself here, and the fingerprint {@see ruleset()} is built from the check
+	 * IDS and these constants — neither of which the rule touched. So every
+	 * stored verdict on every site still looked current, `is_stale_row()` sent
+	 * nothing back to be read, and a check that works perfectly would never
+	 * have run on a single existing page. Proven by comparing both files'
+	 * fingerprint inputs, 2026-08-25.
+	 *
+	 * ⛔ THE LAW: a change to what a check SAYS must move the fingerprint, and
+	 * on this class the way to move it is to declare the rule here. Correct
+	 * code that no page is ever re-read under is indistinguishable from code
+	 * that was never written.
+	 */
+	const CAPTIONED_BLANK_ALT_IS_A_GAP = true;
+
 	/** Only expect headings once content is long enough to need sectioning. */
 	const HEADINGS_MIN_WORDS = 300;
 
@@ -447,6 +472,8 @@ final class PageCheck {
 		$images_no_alt = 0;
 		$images_slug_alt = 0;
 		$slug_alt_names  = array();
+		$images_blank_alt = 0;
+		$blank_alt_names  = array();
 		// Same idea for pictures: "1 of 3 images" cannot be acted on without
 		// hunting. The file name is what the owner sees in the media library.
 		$no_alt_names  = array();
@@ -510,6 +537,27 @@ final class PageCheck {
 						$name = self::image_name( (string) $node->getAttribute( 'src' ) );
 						if ( '' !== $name ) {
 							$no_alt_names[] = $name;
+						}
+					} elseif ( '' === trim( (string) $node->getAttribute( 'alt' ) ) ) {
+						// ⛔⛔ alt="" AND A CAPTION. Empty alt is the WAI marker for a
+						// picture that carries no meaning, and on its own it is still
+						// respected above — a spacer, a rule, a decorative flourish is
+						// never flagged here.
+						//
+						// A CAPTION is evidence against that reading, and it is the
+						// author's own evidence: nobody writes a sentence underneath a
+						// picture that says nothing. Found on heera.it 2026-08-25,
+						// where one post had real alt on three screenshots of four and
+						// a blank on the fourth, and another had blanks on two
+						// screenshots that both carried captions. On WordPress the
+						// editor leaves this field empty by default, so "decorative"
+						// and "nobody filled it in" arrive looking identical — and
+						// reading every one of them as a decision let a captioned
+						// screenshot reach every screen reader undescribed while this
+						// row said "Every image has alt text".
+						if ( self::CAPTIONED_BLANK_ALT_IS_A_GAP && self::has_caption( $node ) ) {
+							++$images_blank_alt;
+							$blank_alt_names[] = self::library_name( (string) $node->getAttribute( 'src' ) );
 						}
 					} elseif ( self::is_filename_alt( (string) $node->getAttribute( 'alt' ), (string) $node->getAttribute( 'src' ) ) ) {
 						++$images_slug_alt;
@@ -580,6 +628,8 @@ final class PageCheck {
 			'images_no_alt_names' => $no_alt_names,
 			'images_slug_alt'     => $images_slug_alt,
 			'images_slug_alt_names' => $slug_alt_names,
+			'images_blank_alt'      => $images_blank_alt,
+			'images_blank_alt_names' => $blank_alt_names,
 			'links'          => $links,
 			'link_words'     => $link_words,
 			'outbound_links' => $outbound,
@@ -797,6 +847,93 @@ final class PageCheck {
 		$name = (string) preg_replace( '/-\d+x\d+$/', '', $name );
 		$name .= $ext;
 		return strlen( $name ) > 48 ? substr( $name, 0, 47 ) . '…' : $name;
+	}
+
+	/**
+	 * Is this image captioned — does its author say, in writing, that it means
+	 * something?
+	 *
+	 * ⭐ The evidence that an empty alt was a blank field rather than a
+	 * decision. Deliberately narrow: the NEAREST enclosing figure, and only a
+	 * caption with actual words in it. An empty `<figcaption>` (the block
+	 * editor leaves one behind when a caption is deleted) proves nothing and is
+	 * not allowed to accuse a picture.
+	 *
+	 * @param \DOMNode $node The img node.
+	 * @return bool
+	 */
+	private static function has_caption( $node ) {
+		for ( $parent = $node->parentNode; $parent instanceof \DOMElement; $parent = $parent->parentNode ) {
+			// ⛔⛔ TWO SHAPES, because WordPress emits two. `[caption]` becomes a
+			// `<figure>` only where the theme declares html5 caption support;
+			// everywhere else — a great many older themes — the very same
+			// shortcode renders as `<div class="wp-caption">` with a
+			// `<p class="wp-caption-text">` inside it. Looking only for figures
+			// made this rule silently block-editor-and-modern-theme-only, which
+			// is not a rule at all on half the sites that would install this.
+			$box = 'figure' === strtolower( $parent->nodeName ) || self::has_class( $parent, 'wp-caption' );
+			if ( ! $box ) {
+				continue;
+			}
+			foreach ( $parent->getElementsByTagName( '*' ) as $child ) {
+				$is_caption = 'figcaption' === strtolower( $child->nodeName ) || self::has_class( $child, 'wp-caption-text' );
+				if ( $is_caption && '' !== trim( (string) $child->textContent ) ) {
+					return true;
+				}
+			}
+			// The nearest caption box has no words in it. A caption box inside a
+			// caption box is not a thing, so nothing further out is worth asking.
+			return false;
+		}
+		return false;
+	}
+
+	/**
+	 * One class on an element, matched as a whole word.
+	 *
+	 * ⚠️ `strpos` would say `wp-caption-text` contains `wp-caption`, which would
+	 * make the caption its own container and the container its own caption.
+	 *
+	 * @param \DOMElement $el    Element.
+	 * @param string      $class Class to look for.
+	 * @return bool
+	 */
+	private static function has_class( $el, $class ) {
+		$attr = trim( (string) $el->getAttribute( 'class' ) );
+		return '' !== $attr && in_array( $class, preg_split( '/\s+/', $attr ), true );
+	}
+
+	/**
+	 * Does this alt text count as a DESCRIPTION? The one definition, shared.
+	 *
+	 * ⛔⛔ THE INVARIANT, and the bug that bought it (heera.it, 2026-08-25): a
+	 * tool that guards on "already described" has to ask the same question the
+	 * CHECKS ask, or it refuses the exact rows they raise. describe-image
+	 * refused post 2621's featured image as already described while
+	 * {@see check_featured_alt()} was flagging it — the alt was
+	 * "WordPress-Hidden-Gems", the file name — and the refusal went on to tell
+	 * the agent the checks were satisfied. A guard drawn tighter than its check
+	 * turns the worklist into a list of rows nothing can close.
+	 *
+	 * So this is the only place that answers it. Anything a person actually
+	 * wrote counts. An empty field does not, and neither does the file name
+	 * wearing the attribute ({@see is_filename_alt()}). A rule added here
+	 * reaches the checks and the write tools in the same commit — which is the
+	 * whole reason it is one function and not two.
+	 *
+	 * ⭐ Public because {@see \Agentimus\Abilities\MediaWriter} is the other
+	 * caller: the checks decide what "described" means, and the writer obeys
+	 * them rather than keeping a second opinion.
+	 *
+	 * @param string $alt The stored alt text.
+	 * @param string $src The image's file name or URL — what the file-name test
+	 *                    compares against. Pass '' when it is genuinely unknown;
+	 *                    a non-empty alt then simply counts.
+	 * @return bool
+	 */
+	public static function counts_as_described( $alt, $src ) {
+		$alt = trim( (string) $alt );
+		return '' !== $alt && ! self::is_filename_alt( $alt, $src );
 	}
 
 	/**
@@ -1092,6 +1229,41 @@ final class PageCheck {
 			}
 		}
 
+		// ⛔ Captioned, and marked as meaning nothing. Reported in its own words
+		// because the FIX is different: these images are not missing a field,
+		// they are carrying an answer ("this is decorative") that the caption
+		// underneath contradicts.
+		$blank      = (int) ( isset( $s['images_blank_alt'] ) ? $s['images_blank_alt'] : 0 );
+		$blank_line = '';
+		if ( $blank > 0 ) {
+			$blank_shown = array_slice( array_filter( (array) ( isset( $s['images_blank_alt_names'] ) ? $s['images_blank_alt_names'] : array() ) ), 0, 2 );
+			if ( 1 === $blank && $blank_shown ) {
+				$blank_line = sprintf(
+					/* translators: %s: the image file name, quoted. */
+					__( '%s is marked as decorative (its alt text is empty) but carries a caption — and a picture worth captioning is not one that means nothing.', 'agentimus' ),
+					self::quoted( $blank_shown[0] )
+				) . ' ';
+			} elseif ( $blank_shown ) {
+				$blank_line = sprintf(
+					/* translators: 1: how many images, 2: their file names, quoted and joined. */
+					__( '%1$d images are marked as decorative (their alt text is empty) but carry captions — and a picture worth captioning is not one that means nothing — %2$s.', 'agentimus' ),
+					$blank,
+					self::and_list( array_map( array( __CLASS__, 'quoted' ), $blank_shown ) )
+				) . ' ';
+			} else {
+				$blank_line = sprintf(
+					/* translators: %d: how many images are marked decorative but captioned. */
+					_n(
+						'%d image is marked as decorative (its alt text is empty) but carries a caption.',
+						'%d images are marked as decorative (their alt text is empty) but carry captions.',
+						$blank,
+						'agentimus'
+					),
+					$blank
+				) . ' ';
+			}
+		}
+
 		if ( (int) $s['images_no_alt'] > 0 ) {
 			// ⭐ WHICH picture. "1 of 3" sent the owner hunting through the post;
 			// the file name is what they already see in the media library. Three
@@ -1134,7 +1306,7 @@ final class PageCheck {
 				'alt_text',
 				__( 'Image alt text', 'agentimus' ),
 				'warn',
-				trim( $count_line . ' ' . $names . $slug_line . __( 'AI assistants can’t read pixels. Neither can screen readers, and image search leans on the same words. Describe each image so its meaning survives.', 'agentimus' ) )
+				trim( $count_line . ' ' . $names . $slug_line . $blank_line . __( 'AI assistants can’t read pixels. Neither can screen readers, and image search leans on the same words. Describe each image so its meaning survives.', 'agentimus' ) )
 			);
 		}
 		if ( $slugged > 0 ) {
@@ -1146,6 +1318,19 @@ final class PageCheck {
 					'Replace its alt text with a short sentence about what the picture shows — for assistants, for screen readers and for image search alike.',
 					'Replace their alt text with short sentences about what each picture shows — for assistants, for screen readers and for image search alike.',
 					$slugged,
+					'agentimus'
+				) . ' ' . $blank_line )
+			);
+		}
+		if ( $blank > 0 ) {
+			return self::row(
+				'alt_text',
+				__( 'Image alt text', 'agentimus' ),
+				'warn',
+				trim( $blank_line . _n(
+					'Describe it, or leave the alt text empty only if the picture really adds nothing a reader would miss.',
+					'Describe them, or leave the alt text empty only where the picture really adds nothing a reader would miss.',
+					$blank,
 					'agentimus'
 				) )
 			);
