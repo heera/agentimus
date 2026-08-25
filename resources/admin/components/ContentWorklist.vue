@@ -408,6 +408,13 @@ export default {
       if (!f || !f.query || f.chosen) return false;
       return !!state && 'answered' !== state && 'unreadable' !== state;
     },
+    // ⛔ Through v-tip, never title="…" — the native one ignores this admin's
+    // styling and its own timing, which is why main.js registers a replacement.
+    // Plainly worded: "judging" is our vocabulary, not the owner's.
+    dismissTip(i) {
+      const q = (i.focus && i.focus.query) || '';
+      return `Stops any page being marked down for not answering “${q}”. Nothing on this page changes, and you can put the search back later.`;
+    },
     isDismissing(i) {
       return this.dismissingSearch && i.focus && this.dismissingSearch === i.focus.query;
     },
@@ -857,7 +864,7 @@ export default {
                   type="button"
                   class="ar-linkbtn ar-linkbtn--mute ar-work__aside-q"
                   :disabled="!!dismissingSearch"
-                  :title="'Stop judging any page on “' + i.focus.query + '”. Nothing about this page changes.'"
+                  v-tip="dismissTip(i)"
                   @click="dismissSearchRow(i)"
                 >
                   {{ isDismissing(i) ? 'Setting aside…' : 'Set this search aside' }}
