@@ -222,4 +222,51 @@ final class ReportDbTest extends DbTestCase {
 			$this->report( gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) )['reads']['total']
 		);
 	}
+
+	/**
+	 * ⭐ THE SLICE IS A SLICE. The dashboard's Today line polls `live()` every
+	 * 15 seconds instead of the full report, and the whole point of the card is
+	 * that it cannot disagree with the Report screen — so for one window the
+	 * live blocks must be the SAME blocks, value for value. The day this
+	 * diverges, the line has quietly become a second collector.
+	 */
+	public function test_the_live_slice_reports_exactly_what_the_full_report_does() {
+		$this->read( gmdate( 'Y-m-d' ) );
+		$this->read( gmdate( 'Y-m-d' ), 'PerplexityBot' );
+		$this->visit( gmdate( 'Y-m-d' ) );
+		$this->read( gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ) );
+
+		$full = $this->report( gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) );
+		$live = ReportData::live( gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) );
+
+		foreach ( array( 'range', 'reads', 'visits', 'impostors', 'access' ) as $block ) {
+			$this->assertSame( $full[ $block ], $live[ $block ], "the $block block must be one block, not two" );
+		}
+	}
+
+	/**
+	 * ⛔ And it carries nothing it cannot answer cheaply. The score re-runs the
+	 * whole readiness report and search/citations read two more stores — work a
+	 * 15-second poll must not do, for figures that cannot move between ticks.
+	 */
+	public function test_the_live_slice_leaves_out_the_blocks_it_does_not_show() {
+		$live = ReportData::live( gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) );
+
+		foreach ( array( 'score', 'nudge', 'search', 'citations', 'robots' ) as $block ) {
+			$this->assertArrayNotHasKey( $block, $live );
+		}
+	}
+
+	/** The clamp is the shared window's, so the slice cannot read a future day either. */
+	public function test_the_live_slice_clamps_a_future_window_the_same_way() {
+		$this->read( gmdate( 'Y-m-d' ) );
+		$this->visit( gmdate( 'Y-m-d' ) );
+
+		$tomorrow = gmdate( 'Y-m-d', time() + DAY_IN_SECONDS );
+		$live     = ReportData::live( $tomorrow, $tomorrow );
+
+		$this->assertSame( gmdate( 'Y-m-d' ), $live['range']['to'] );
+		$this->assertSame( 1, $live['reads']['total'] );
+		$this->assertSame( 1, $live['visits']['total'] );
+	}
 }

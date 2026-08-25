@@ -102,6 +102,11 @@ final class Rest {
 						'type'        => 'string',
 						'description' => 'Last day of the window, inclusive (YYYY-MM-DD). Defaults to today.',
 					),
+					'live' => array(
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => 'Return only the blocks that can change minute to minute (reads, visits, impostors, assistant actions) — no score, search or citations. What the dashboard\'s Today line polls.',
+					),
 				),
 			)
 		);
@@ -491,13 +496,19 @@ final class Rest {
 		$today = gmdate( 'Y-m-d' );
 		$from  = (string) $request->get_param( 'from' );
 		$to    = (string) $request->get_param( 'to' );
+		$from  = '' === $from ? $today : $from;
+		$to    = '' === $to ? $today : $to;
+
+		// ⭐ The live slice, for the dashboard's Today line on its 15-second
+		// clock: the same collector and the same window, minus the score,
+		// search and citation work — none of which can move between two ticks,
+		// and all of which cost real queries. {@see Report\Data::live()}.
+		if ( $request->get_param( 'live' ) ) {
+			return rest_ensure_response( \Agentimus\Report\Data::live( $from, $to ) );
+		}
 
 		return rest_ensure_response(
-			\Agentimus\Report\Data::collect(
-				$this->settings,
-				'' === $from ? $today : $from,
-				'' === $to ? $today : $to
-			)
+			\Agentimus\Report\Data::collect( $this->settings, $from, $to )
 		);
 	}
 

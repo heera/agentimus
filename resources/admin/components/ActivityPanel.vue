@@ -677,8 +677,8 @@ export default {
           <div>
             <div class="ar-act-titlerow">
               <h2 class="ar-card__title">AI Activity</h2>
-              <span v-if="live" class="ar-act-live" v-tip="`Auto-refresh is on — these stats update on their own. Refresh forces an update now.`">
-                <span class="ar-act-live__dot" aria-hidden="true"></span>Auto-refresh
+              <span v-if="live" class="ar-live-mark" v-tip="`Auto-refresh is on — these stats update on their own. Refresh forces an update now.`">
+                <span class="ar-live-mark__dot" aria-hidden="true"></span>Auto-refresh
               </span>
             </div>
             <p class="ar-card__lead">

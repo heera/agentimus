@@ -5587,15 +5587,18 @@ a:hover > .ar-wd-ext { color: var(--ar-accent); }
 .ar-dash-tile__sub { font-size: 11px; color: var(--ar-ink-soft); }
 .ar-act-controls { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
 /* Tiny passive "auto-refresh is on" marker, tucked beside the card title.
-   Steady (no motion); mirrors the bell pill's green dot. */
+   Steady (no motion); mirrors the bell pill's green dot.
+   ⭐ ONE MARKER, EVERY CARD THAT RIDES THE LIVE CLOCK — the Today line wears
+   the same one as AI Activity, because they update on the same tick and a
+   second look would say they were two different kinds of live. */
 .ar-act-titlerow { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.ar-act-live {
+.ar-live-mark {
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--ar-mono); font-size: 8.5px; font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--ar-good);
   position: relative; top: 1px;
 }
-.ar-act-live__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ar-good); flex: 0 0 auto; }
+.ar-live-mark__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ar-good); flex: 0 0 auto; }
 .ar-act-stats { margin-top: 4px; }
 /* Each stat strip fills its row with a fixed column count matching its number of
    totals — never the generic .ar-wd-stats auto-fit, which orphaned a lone cell

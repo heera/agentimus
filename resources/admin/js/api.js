@@ -333,8 +333,16 @@ export function createApi(boot) {
     // producers the weekly email reads.
     // Called with no dates for "today" — the server owns which day that is,
     // because the rows are counted in UTC days and the browser's clock is not.
-    getReport: ({ from, to } = {}) =>
-      request(from && to ? `/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : '/report'),
+    // `live: true` asks for the slice that can change minute to minute — reads,
+    // visits, impostors, assistant actions — and skips the score, search and
+    // citation work behind the rest. Same collector, same window: it is what the
+    // dashboard's Today line polls, so it can never drift from the full screen.
+    getReport: ({ from, to, live } = {}) => {
+      const params = [];
+      if (from && to) params.push(`from=${encodeURIComponent(from)}`, `to=${encodeURIComponent(to)}`);
+      if (live) params.push('live=1');
+      return request(params.length ? `/report?${params.join('&')}` : '/report');
+    },
     getVisibilityDashboard: () => request('/visibility/dashboard'),
     // One stored check in full — asked for only when someone opens it, so the
     // dashboard read stays a summary.

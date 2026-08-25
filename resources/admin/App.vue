@@ -132,6 +132,13 @@ export default {
       live: (() => {
         try { return window.localStorage.getItem(LIVE_PREF_KEY) === '1'; } catch (e) { return false; }
       })(),
+      // ⭐⭐ THE LIVE CLOCK, PUBLISHED. Cards that cannot ride the /activity
+      // payload — the Today line reads its own collector — watch this counter
+      // instead of starting a timer of their own, so everything on the screen
+      // moves on ONE tick. His catch, 2026-08-25: the Today card said 19 AI
+      // reads while the auto-refreshing card below it said 21, because only
+      // one of them was listening to the clock.
+      liveTick: 0,
       blockingNow: null,
       allowingNow: null,
       dismissingNow: null,
@@ -1731,6 +1738,10 @@ export default {
     // be current, and were left reading a score that named a page they'd already fixed.
     async refreshActivity() {
       this.refreshingActivity = true;
+      // "Refresh" means the SCREEN, not this card — the same reason the score
+      // is re-read below. A button that left the line above it reading an older
+      // day would be the exact staleness it was pressed to clear.
+      this.liveTick += 1;
       try {
         this.activity = await this.api.getActivity();
         this.syncAgentAccessBadge(this.activity);
@@ -1820,6 +1831,10 @@ export default {
     async silentRefreshActivity() {
       if (this._silentInFlight) return; // never let two background fetches overlap
       this._silentInFlight = true;
+      // Published before the fetch, not after it: the cards riding this counter
+      // read their own endpoints, and one of them failing must not freeze the
+      // others on a stale number.
+      this.liveTick += 1;
       let fresh = null;
       try {
         fresh = await this.api.getActivity();
@@ -2476,6 +2491,8 @@ export default {
           v-show="tab === 'dashboard'"
           :api="api"
           :active="tab === 'dashboard'"
+          :live="live"
+          :tick="liveTick"
           @navigate="goTo"
         />
         <!-- What the site exposes — the first thing on the page, because the

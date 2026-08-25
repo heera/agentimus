@@ -25,6 +25,16 @@ export default {
     api: { type: Object, required: true },
     // The dashboard is the landing screen; this only reads when it is showing.
     active: { type: Boolean, default: false },
+    // Whether live updates are armed (the bell menu's opt-in, owned by App).
+    // Drives the passive marker only — the reloading itself rides `tick`.
+    live: { type: Boolean, default: false },
+    // ⭐⭐ ONE CLOCK, NOT A SECOND ONE. App bumps this on every live tick and
+    // on a manual Refresh; this card reloads when it changes and owns no timer
+    // of its own. A card about TODAY that sits above a card that auto-refreshes
+    // and does not is how the two came to disagree on his screen (19 here, 21
+    // below, 2026-08-25) — an interval of our own would only have made the two
+    // numbers drift by a different amount.
+    tick: { type: Number, default: 0 },
   },
   emits: ['navigate'],
   data() {
@@ -68,12 +78,17 @@ export default {
     active(on) {
       if (on) this.load();
     },
+    // A tick that lands while another screen is showing is dropped, not queued:
+    // returning to the dashboard flips `active` and reads afresh anyway.
+    tick() {
+      if (this.active) this.load({ silent: true });
+    },
   },
   created() {
     if (this.active) this.load();
   },
   methods: {
-    async load() {
+    async load({ silent = false } = {}) {
       if (this.loading) return;
       this.loading = true;
       try {
@@ -82,13 +97,22 @@ export default {
         // counted in UTC days — a laptop six hours ahead would otherwise ask
         // for a day the log has not reached and be told, truthfully, that
         // nothing had happened. His site, 2026-08-25.
-        this.data = await this.api.getReport({});
+        //
+        // ⭐ `live: true` asks the same collector for the same window, minus the
+        // blocks this card never shows — the score (which re-runs the whole
+        // readiness report), search and citations. None of them can move
+        // between two ticks, and this read happens every 15 seconds.
+        this.data = await this.api.getReport({ live: true });
         this.failed = false;
       } catch (e) {
         // ⛔ A line that cannot read its numbers shows nothing rather than
         // zeros: on this screen a zero is a real answer, and a failed fetch
         // must never be able to imitate one.
-        this.failed = true;
+        //
+        // ⛔ But a background tick that blips must not DELETE a card the owner
+        // is reading: numbers already on screen were true when they were
+        // fetched, and they stay, until a foreground load says otherwise.
+        if (!silent) this.failed = true;
       } finally {
         this.loading = false;
       }
@@ -111,7 +135,14 @@ export default {
   <section v-if="data && !failed" class="ar-card ar-today-line" aria-label="Today so far">
     <div class="ar-today-line__head">
       <div class="ar-today-line__heading">
-        <h2 class="ar-today-line__title">Today</h2>
+        <div class="ar-today-line__titlerow">
+          <h2 class="ar-today-line__title">Today</h2>
+          <!-- The same marker AI Activity wears, because it is the same clock:
+               both cards move on one tick or neither does. -->
+          <span v-if="live" class="ar-live-mark" v-tip="`Auto-refresh is on — this line updates on its own, on the same clock as the AI Activity card below.`">
+            <span class="ar-live-mark__dot" aria-hidden="true"></span>Auto-refresh
+          </span>
+        </div>
         <!-- ⭐ "UTC day" appears only when the site's own date is not the day
              being counted — the hours when this card would otherwise look a day
              stale to the person reading it. His site at 01:47 local, 2026-08-25:
@@ -192,6 +223,7 @@ export default {
 .ar-today-line__heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* Titled like every other card on the dashboard — same serif, same size — so
    it reads as a section of the page rather than a strip stuck on top of it. */
+.ar-today-line__titlerow { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .ar-today-line__title { margin: 0; font-family: var(--ar-serif); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; color: var(--ar-ink); }
 .ar-today-line__when { margin: 0; font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ar-ink-faint); }
 .ar-today-line__utc { border-bottom: 1px dotted currentColor; cursor: help; }

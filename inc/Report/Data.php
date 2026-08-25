@@ -65,6 +65,64 @@ final class Data {
 	 * @return array
 	 */
 	public static function collect( Settings $settings, $from, $to ) {
+		$window = self::window( $from, $to );
+		$report = self::score_report( $settings );
+
+		return array_merge(
+			self::live_blocks( $window ),
+			array(
+				'robots'    => array(
+					'freshness' => self::STATE,
+					'change'    => RobotsWatch::change(),
+				),
+				'search'    => self::search( $window['from'], $window['to'] ),
+				'citations' => self::citations( $window['from'], $window['to'] ),
+				'score'     => array(
+					'freshness' => self::STATE,
+					'now'       => null !== $report && isset( $report['score'] ) ? (int) $report['score'] : null,
+					'band'      => null !== $report && isset( $report['band'] ) ? (string) $report['band'] : '',
+				),
+				'nudge'     => array(
+					'freshness' => self::STATE,
+					'top'       => self::top_nudge( $report ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * The LIVE blocks only — the same window, the same producers, minus every
+	 * figure that cannot change between two ticks of a 15-second clock.
+	 *
+	 * ⭐ WHY A SLICE EXISTS. The dashboard's Today line rides the app's live
+	 * clock, and the blocks it never shows are the expensive ones: `score`
+	 * re-runs the whole readiness report, `search` and `citations` read two more
+	 * stores — work that answers questions about the site's standing, not about
+	 * the minute you are in.
+	 *
+	 * ⛔ A SLICE, NEVER A SECOND COLLECTOR. The window maths, the clamp and the
+	 * counts below are the very code `collect()` returns, so the line, the
+	 * Report screen and the weekly email still cannot disagree. Anything that
+	 * needs its own query belongs in `collect()`, not here.
+	 *
+	 * @param string $from First day of the window, 'Y-m-d'.
+	 * @param string $to   Last day of the window, 'Y-m-d' (inclusive).
+	 * @return array
+	 */
+	public static function live( $from, $to ) {
+		return self::live_blocks( self::window( $from, $to ) );
+	}
+
+	/**
+	 * One window, resolved: ordered, clamped, and turned into the GMT bounds
+	 * every block below reads. Shared so a report and its live slice can never
+	 * be counting different days.
+	 *
+	 * @param string $from First day, 'Y-m-d'.
+	 * @param string $to   Last day, 'Y-m-d' (inclusive).
+	 * @return array
+	 */
+	private static function window( $from, $to ) {
 		$from = self::day( $from );
 		$to   = self::day( $to );
 		if ( $to < $from ) {
@@ -95,29 +153,49 @@ final class Data {
 
 		// The window immediately before this one, same length — what "up from"
 		// compares against. Null when retention cannot cover both.
-		$length     = (int) round( ( strtotime( $end . ' +0000' ) - strtotime( $start . ' +0000' ) ) / DAY_IN_SECONDS );
-		$retention  = Repository::retention_days();
-		$has_prior  = $retention >= 2 * $length;
-		$prev_start = gmdate( 'Y-m-d 00:00:00', strtotime( $start . ' +0000' ) - $length * DAY_IN_SECONDS );
+		$length    = (int) round( ( strtotime( $end . ' +0000' ) - strtotime( $start . ' +0000' ) ) / DAY_IN_SECONDS );
+		$retention = Repository::retention_days();
 
-		$report = self::score_report( $settings );
+		return array(
+			'from'      => $from,
+			'to'        => $to,
+			'today'     => $today,
+			'start'     => $start,
+			'end'       => $end,
+			'length'    => $length,
+			'retention' => $retention,
+			'hasPrior'  => $retention >= 2 * $length,
+			'prevStart' => gmdate( 'Y-m-d 00:00:00', strtotime( $start . ' +0000' ) - $length * DAY_IN_SECONDS ),
+		);
+	}
+
+	/**
+	 * The range block and the four live counts, for a resolved window.
+	 *
+	 * @param array $w Window, from {@see window()}.
+	 * @return array
+	 */
+	private static function live_blocks( array $w ) {
+		$start      = $w['start'];
+		$end        = $w['end'];
+		$prev_start = $w['hasPrior'] ? $w['prevStart'] : null;
 
 		return array(
 			'range'     => array(
-				'from'      => $from,
-				'to'        => $to,
-				'days'      => $length,
-				'label'     => self::label( $from, $to ),
+				'from'      => $w['from'],
+				'to'        => $w['to'],
+				'days'      => $w['length'],
+				'label'     => self::label( $w['from'], $w['to'] ),
 				// A window that runs past yesterday includes a day still being
 				// written — the screen says "so far" rather than pretending the
 				// day is closed.
-				'open'      => $to >= $today,
+				'open'      => $w['to'] >= $w['today'],
 				// ⭐ The day the SERVER calls today, sent whatever window was
 				// asked for. The screen counts its presets back from this, so
 				// "7 days" is seven of these days and never seven of the
 				// browser's. ⛔ Not the same as `to`: a custom window ending in
 				// June must not move where "today" is.
-				'today'     => $today,
+				'today'     => $w['today'],
 				// ⛔ Whether that day is the READER's day is not decided here:
 				// the site's timezone option is not where the person looking at
 				// the screen is. The browser compares its own calendar against
@@ -136,11 +214,11 @@ final class Data {
 			'reads'     => array(
 				'freshness' => self::LIVE,
 				'total'     => Repository::count_between( $start, $end ),
-				'prev'      => $has_prior ? Repository::count_between( $prev_start, $start ) : null,
+				'prev'      => null !== $prev_start ? Repository::count_between( $prev_start, $start ) : null,
 				'byClient'  => Repository::counts_by( 'agent', $start, self::TOP_ROWS, $end ),
-				'retention' => $retention,
+				'retention' => $w['retention'],
 			),
-			'visits'    => self::visits( $from, $to, $has_prior ? $prev_start : null, $start ),
+			'visits'    => self::visits( $w['from'], $w['to'], $prev_start, $start ),
 			'impostors' => array(
 				'freshness' => self::LIVE,
 				'total'     => Repository::count_between( $start, $end, 2 ),
@@ -148,21 +226,6 @@ final class Data {
 			'access'    => array(
 				'freshness' => self::LIVE,
 				'events'    => AccessStore::count_active_between( $start, $end ),
-			),
-			'robots'    => array(
-				'freshness' => self::STATE,
-				'change'    => RobotsWatch::change(),
-			),
-			'search'    => self::search( $from, $to ),
-			'citations' => self::citations( $from, $to ),
-			'score'     => array(
-				'freshness' => self::STATE,
-				'now'       => null !== $report && isset( $report['score'] ) ? (int) $report['score'] : null,
-				'band'      => null !== $report && isset( $report['band'] ) ? (string) $report['band'] : '',
-			),
-			'nudge'     => array(
-				'freshness' => self::STATE,
-				'top'       => self::top_nudge( $report ),
 			),
 		);
 	}
