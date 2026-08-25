@@ -125,7 +125,16 @@ export default {
       const was = Number(prev) || 0;
       if (now > was) return { tone: 'up', arrow: '↑', text: `${now - was} more than yesterday` };
       if (now < was) return { tone: 'down', arrow: '↓', text: `${was - now} fewer than yesterday` };
-      return { tone: 'flat', arrow: '·', text: 'same as yesterday' };
+      // ⭐ HIS CALL, 2026-08-25: nothing at all when the figure did not move.
+      // An arrow earns its place by saying which WAY — a sideways one says only
+      // "there was a comparison", which is not news, and it put a mark on the
+      // end of a label for a day where nothing happened.
+      //
+      // ⚠️ The cost, accepted knowingly: an unchanged figure now looks the same
+      // as one with no yesterday to compare with (`prev` null, which also
+      // returns null here). Both are quiet, and quiet is the honest look for
+      // both.
+      return null;
     },
   },
 };
@@ -156,19 +165,22 @@ export default {
     </div>
 
     <div v-if="!quiet" class="ar-today-line__figs">
+      <!-- ⭐ HIS CALL, 2026-08-25: the comparison is an ARROW at the end of the
+           label, not a coloured sentence under it. A whole red line for "4
+           fewer than yesterday" read as an alarm about a number that moved by
+           four, and it made the row three lines deep for a figure worth one.
+           ⛔ The sentence is not deleted, it is MOVED: the arrow carries it on
+           the tooltip and to a screen reader, so the day's direction still says
+           how far it moved to anyone who asks. -->
       <div class="ar-today-line__fig">
         <span class="ar-today-line__val">{{ reads }}</span>
-        <span class="ar-today-line__label">{{ reads === 1 ? 'AI read' : 'AI reads' }}</span>
-        <span v-if="move(data.reads)" class="ar-today-line__move" :class="'is-' + move(data.reads).tone">
-          <span aria-hidden="true">{{ move(data.reads).arrow }}</span>{{ move(data.reads).text }}
-        </span>
+        <span class="ar-today-line__label">{{ reads === 1 ? 'AI read' : 'AI reads'
+          }}<span v-if="move(data.reads)" class="ar-today-line__move" :class="'is-' + move(data.reads).tone" v-tip="move(data.reads).text"><span aria-hidden="true">{{ move(data.reads).arrow }}</span><span class="screen-reader-text">{{ move(data.reads).text }}</span></span></span>
       </div>
       <div class="ar-today-line__fig">
         <span class="ar-today-line__val">{{ visits }}</span>
-        <span class="ar-today-line__label">{{ visits === 1 ? 'visit AI sent you' : 'visits AI sent you' }}</span>
-        <span v-if="move(data.visits)" class="ar-today-line__move" :class="'is-' + move(data.visits).tone">
-          <span aria-hidden="true">{{ move(data.visits).arrow }}</span>{{ move(data.visits).text }}
-        </span>
+        <span class="ar-today-line__label">{{ visits === 1 ? 'visit AI sent you' : 'visits AI sent you'
+          }}<span v-if="move(data.visits)" class="ar-today-line__move" :class="'is-' + move(data.visits).tone" v-tip="move(data.visits).text"><span aria-hidden="true">{{ move(data.visits).arrow }}</span><span class="screen-reader-text">{{ move(data.visits).text }}</span></span></span>
       </div>
       <div class="ar-today-line__fig">
         <span class="ar-today-line__val">{{ actions }}</span>
@@ -268,10 +280,17 @@ export default {
    second line is one line, so both must set the same size and leading or their
    baselines land a few pixels apart. */
 .ar-today-line__label { font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
-.ar-today-line__move { margin-top: 3px; font-size: 12px; display: inline-flex; align-items: baseline; gap: 5px; }
+/* ⭐ Inline, at the END of the label, not a line of its own: a small glyph the
+   eye can skip, next to the words it is about. ⛔ `cursor: help` because the
+   tooltip is where the size of the move now lives — the arrow says which way,
+   and hovering says how far. */
+/* ⚠️ `margin-inline-start`, not `margin-left`: this sits after the label, and
+   wp-admin runs right-to-left in Arabic, Hebrew and Urdu — a physical margin
+   would put the gap on the wrong side of the arrow there. The glyphs are
+   vertical (↑ ↓), so they need no flipping themselves. */
+.ar-today-line__move { margin-inline-start: 5px; font-size: 11px; line-height: 1; cursor: help; }
 .ar-today-line__move.is-up { color: var(--ar-good); }
 .ar-today-line__move.is-down { color: var(--ar-bad); }
-.ar-today-line__move.is-flat { color: var(--ar-ink-faint); }
 .ar-today-line__quiet { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ar-ink-soft); }
 
 /* Narrow: the cells stack, and the dividers become the rules between rows —
