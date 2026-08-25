@@ -989,18 +989,18 @@ final class Admin {
 				// never had a word for — the changelog carries it.
 				array(
 					'icon'  => 'page',
-					'title' => 'An Assistant Can Fix a Page, Not Rewrite It',
-					'text'  => 'Until now the only way an AI assistant could change a page was to replace the whole thing, so a two-word fix meant handing back the entire article. It can change one passage now and leave every other character alone. What was there before is kept, so you can always go back.',
+					'title' => 'Set a Search Aside, Not the Page',
+					'text'  => 'When a page does not answer the search it is found for, sometimes the page is lacking — and sometimes that was never a question your site should answer. Until now the only way to quiet it was to set the page aside, which takes good writing off your list. You can set the search aside instead, and put it back whenever you like.',
 				),
 				array(
-					'icon'  => 'image',
-					'title' => 'It Can Describe Your Pictures',
-					'text'  => 'A picture with no description is the commonest thing wrong with content on most sites, and the one thing an assistant could not fix. It can write those sentences now — for a picture in your media library, or for one sitting inside a particular page, which turn out to be two different things.',
+					'icon'  => 'search',
+					'title' => 'Searches That Were Never Questions',
+					'text'  => 'Search engines report every string that showed your site, including web addresses somebody pasted into a search box and whole prompts pasted in. Those were being held against your pages, and no amount of writing could ever answer them. They are left out now, so your list is shorter and everything on it is something you can actually do.',
 				),
 				array(
 					'icon'  => 'shield',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'The tool that describes a picture used to refuse the very pages the checks were flagging. A picture marked as decoration but carrying a caption now counts as missing one. Your site reads its pages once after this update, so something that was true all along may appear on your list. The changelog has the full list.',
+					'text'  => 'If your site is not written in the Latin alphabet, every page was being told its words answer nothing — a search Agentimus could not read came out as a page that failed. That is fixed. Your site reads its pages once after this update, so something that was true all along may appear on your list. The changelog has the full list.',
 				),
 			),
 		);

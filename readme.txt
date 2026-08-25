@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.47.0-dev3
+Stable tag: 1.47.0-dev4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,15 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.47.0 =
+* Fixed: on a site not written in the Latin alphabet, every page carrying a reported search was told its words answer nothing. The part that pulls the meaningful words out of a search reads Latin letters and numbers, so a search in Cyrillic, Chinese, Japanese, Arabic, Greek or Devanagari yielded nothing to look for — and that came out the far end as "none of it is on the page". The whole site sat on the list permanently and no amount of writing could clear it. A search the check cannot read is now reported as exactly that: not measured, not a failure.
+* Fixed: a URL somebody pasted into a search box, and somebody's prompt pasted in whole, were judged against your pages like real searches. Both make rows no edit can ever close. Web addresses and anything far longer than a person types are now left out, alongside the machine probes that already were.
+* New: you can set a search aside, not just a page. When a page does not answer the search it is found for, the page may be lacking — or the search was never a question your site should answer. Until now the only lever was to set the page aside, which takes good writing off the list to quiet a bad query. The row offers both now, and anything you set aside can be put back from the Search screen.
+* New: an assistant asked to check one page gets the whole verdict for it. It graded only how readable a page was, so a page flagged for not answering its search came back spotless and an assistant read it as finished. It now answers both halves and says which of the searcher's words the page never uses.
+* New: a connected assistant can set a search aside too, one at a time. It refuses any search no engine has actually reported for your site, and putting one back is always allowed.
+* Improved: the list of searches left out of the Search screen now says why each one was left out, and the figure reading "weren't people" counts machine probes alone rather than everything excluded for any reason.
+* Note: your site reads its pages once after updating, so a finding that was true all along may appear on your list.
+
 = 1.46.0 =
 * New: a connected assistant can read a page and change one passage of it instead of replacing the whole thing. It quotes the passage back exactly and that passage has to appear once — not found and found-twice are both refusals that change nothing, because a fix applied to a guess is how content gets mangled. The previous version is kept as a revision, and the saved page is read back and compared.
 * New: an assistant can describe a picture that has no description — the commonest thing wrong with content on most sites, and the one thing it previously could not do.
@@ -402,6 +411,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The five most recent releases are listed here. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.47.0 =
+If your site is not written in the Latin alphabet, Agentimus has been telling you every page answers nothing — a search it could not read came out as a page that failed. That is fixed, and those pages ask nothing of you now. You can also set a search aside instead of the page it landed on, for the times a reported search was never a question your site should answer. Your site re-reads its pages once after updating, so a finding that was true all along may appear. No breaking changes.
 
 = 1.46.0 =
 A connected assistant can now maintain a site rather than only rewrite it: read a page, change one passage, and describe pictures that have none. Two alt-text faults are fixed — the tool that describes a picture used to refuse the exact pages the checks flagged, and an empty description on a captioned picture now counts as a gap. Your site re-reads its pages once after updating, so a finding that was true all along may appear. No breaking changes.
