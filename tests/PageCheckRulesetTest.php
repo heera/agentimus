@@ -80,6 +80,48 @@ final class PageCheckRulesetTest extends TestCase {
 		$this->assertNotSame( substr( md5( implode( ',', $ids ) ), 0, 12 ), PageCheck::ruleset() );
 	}
 
+	/**
+	 * ⛔⛔ A RULE THAT CHANGES WHAT A CHECK SAYS MUST BE DECLARED AS A CONSTANT.
+	 *
+	 * The fingerprint is ids + thresholds. A new BRANCH inside an existing check
+	 * touches neither, so every stored verdict still looks current,
+	 * `Grades::is_stale_row()` sends nothing back to be read, and the new rule
+	 * never runs on a single existing page. That is exactly how the
+	 * captioned-blank-alt rule shipped in 1.46.0-dev4 — correct code that no
+	 * site would ever have re-read under.
+	 *
+	 * This test names the constants that exist ONLY to move the fingerprint. If
+	 * one is deleted, the rule it stands for goes quiet on every install that
+	 * already has verdicts, and nothing else would say so.
+	 */
+	public function test_rules_that_are_only_declared_to_move_the_fingerprint_stay_in_it() {
+		$fingerprint = PageCheck::ruleset();
+
+		foreach ( array( 'SUBSTANCE_ARTICLES_ONLY', 'CAPTIONED_BLANK_ALT_IS_A_GAP' ) as $rule ) {
+			$this->assertTrue(
+				defined( PageCheck::class . '::' . $rule ),
+				$rule . ' is a RULE, and the fingerprint is how a site learns the rule changed.'
+			);
+		}
+
+		// And prove it is genuinely in the mix: drop it and the answer moves.
+		$constants = ( new \ReflectionClass( PageCheck::class ) )->getConstants();
+		ksort( $constants );
+		$without = array();
+		foreach ( $constants as $name => $value ) {
+			if ( is_scalar( $value ) && 'CAPTIONED_BLANK_ALT_IS_A_GAP' !== $name ) {
+				$without[] = $name . '=' . ( is_bool( $value ) ? (int) $value : (string) $value );
+			}
+		}
+		$ids = array_keys( PageCheck::issue_labels() );
+		sort( $ids );
+		$this->assertNotSame(
+			substr( md5( implode( ',', $ids ) . '|' . implode( ',', $without ) . '|' . ThemeImageProbe::signature() . '|' ), 0, 12 ),
+			$fingerprint,
+			'without the rule declared, the fingerprint would not have moved — and no page would be re-read'
+		);
+	}
+
 	public function test_every_check_the_analyzer_emits_is_inside_the_fingerprint() {
 		// ⛔ The fingerprint is built from the label map, so the map has to BE the
 		// id list. A check missing from it would be a check the fingerprint

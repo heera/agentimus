@@ -107,6 +107,125 @@ final class Media {
 	}
 
 	/**
+	 * How many described images are examined for file-name alts in one call.
+	 *
+	 * The empty-alt pass is exact — SQL answers it — but "the alt is only the
+	 * file name" cannot be asked of the database, so those are found by reading.
+	 * Bounded, and the count read is reported, because a filter that quietly
+	 * looked at 400 of 4,000 images and said "that is all of them" would be a
+	 * lie the owner cannot see.
+	 */
+	const SCAN_CAP = 400;
+
+	/**
+	 * The library's UNDESCRIBED images — the ones a fixing run is for.
+	 *
+	 * ⭐⭐ WHY IT IS NOT A SEARCH. describe-image could always write a library
+	 * item's alt, and nothing could tell it WHICH items needed one: search
+	 * matches words, and the images that need describing are precisely those
+	 * with no words on them. "Which of my images have no description?" was
+	 * unanswerable, so the media half of the worklist could only ever be
+	 * cleared one picture at a time, by an owner who already knew.
+	 *
+	 * ⭐ "Undescribed" is {@see \Agentimus\PageCheck::counts_as_described()}'s
+	 * answer, not this class's — so an image whose alt is its own file name is
+	 * listed here for the same reason the checks flag it.
+	 *
+	 * @param int    $limit How many rows at most.
+	 * @param string $mime  MIME prefix filter, e.g. 'image'.
+	 * @return array{items:array<int,array<string,mixed>>,scanned:int}
+	 */
+	public static function undescribed( $limit = self::DEFAULT_RESULTS, $mime = 'image' ) {
+		$limit = max( 1, min( self::MAX_RESULTS, (int) $limit ) );
+		$mime  = sanitize_text_field( (string) $mime );
+
+		$base = array(
+			'post_type'     => 'attachment',
+			'post_status'   => 'inherit',
+			'orderby'       => 'date',
+			'order'         => 'DESC',
+			'no_found_rows' => true,
+			'fields'        => 'ids',
+		);
+		if ( '' !== $mime ) {
+			$base['post_mime_type'] = $mime;
+		}
+
+		// Pass one: no description at all. Exact, and the common case by far.
+		$ids = get_posts(
+			array_merge(
+				$base,
+				array(
+					'posts_per_page' => $limit,
+					'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query -- The only place alt text lives; bounded by posts_per_page.
+						'relation' => 'OR',
+						array(
+							'key'     => '_wp_attachment_image_alt',
+							'compare' => 'NOT EXISTS',
+						),
+						array(
+							'key'     => '_wp_attachment_image_alt',
+							'value'   => '',
+							'compare' => '=',
+						),
+					),
+				)
+			)
+		);
+
+		// Pass two: a description that is only the file name. Only paid for when
+		// the first pass left room on the page.
+		$scanned = 0;
+		if ( count( $ids ) < $limit ) {
+			$described = get_posts(
+				array_merge(
+					$base,
+					array(
+						'posts_per_page' => self::SCAN_CAP,
+						'post__not_in'   => $ids,
+						'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query -- Bounded by SCAN_CAP.
+							array(
+								'key'     => '_wp_attachment_image_alt',
+								'value'   => '',
+								'compare' => '!=',
+							),
+						),
+					)
+				)
+			);
+			$scanned = count( $described );
+			// One query for every meta value, rather than one per image.
+			if ( $described ) {
+				update_meta_cache( 'post', $described );
+			}
+			foreach ( $described as $id ) {
+				if ( count( $ids ) >= $limit ) {
+					break;
+				}
+				$alt = trim( (string) get_post_meta( (int) $id, '_wp_attachment_image_alt', true ) );
+				// The stored path, not the public URL: it carries the file name
+				// the comparison needs and is already in the meta cache.
+				$file = (string) get_post_meta( (int) $id, '_wp_attached_file', true );
+				if ( '' !== $alt && ! PageCheck::counts_as_described( $alt, $file ) ) {
+					$ids[] = (int) $id;
+				}
+			}
+		}
+
+		$out = array();
+		foreach ( $ids as $id ) {
+			$row = self::row( (int) $id );
+			if ( $row ) {
+				$out[] = $row;
+			}
+		}
+		return array(
+			'items'   => $out,
+			'scanned' => (int) $scanned,
+		);
+	}
+
+	/**
 	 * One attachment as an agent needs it: enough to choose between pictures,
 	 * and the ID to name the one it chose.
 	 *

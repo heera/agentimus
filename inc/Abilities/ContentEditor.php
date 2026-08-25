@@ -40,6 +40,8 @@ namespace Agentimus\Abilities;
 
 use Agentimus\Content;
 use Agentimus\PageBuilders;
+use Agentimus\BodyImages;
+use Agentimus\PageCheck;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -100,8 +102,71 @@ final class ContentEditor {
 			'editable' => null === $owner && '' === $locked,
 			'content'  => $content,
 			'length'   => (int) mb_strlen( $content ),
+			// ⭐ THE IMAGES, NAMED. Without this an agent holding an `alt_text`
+			// row knows a page has undescribed pictures and has to find them by
+			// eye in raw block markup, then retype a whole <img> tag to add one
+			// attribute. Each row here is aimable at describe-content-image, and
+			// `needs` says which ones the checks are actually asking about.
+			'images'   => self::images_in( $content ),
 			'note'     => implode( ' ', $notes ),
 		);
+	}
+
+	/**
+	 * The images in a body, as an agent needs to see them.
+	 *
+	 * ⚠️ SCANNED FROM THE STORED BODY, while the alt_text check reads the
+	 * RENDERED one. The two can differ, and the difference is the honest
+	 * answer: a picture drawn by a shortcode, a gallery block or a theme
+	 * template is not in this list because it is not in this body — and it
+	 * cannot be fixed by editing this body either. describe-content-image
+	 * refuses those by name rather than writing somewhere that has no effect.
+	 *
+	 * @param string $content Post content, as stored.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function images_in( $content ) {
+		$out = array();
+		foreach ( BodyImages::scan( $content ) as $image ) {
+			$out[] = array(
+				'index'        => (int) $image['index'],
+				'src'          => (string) $image['src'],
+				'alt'          => (string) $image['alt'],
+				'attachmentId' => (int) $image['attachmentId'],
+				// alt="" — the WAI marker for a picture that carries no meaning.
+				'decorative'   => (bool) ( $image['hasAlt'] && '' === $image['alt'] ),
+				// …and whether its author wrote a sentence underneath it, which is
+				// the evidence that says the marker was a blank field.
+				'captioned'    => (bool) $image['hasCaption'],
+				'needs'        => self::image_needs( $image ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * What the checks want from one image: '' when nothing.
+	 *
+	 * ⭐ The classification lives with {@see PageCheck::counts_as_described()},
+	 * not here — same law as the featured-image writer. What this adds is the
+	 * one rule that only applies INSIDE a body: a missing attribute and an
+	 * empty one mean different things.
+	 *
+	 * @param array $image A row from {@see BodyImages::scan()}.
+	 * @return string 'no-alt', 'file-name' or ''.
+	 */
+	private static function image_needs( array $image ) {
+		if ( empty( $image['hasAlt'] ) ) {
+			return 'no-alt';
+		}
+		if ( '' === (string) $image['alt'] ) {
+			// ⛔ Decorative AND captioned is a contradiction the author wrote
+			// themselves — {@see PageCheck::has_caption()} carries the reasoning,
+			// and this must agree with it or the tool refuses the row the check
+			// raises. Uncaptioned stays a decision, and stays unflagged.
+			return empty( $image['hasCaption'] ) ? '' : 'blank-alt';
+		}
+		return PageCheck::counts_as_described( (string) $image['alt'], (string) $image['src'] ) ? '' : 'file-name';
 	}
 
 	/**
@@ -170,6 +235,38 @@ final class ContentEditor {
 		$at    = (int) strpos( $content, $old );
 		$after = substr_replace( $content, $new, $at, strlen( $old ) );
 
+		return $this->apply(
+			$post,
+			$content,
+			$after,
+			$at + strlen( $new ),
+			$dry,
+			__( 'Changed. Everything else on the page is exactly as it was, and the previous body is kept as a revision.', 'agentimus' )
+		);
+	}
+
+	/**
+	 * The write itself, and every guard that stands between a new body and the
+	 * database. Shared, so that a second tool writing a body cannot end up with
+	 * a weaker set of them than {@see edit()} has.
+	 *
+	 * ⭐ THE REASON IT IS ONE METHOD: these guards were written for edit-content
+	 * and are not about editing passages at all — they are about not leaving a
+	 * document broken, and not losing to an autosave. Anything that rewrites a
+	 * stored body needs all of them, and the way to guarantee that is to give
+	 * it no way to write without them.
+	 *
+	 * @param \WP_Post $post    The post being written.
+	 * @param string   $content The body as it is now.
+	 * @param string   $after   The body as it should be.
+	 * @param int      $cursor  Offset just past the change, for the excerpt.
+	 * @param bool     $dry     True to check everything and write nothing.
+	 * @param string   $message What to say when it lands.
+	 * @return array|\WP_Error
+	 */
+	private function apply( \WP_Post $post, $content, $after, $cursor, $dry, $message ) {
+		$post_id = (int) $post->ID;
+
 		if ( '' === trim( $after ) ) {
 			return new \WP_Error(
 				'agentimus_would_empty',
@@ -214,7 +311,7 @@ final class ContentEditor {
 				false,
 				true,
 				$after,
-				$at + strlen( $new ),
+				$cursor,
 				__( 'Nothing was written — this is what the edit would do. Send the same call without dry_run to apply it.', 'agentimus' )
 			);
 		}
@@ -258,9 +355,316 @@ final class ContentEditor {
 			true,
 			false,
 			$stored,
-			$at + strlen( $new ),
-			__( 'Changed. Everything else on the page is exactly as it was, and the previous body is kept as a revision.', 'agentimus' )
+			$cursor,
+			$message
 		);
+	}
+
+	/**
+	 * Describe ONE image inside a page's body.
+	 *
+	 * ⭐⭐ WHY IT IS NOT describe-image. The alt a reader gets for an in-content
+	 * picture is the one in the BODY: WordPress copies the library's alt into
+	 * the block when the image is inserted and never consults it again.
+	 * Describing the attachment afterwards leaves every published page exactly
+	 * as undescribed as it was — so the `alt_text` rows on the worklist could be
+	 * found, and could not be closed, by the tool that closes `featured_alt`.
+	 * This writes where the check reads.
+	 *
+	 * ⛔ AND IT IS A BODY WRITE, so it carries every guard edit-content carries
+	 * ({@see apply()}): a builder-owned page is refused, a post somebody has
+	 * open is refused, the previous body is kept as a revision and the save is
+	 * read back. The one thing it does NOT do is match text — the tag is found
+	 * and rewritten by offset, so there is no anchor to get wrong and no way to
+	 * disturb a neighbouring byte.
+	 *
+	 * ⛔ IT WILL NOT OVERWRITE A DECISION. A description somebody wrote is
+	 * refused without replace=true, exactly as in the library. So is alt="" —
+	 * that is the standards marker for a decorative image, the checks
+	 * deliberately do not flag it, and a fixing run announcing every spacer on
+	 * a site would be damage, not a fix.
+	 *
+	 * @param array $input post_id, alt, one of attachment_id|src|index, replace, dry_run.
+	 * @return array|\WP_Error
+	 */
+	public function describe_in_content( array $input ) {
+		$post = self::post_for( isset( $input['post_id'] ) ? $input['post_id'] : 0 );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+
+		$owner = PageBuilders::owner( $post );
+		if ( null !== $owner ) {
+			return new \WP_Error(
+				'agentimus_builder_page',
+				sprintf(
+					/* translators: %s: page builder name (e.g. Elementor). */
+					__( 'This page is built with %1$s, so its images are not in the body this tool writes to — a description added here would reach nobody. Describe them in %1$s.', 'agentimus' ),
+					$owner['name']
+				),
+				array( 'status' => 409 )
+			);
+		}
+
+		$alt = isset( $input['alt'] ) ? sanitize_text_field( (string) $input['alt'] ) : '';
+		$alt = trim( (string) preg_replace( '/\s+/u', ' ', $alt ) );
+		if ( '' === $alt ) {
+			return new \WP_Error(
+				'agentimus_empty_alt',
+				__( 'A description is required. Say what the picture SHOWS, in one plain sentence, as you would to somebody who cannot see it — not the file name, and not “image of”. ⛔ To mark an image decorative instead, that is alt="" and it is a decision for the owner in the editor, not something a fixing run does.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( mb_strlen( $alt ) > MediaWriter::MAX_ALT ) {
+			return new \WP_Error(
+				'agentimus_alt_too_long',
+				sprintf(
+					/* translators: 1: the submitted length, 2: the maximum. */
+					__( 'That description is %1$d characters; the limit is %2$d. Alt text is read aloud in one breath — say what the picture shows, not everything the page says about it. Nothing was written.', 'agentimus' ),
+					mb_strlen( $alt ),
+					MediaWriter::MAX_ALT
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		$content = (string) $post->post_content;
+		$images  = BodyImages::scan( $content );
+		if ( ! $images ) {
+			return new \WP_Error(
+				'agentimus_no_images',
+				__( 'There are no <img> tags in this page’s stored body. If a check reports images on it, they are drawn by a shortcode, a gallery or the theme rather than written into the body — and no edit to the body can describe them. read-content lists exactly what is here.', 'agentimus' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$found = self::pick_image( $images, $input );
+		if ( is_wp_error( $found ) ) {
+			return $found;
+		}
+
+		$replace = ! empty( $input['replace'] );
+		if ( ! empty( $found['hasAlt'] ) && ! $replace ) {
+			// ⭐ A CAPTIONED blank is not a decision — the checks flag it, so this
+			// writes it without asking, exactly as it does a file-name alt. Only
+			// an UNCAPTIONED blank is somebody saying "this picture means
+			// nothing", and only that is refused.
+			if ( '' === (string) $found['alt'] && empty( $found['hasCaption'] ) ) {
+				return new \WP_Error(
+					'agentimus_decorative_image',
+					__( 'This image is marked decorative — it carries alt="", which is the standard way of saying it holds no meaning a reader needs, and it has no caption suggesting otherwise, so the content checks do not flag it. Nothing was written. If that is wrong and the picture does say something, send replace=true.', 'agentimus' ),
+					array( 'status' => 409 )
+				);
+			}
+			if ( '' !== (string) $found['alt'] && PageCheck::counts_as_described( (string) $found['alt'], (string) $found['src'] ) ) {
+				return new \WP_Error(
+					'agentimus_already_described',
+					sprintf(
+						/* translators: %s: the description already on the image. */
+						__( 'This image is already described: “%s”. Nothing was written. A description somebody wrote is not something a fixing run replaces, and no content check asks for that — if this one is genuinely wrong, read it, then send replace=true with the correction.', 'agentimus' ),
+						$found['alt']
+					),
+					array( 'status' => 409 )
+				);
+			}
+		}
+
+		$tag   = BodyImages::with_alt( $found['tag'], $alt );
+		$after = BodyImages::replace( $content, $found, $tag );
+
+		$out = $this->apply(
+			$post,
+			$content,
+			$after,
+			(int) $found['offset'] + strlen( $tag ),
+			! empty( $input['dry_run'] ),
+			'' === (string) $found['alt']
+				? __( 'Described. The picture reaches readers and screen readers with a description now; everything else on the page is exactly as it was.', 'agentimus' )
+				: __( 'Description replaced. Everything else on the page is exactly as it was.', 'agentimus' )
+		);
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+
+		// ⛔ THE LIBRARY COPY IS A SEPARATE FACT, AND THIS TOOL DOES NOT WRITE IT.
+		// Filling it quietly would change what `featured_alt` reports on every
+		// other page using this picture, without marking any of them for
+		// re-reading — the exact staleness MediaWriter exists to avoid. So it is
+		// REPORTED instead: the agent is told the library still needs a
+		// description and can call describe-image, which closes that loop
+		// properly.
+		$library = (int) $found['attachmentId'] > 0
+			? trim( (string) get_post_meta( (int) $found['attachmentId'], '_wp_attachment_image_alt', true ) )
+			: '';
+		$owes = (int) $found['attachmentId'] > 0
+			&& ! PageCheck::counts_as_described( $library, (string) wp_get_attachment_url( (int) $found['attachmentId'] ) );
+
+		return array_merge(
+			$out,
+			array(
+				'index'          => (int) $found['index'],
+				'src'            => (string) $found['src'],
+				'attachmentId'   => (int) $found['attachmentId'],
+				'alt'            => $alt,
+				'previous'       => (string) $found['alt'],
+				'libraryAlt'     => $library,
+				'libraryNeedsDescribing' => (bool) $owes,
+			)
+		);
+	}
+
+	/**
+	 * Which of a page's images this call means.
+	 *
+	 * ⛔ IT NEVER GUESSES BETWEEN TWO. Three ways to aim — the library id, the
+	 * file, or the position — and naming more than one is refused rather than
+	 * ranked. The single exception is a page with exactly ONE image, where
+	 * there is nothing to choose between and demanding a choice is friction for
+	 * its own sake.
+	 *
+	 * @param array $images Rows from {@see BodyImages::scan()}.
+	 * @param array $input  The ability input.
+	 * @return array|\WP_Error
+	 */
+	private static function pick_image( array $images, array $input ) {
+		$attachment = isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+		$src        = isset( $input['src'] ) ? trim( (string) $input['src'] ) : '';
+		$index      = isset( $input['index'] ) ? (int) $input['index'] : 0;
+
+		$given = ( $attachment > 0 ? 1 : 0 ) + ( '' !== $src ? 1 : 0 ) + ( $index > 0 ? 1 : 0 );
+		if ( $given > 1 ) {
+			return new \WP_Error(
+				'agentimus_two_targets',
+				__( 'Name the image one way — attachment_id, src or index — not several. They can point at different pictures, and this tool never guesses which one you meant.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( 0 === $given ) {
+			if ( 1 === count( $images ) ) {
+				return $images[0];
+			}
+			return new \WP_Error(
+				'agentimus_which_image',
+				sprintf(
+					/* translators: 1: how many images, 2: a list of "index N: file". */
+					__( 'This page has %1$d images, so which one to describe has to be said: pass index, src or attachment_id. They are %2$s.', 'agentimus' ),
+					count( $images ),
+					self::image_list( $images )
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( $index > 0 ) {
+			foreach ( $images as $image ) {
+				if ( (int) $image['index'] === $index ) {
+					return $image;
+				}
+			}
+			return new \WP_Error(
+				'agentimus_no_such_image',
+				sprintf(
+					/* translators: 1: the index asked for, 2: how many images the page has. */
+					__( 'There is no image %1$d on this page — it has %2$d. read-content lists them with the index each one answers to.', 'agentimus' ),
+					$index,
+					count( $images )
+				),
+				array( 'status' => 404 )
+			);
+		}
+
+		if ( $attachment > 0 ) {
+			$hits = array();
+			foreach ( $images as $image ) {
+				if ( (int) $image['attachmentId'] === $attachment ) {
+					$hits[] = $image;
+				}
+			}
+			// ⭐ THE CLASSIC-EDITOR FALLBACK. `wp-image-123` is written by the
+			// block editor; an image placed years ago, or by hand, carries no
+			// class at all and would look like somebody else's picture. Its file
+			// still names it, so the file is tried before giving up.
+			if ( ! $hits ) {
+				$file = (string) wp_get_attachment_url( $attachment );
+				$base = '' !== $file ? basename( (string) preg_replace( '/[?#].*$/', '', $file ) ) : '';
+				if ( '' !== $base ) {
+					foreach ( $images as $image ) {
+						if ( false !== strpos( (string) $image['src'], $base ) ) {
+							$hits[] = $image;
+						}
+					}
+				}
+			}
+			return self::one_of( $hits, __( 'attachment_id', 'agentimus' ), $images );
+		}
+
+		$hits = array();
+		foreach ( $images as $image ) {
+			if ( (string) $image['src'] === $src || false !== strpos( (string) $image['src'], $src ) ) {
+				$hits[] = $image;
+			}
+		}
+		return self::one_of( $hits, __( 'src', 'agentimus' ), $images );
+	}
+
+	/**
+	 * Exactly one match, or a refusal that says what happened.
+	 *
+	 * @param array  $hits   What matched.
+	 * @param string $by     Which parameter was used, for the message.
+	 * @param array  $images Every image on the page, for the list.
+	 * @return array|\WP_Error
+	 */
+	private static function one_of( array $hits, $by, array $images ) {
+		if ( 1 === count( $hits ) ) {
+			return $hits[0];
+		}
+		if ( ! $hits ) {
+			return new \WP_Error(
+				'agentimus_no_such_image',
+				sprintf(
+					/* translators: 1: the parameter used, 2: a list of "index N: file". */
+					__( 'No image on this page matches that %1$s. Nothing was written — the picture is not where the caller thinks it is. The page holds %2$s.', 'agentimus' ),
+					$by,
+					self::image_list( $images )
+				),
+				array( 'status' => 404 )
+			);
+		}
+		return new \WP_Error(
+			'agentimus_many_images',
+			sprintf(
+				/* translators: 1: how many matched, 2: the parameter used, 3: a list of "index N: file". */
+				__( '%1$d images on this page match that %2$s, so which one is a guess — and nothing was written. Aim it with index instead: the page holds %3$s.', 'agentimus' ),
+				count( $hits ),
+				$by,
+				self::image_list( $images )
+			),
+			array( 'status' => 409 )
+		);
+	}
+
+	/** "index 1: sunrise.jpg, index 2: bridge.png" — bounded, for a refusal. */
+	private static function image_list( array $images ) {
+		$parts = array();
+		foreach ( array_slice( $images, 0, 8 ) as $image ) {
+			$src     = (string) preg_replace( '/[?#].*$/', '', (string) $image['src'] );
+			$parts[] = sprintf(
+				/* translators: 1: the image's position on the page, 2: its file name. */
+				__( 'index %1$d: %2$s', 'agentimus' ),
+				(int) $image['index'],
+				'' === $src ? __( '(no src)', 'agentimus' ) : basename( $src )
+			);
+		}
+		if ( count( $images ) > 8 ) {
+			$parts[] = sprintf(
+				/* translators: %d: how many more images there are. */
+				__( 'and %d more', 'agentimus' ),
+				count( $images ) - 8
+			);
+		}
+		return implode( ', ', $parts );
 	}
 
 	/* ------------------------------------------------------------------ */

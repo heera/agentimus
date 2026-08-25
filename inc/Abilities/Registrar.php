@@ -93,7 +93,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
 
 	/** @var Settings */
 	private $settings;
@@ -1895,6 +1895,19 @@ final class Registrar {
 					'editable' => self::b( 'TRUE when edit-content can act on this body — no builder, nobody editing.' ),
 					'content'  => self::s( 'The body, byte for byte as stored. Copy anchors for edit-content from HERE.' ),
 					'length'   => self::i( 'Its length in characters.' ),
+					'images'   => self::arr(
+						self::obj(
+							array(
+								'index'        => self::i( 'Its position among the images on this page, from 1. This is what describe-content-image takes, and the only aim that is never ambiguous.' ),
+								'src'          => self::s( 'The address the tag points at.' ),
+								'alt'          => self::s( 'Its description as stored, empty when it has none.' ),
+								'attachmentId' => self::i( 'Its media library id, 0 when the picture belongs to no attachment — pasted in, or hotlinked. Its alt still needs writing.' ),
+								'decorative'   => self::b( 'TRUE when the tag carries alt="" — the standard way of saying the picture holds no meaning a reader needs. ⛔ On its own that is a decision, not a gap: the checks do not flag it and neither should you. Read it with `captioned`.' ),
+								'captioned'    => self::b( 'TRUE when the author wrote a caption under it. ⭐ A captioned picture marked decorative is a contradiction the author wrote themselves — that pair is what `needs: "blank-alt"` reports, and it is the one empty alt this tool will write over without replace.' ),
+								'needs'        => self::s( '"no-alt" when the tag has no alt attribute at all, "file-name" when its description is only the file name, "blank-alt" when it is marked decorative (alt="") yet carries a caption — which is the author saying it means something — and empty when nothing is wanted. These are the images behind an alt_text row.' ),
+							)
+						)
+					),
 					'note'     => self::s( 'Anything that makes this body not the thing to edit, in plain words. Empty when there is nothing to say.' ),
 				)
 			),
@@ -2066,11 +2079,17 @@ final class Registrar {
 					'query' => self::s( 'Words to look for in titles, captions, descriptions and alt text. Omit or leave empty for the most recent uploads.' ),
 					'limit' => self::i( 'How many to return, 1–' . Media::MAX_RESULTS . ' (default ' . Media::DEFAULT_RESULTS . ').' ),
 					'mime'  => self::s( 'MIME filter, matched as a prefix — "image" (the default) for pictures, "video", "audio", "application/pdf", or "" for everything in the library.' ),
+					'undescribed' => array(
+						'type'        => 'boolean',
+						'description' => 'TRUE lists the images that have NO description — newest first — instead of searching. This is how you find the media half of the alt-text work: describe-image writes one by id, and nothing else can tell you which ones need it, because the images that need describing are exactly the ones no words match. An alt that is only the file name counts as undescribed here, the same way the content checks count it. `query` is ignored when this is on.',
+						'default'     => false,
+					),
 				)
 			),
 			self::obj(
 				array(
 					'total' => self::i( 'How many rows this answer holds. Never more than limit; a full page may mean there are more, so narrow the query rather than assuming this is everything.' ),
+					'scanned' => self::i( 'With undescribed: how many DESCRIBED images were read to find file-name alts among them, capped at ' . Media::SCAN_CAP . '. Images with no alt at all are found exactly, in the database, and are never limited by this. A number equal to the cap means the file-name pass saw part of the library, not all of it — say so rather than reporting a complete list. 0 on an ordinary search.' ),
 					'items' => self::arr(
 						self::obj(
 							array(
@@ -2088,14 +2107,31 @@ final class Registrar {
 				)
 			),
 			function ( $input ) {
+				$limit = isset( $input['limit'] ) ? (int) $input['limit'] : Media::DEFAULT_RESULTS;
+				$mime  = isset( $input['mime'] ) ? (string) $input['mime'] : 'image';
+
+				// The undescribed filter answers a different question from a
+				// search, so it does not pretend to be one: a query alongside it
+				// would have to mean "undescribed AND matching", and the images
+				// this finds are precisely the ones no words match.
+				if ( ! empty( $input['undescribed'] ) ) {
+					$found = Media::undescribed( $limit, $mime );
+					return array(
+						'total'   => count( $found['items'] ),
+						'items'   => $found['items'],
+						'scanned' => (int) $found['scanned'],
+					);
+				}
+
 				$items = Media::search(
 					isset( $input['query'] ) ? (string) $input['query'] : '',
-					isset( $input['limit'] ) ? (int) $input['limit'] : Media::DEFAULT_RESULTS,
-					isset( $input['mime'] ) ? (string) $input['mime'] : 'image'
+					$limit,
+					$mime
 				);
 				return array(
-					'total' => count( $items ),
-					'items' => $items,
+					'total'   => count( $items ),
+					'items'   => $items,
+					'scanned' => 0,
 				);
 			},
 			// The media library's own capability, not the site-admin bar the
@@ -2656,6 +2692,88 @@ final class Registrar {
 		);
 
 		$this->add(
+			'describe-content-image',
+			__( 'Describe an image inside a page', 'agentimus' ),
+			self::guided(
+				'Writes the alt text on an image that sits INSIDE a page’s body — the fix for the '
+				. '“Image alt text” check, the in-content twin of describe-image. '
+				. '⛔ THE TWO ARE NOT INTERCHANGEABLE, and this is the thing to understand before using '
+				. 'either. WordPress copies an image’s library description into the page at the moment it '
+				. 'is inserted and never looks at it again, so the alt a reader gets from a published page '
+				. 'is the one written in the BODY. describe-image writes the library copy: on a page that '
+				. 'already exists that changes nothing at all. This writes the body, which is where the '
+				. 'check reads and where readers read. '
+				. 'FIRST read-content, whose `images` list names every picture in the body with its index, '
+				. 'its file, its current description and a `needs` of "no-alt" or "file-name" — those are '
+				. 'the images an alt_text row is about. Then aim this at ONE of them: `index` is what that '
+				. 'list gives you and is never ambiguous; `src` and `attachment_id` also work, and naming '
+				. 'more than one of the three is refused rather than ranked. On a page with exactly one '
+				. 'image you may aim at nothing — there is no choice to make. '
+				. '⛔ IT WILL NOT OVERWRITE A DECISION. An image somebody has already described is refused '
+				. 'unless you send replace=true, and so is alt="" — that is the standard marker for a '
+				. 'decorative picture, the checks deliberately do not flag it, and a fixing run announcing '
+				. 'every spacer and divider on a site would be damage rather than repair. A description '
+				. 'that is only the file name is not a decision and is written over freely. '
+				. '⛔ IT REFUSES WHAT IT CANNOT REALLY FIX: a page a builder owns, a post somebody has open '
+				. 'in the editor, and a page whose pictures are drawn by a shortcode, a gallery or the '
+				. 'theme rather than written into the body — there is nothing in the body to describe, and '
+				. 'the refusal says so instead of writing where it would have no effect. '
+				. 'The tag is found and rewritten by position, not by matching text, so nothing else in the '
+				. 'body can be disturbed; the previous body is kept as a revision and the save is read '
+				. 'back. dry_run shows what it would do. '
+				. 'WHAT TO WRITE: one plain sentence saying what is IN the picture, to somebody who cannot '
+				. 'see it. Never the file name, never “image of”, and nothing you cannot see in the image '
+				. 'itself — a description that guesses is worse than none, because a screen reader reads it '
+				. 'as fact.'
+			),
+			self::obj(
+				array(
+					'post_id'       => self::i( 'The page holding the image — the `id` from any read-content-issues row.' ),
+					'alt'           => self::s( 'The description: one plain sentence, at most ' . MediaWriter::MAX_ALT . ' characters, saying what the picture shows.' ),
+					'index'         => self::i( 'Which image, by its position from read-content’s `images` list. The aim that is never ambiguous.' ),
+					'src'           => self::s( 'Which image, by its address — a full src or just the file name. Refused when it matches more than one.' ),
+					'attachment_id' => self::i( 'Which image, by its media library id. Falls back to matching the file when the tag carries no wp-image class, as images placed in the classic editor do not.' ),
+					'replace'       => array(
+						'type'        => 'boolean',
+						'description' => 'True overwrites a description that is already there, or an alt="" that marks the picture decorative. Only after reading what is there — the refusal you get without this quotes it. Never needed for an image with no description or a file-name one.',
+						'default'     => false,
+					),
+					'dry_run'       => array(
+						'type'        => 'boolean',
+						'description' => 'True checks everything and returns what it would write, without writing it.',
+						'default'     => false,
+					),
+				),
+				array( 'post_id', 'alt' )
+			),
+			self::obj(
+				array(
+					'postId'     => self::i( 'The page acted on.' ),
+					'title'      => self::s( 'Its title.' ),
+					'index'      => self::i( 'Which image was described, by position.' ),
+					'src'        => self::s( 'Its address.' ),
+					'attachmentId' => self::i( 'Its media library id, 0 when it belongs to no attachment.' ),
+					'alt'         => self::s( 'The description now on it in the body.' ),
+					'previous'    => self::s( 'What the tag said before, empty when it had no description.' ),
+					'changed'     => self::b( 'TRUE only when the body was actually written. A dry run answers false — report that honestly rather than as a change.' ),
+					'dryRun'      => self::b( 'TRUE when nothing was written because dry_run was asked for.' ),
+					'context'     => self::s( 'The rewritten tag with the body either side of it, so you can SHOW what landed instead of asserting it.' ),
+					'revisionId'  => self::i( 'The revision holding the body from before this change — the way back. 0 when nothing was written.' ),
+					'length'      => self::i( 'The body’s length in characters afterwards.' ),
+					'libraryAlt'  => self::s( 'What the MEDIA LIBRARY copy of this image says, which this tool deliberately does not touch.' ),
+					'libraryNeedsDescribing' => self::b( 'TRUE when that library copy is still empty or a file name. ⭐ This page is fixed either way — but the picture will arrive undescribed in the NEXT page it is inserted into, and describe-image is what closes that. Deliberately not done here: writing it would change what featured_alt reports on other pages without marking any of them for re-reading.' ),
+					'message'     => self::s( 'What happened, in plain words.' ),
+				)
+			),
+			function ( $input ) {
+				return ( new ContentEditor() )->describe_in_content( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_edit_post' ),
+			false,
+			false
+		);
+
+		$this->add(
 			'describe-image',
 			__( 'Describe an image', 'agentimus' ),
 			'Writes the alt text on an image ALREADY in the media library — the sentence that says what the '
@@ -2665,11 +2783,12 @@ final class Registrar {
 				. 'Aim it with post_id — the `id` from any read-content-issues row — to describe THAT page’s '
 				. 'featured image, which is what a run through the worklist wants; or with attachment_id from '
 				. 'search-media for one library item. One or the other, never both. '
-				. '⛔ IT WILL NOT SILENTLY REPLACE A DESCRIPTION SOMEBODY WROTE. An image that already has alt '
-				. 'text is refused, and the refusal quotes what is there. The checks only ever flag images '
-				. 'with no description, so a fixing run never needs to change one; if a description is '
-				. 'genuinely wrong, read it and send replace=true with the correction. It cannot blank a '
-				. 'description at all — removing one is done in the media library. '
+				. '⛔ IT WILL NOT SILENTLY REPLACE A DESCRIPTION SOMEBODY WROTE. An image that is already '
+				. 'described is refused, and the refusal quotes what is there; if that description is '
+				. 'genuinely wrong, read it and send replace=true with the correction. ⭐ A field holding '
+				. 'only the file name is NOT a description — the checks flag those too, and this tool writes '
+				. 'over them without replace, because nothing is being lost. It cannot blank a description at '
+				. 'all — removing one is done in the media library. '
 				. 'WHAT TO WRITE: one plain sentence saying what is IN the picture, to somebody who cannot see '
 				. 'it. Never the file name, never “image of”, and nothing you cannot see in the image itself — '
 				. 'a description that guesses is worse than none, because a screen reader reads it as fact. '
@@ -2682,7 +2801,7 @@ final class Registrar {
 					'alt'           => self::s( 'The description: one plain sentence, at most 250 characters, saying what the picture shows.' ),
 					'replace'       => array(
 						'type'        => 'boolean',
-						'description' => 'True overwrites a description that is already there. Only after reading it — the refusal you get without this quotes what would be lost.',
+						'description' => 'True overwrites a description that is already there. Only after reading it — the refusal you get without this quotes what would be lost. Not needed for an image described only by its file name: that is not a description, and it is written over without asking.',
 						'default'     => false,
 					),
 				),
