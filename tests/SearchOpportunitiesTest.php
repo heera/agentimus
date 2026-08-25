@@ -305,6 +305,28 @@ final class SearchOpportunitiesTest extends TestCase {
 		$this->assertTrue( Opportunities::is_operator_query( 'INURL:admin' ) );
 		$this->assertFalse( Opportunities::is_operator_query( 'php throwable vs exception' ) );
 		$this->assertFalse( Opportunities::is_operator_query( 'website design' ), 'a word merely containing "site" is fine' );
+
+		// ⛔⛔ A NEGATED OPERATOR IS STILL AN OPERATOR. The test used to be
+		// "starts the string, or follows a space", and in `-site:reddit.com` the
+		// character before the operator is a hyphen — so the commonest machine
+		// probe of all, the long exclusion list an SEO tool appends to every
+		// query, was counted as a person's search. Found on heera.it,
+		// 2026-08-25: a post was being judged against one of these while the
+		// site's probe share read 0% across 17,919 impressions.
+		$this->assertTrue(
+			Opportunities::is_operator_query( '"ai answer engines ai user agents" -site:reddit.com -site:twitter.com -site:x.com' ),
+			'the exclusion list a scraper appends is a probe, not a question'
+		);
+		$this->assertTrue( Opportunities::is_operator_query( 'php tips -site:stackoverflow.com' ) );
+		$this->assertTrue( Opportunities::is_operator_query( '+intitle:laravel routing' ), 'required, as well as excluded' );
+		$this->assertTrue( Opportunities::is_operator_query( '"inurl:wp-admin"' ), 'and quoted' );
+
+		// ⛔ THE OTHER DIRECTION, which is the one that would be silent: a filter
+		// that ate real questions would delete demand from the worklist and
+		// nothing on screen would say so.
+		$this->assertFalse( Opportunities::is_operator_query( 'how to cache a query in laravel' ) );
+		$this->assertFalse( Opportunities::is_operator_query( 'wordpress cache clearing' ) );
+		$this->assertFalse( Opportunities::is_operator_query( 'what is a website: a primer' ) );
 	}
 
 	public function test_thin_data_is_reported_as_unjudgeable_not_as_all_clear() {

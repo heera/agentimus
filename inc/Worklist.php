@@ -332,8 +332,15 @@ final class Worklist {
 			// number without them is making the finished claim. ⛔ Both exclude
 			// the set-aside, like every count they stand beside.
 			array(
+				// ⛔ `grading` stays over EVERYTHING, and honestly so: a page
+				// nobody has read has no gradeable value to filter on, and the
+				// line that prints it already says the number may move.
 				'grading'    => Grades::remaining( $types ),
-				'rechecking' => Grades::rechecking( $types, false, $aside ),
+				// ⚠️ GRADEABLE ONLY — the same population `fixable` counts, on
+				// the same law the score card already learned: "75 graded · 88
+				// being read again" is two true numbers and an impossible pair.
+				// {@see Grades::COVERED_SQL}
+				'rechecking' => Grades::rechecking( $types, true, $aside ),
 			)
 		);
 	}

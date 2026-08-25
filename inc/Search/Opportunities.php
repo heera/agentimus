@@ -322,6 +322,23 @@ final class Opportunities {
 	 * no answer to a machine. They stay in the stored snapshot (Search
 	 * Performance is the raw record); the worklist simply refuses to act on them.
 	 *
+	 * ⛔⛔ A NEGATED OPERATOR IS STILL AN OPERATOR, and missing that made this
+	 * whole guard leak. The test used to be "starts the string, or follows a
+	 * space" — and in `-site:reddit.com` the character before `site:` is a
+	 * hyphen, so the single commonest shape of a machine probe walked straight
+	 * through it: the long exclusion list an SEO tool or a scraper appends to
+	 * every query. Found on heera.it, 2026-08-25, where a post was being judged
+	 * against `"ai answer engines ai user agents" -site:reddit.com -site:twitter.com …`
+	 * while the site's probe share read 0% across 17,919 impressions.
+	 *
+	 * ⭐ So the test is a TOKEN BOUNDARY, not a space: the operator may open the
+	 * string or follow whitespace, a bracket or a quote, and may carry a leading
+	 * `-` (exclude) or `+` (require). ⛔ It is deliberately not "appears
+	 * anywhere": `website design` and `how to cache a query in laravel` are
+	 * things people type, and a filter that eats them would quietly delete real
+	 * demand from the worklist — the opposite failure, and the harder one to
+	 * notice.
+	 *
 	 * @param string $query The reported search.
 	 * @return bool
 	 */
@@ -331,7 +348,7 @@ final class Opportunities {
 			return false;
 		}
 		foreach ( array( 'site:', 'intext:', 'inurl:', 'intitle:', 'filetype:', 'cache:', 'related:' ) as $operator ) {
-			if ( 0 === strpos( $q, $operator ) || false !== strpos( $q, ' ' . $operator ) ) {
+			if ( preg_match( '/(?:^|[\s("\'\[])[-+]?' . preg_quote( $operator, '/' ) . '/u', $q ) ) {
 				return true;
 			}
 		}

@@ -95,13 +95,98 @@ final class ContentIssuesDbTest extends DbTestCase {
 	}
 
 	/**
+	 * ⭐⭐ ONE THING, ONE NUMBER, EVERYWHERE — his law, 2026-08-25, and the whole
+	 * point of the change under it. Not "these two agree today": every surface
+	 * that counts, lists or acts on the worklist is asked in ONE breath, over a
+	 * fixture built to break them apart — a thin article, a clean one, and a
+	 * container the citability grade does not cover.
+	 *
+	 * ⛔ The container is the trap. Before this, it was counted and listed as
+	 * worth fixing while the Readiness content list, the Optimized score and
+	 * "Set all aside" all required `gradeable = 1` and could not see it: four
+	 * surfaces, two populations, and the owner told to fix a page whose repair
+	 * moved no number they could read.
+	 */
+	public function test_every_surface_counts_the_same_worklist() {
+		$thin  = $this->post( 'Thin', 'Too short.' );
+		$clean = $this->post( 'A real article', str_repeat( 'This page has plenty of substance and says something worth quoting. ', 40 ) );
+		$blog  = (int) self::factory()->post->create( array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => 'Blog',
+			'post_content' => 'Latest posts appear below.',
+		) );
+		update_option( 'page_for_posts', $blog );
+		$this->sweep();
+		update_option( 'page_for_posts', 0 );
+
+		$worklist = new Worklist( new Settings() );
+		$types    = \Agentimus\Gradeability::post_types();
+
+		// The five readers, in one breath — a number taken at another instant can
+		// contradict the one beside it, which is the fault twice over.
+		$counts   = $worklist->counts();                       // the chips, and read-content-issues
+		$tally    = $worklist->tally();                        // the Findings headline
+		$fixable  = $this->issues( 'fixable', 1, 100 )['items'];// the list itself
+		$clear    = $this->issues( 'clear', 1, 100 )['items'];
+		$score    = Grades::optimize( $types, array(), 6 );     // Readiness + the Optimized pillar
+		$bulk     = Grades::posts_with_flag( $types, array(), 'words' ); // what "Set all aside" would act on
+
+		$this->assertSame( $counts['fixable'], count( $fixable ), 'the chip and the list it heads' );
+		$this->assertSame( $counts['fixable'], $tally['fixable'], 'the chip and the Findings headline' );
+		$this->assertSame( $counts['clear'], count( $clear ), 'the same, for the other bucket' );
+		$this->assertSame(
+			$tally['fixable'],
+			$tally['flagged'] + $tally['unanswered'],
+			'the evidence under the headline adds up to the headline'
+		);
+
+		// ⛔ The container is in NONE of them — not counted, not listed, not
+		// scored, not reachable by the bulk action.
+		$listed = array_merge( array_column( $fixable, 'id' ), array_column( $clear, 'id' ) );
+		$this->assertNotContains( $blog, $listed );
+		$this->assertNotContains( $blog, $bulk );
+		foreach ( $score['issues'] as $issue ) {
+			$this->assertNotContains( $blog, (array) $issue['posts'] );
+		}
+
+		// …and the article that really is thin is in all of them.
+		$this->assertContains( $thin, $listed );
+		$this->assertContains( $thin, $bulk );
+		$this->assertArrayHasKey( 'words', $score['issues'] );
+		$this->assertContains( $thin, (array) $score['issues']['words']['posts'] );
+		// ⭐ And the buckets PARTITION what they cover: a page the grade covers is
+		// in exactly one of them, never both and never neither. ($clean is a real
+		// article, so which bucket it lands in is the checks' business, not this
+		// test's — that it lands in exactly one is the promise.)
+		$in_fixable = in_array( $clean, array_column( $fixable, 'id' ), true );
+		$in_clear   = in_array( $clean, array_column( $clear, 'id' ), true );
+		$this->assertTrue( $in_fixable !== $in_clear, 'a covered page is in exactly one bucket' );
+		$this->assertSame(
+			$counts['fixable'] + $counts['clear'] + $counts['setAside'],
+			count( $fixable ) + count( $clear ) + count( $this->issues( 'setAside', 1, 100 )['items'] ),
+			'the three counts add up to the three lists'
+		);
+	}
+
+	/**
 	 * HIS SITE, 2026-08-19: the Blog page and a form page sat in "worth fixing"
 	 * reading "Not enough substance yet" — while the Optimized pillar excused
 	 * both as containers. One surface excused them, the next billed them, and
 	 * the advice was the one thing their owner could not act on: the words on a
 	 * Posts page belong to the loop the theme renders.
+	 *
+	 * ⭐⭐ AND 2026-08-25 FINISHED IT, on his call. That fix stopped the
+	 * contradictory ADVICE and left the page on the list — which left the
+	 * contradiction one level up: the worklist counted a page the Readiness
+	 * content list, the Optimized score and "Set all aside" could all not see,
+	 * so the owner was told to fix something no number of theirs would move.
+	 * A page the citability grade does not cover is now off the worklist
+	 * entirely {@see Grades::COVERED_SQL}. The length guard below stays exactly
+	 * as it was: it is what keeps the verdict itself honest if a page ever
+	 * changes category.
 	 */
-	public function test_a_container_page_is_never_billed_for_its_length() {
+	public function test_a_container_page_is_off_the_worklist_and_never_billed_for_its_length() {
 		$blog = (int) self::factory()->post->create( array(
 			'post_type'    => 'page',
 			'post_status'  => 'publish',
@@ -119,8 +204,17 @@ final class ContentIssuesDbTest extends DbTestCase {
 			$by[ (int) $row['id'] ] = array_column( $row['issues'], 'id' );
 		}
 
-		$this->assertArrayHasKey( $blog, $by, 'The container is still READ and still listed — only its length goes unjudged.' );
-		$this->assertNotContains( 'words', $by[ $blog ], 'A container is not thin; it is not an article.' );
+		$this->assertArrayNotHasKey( $blog, $by, 'A page the grade does not cover is on no worklist the owner reads.' );
+
+		// ⛔ Still READ, and still not billed for its length — read from the
+		// store rather than the list, because the list is no longer where a
+		// container appears. If gradeability ever widens, the verdict underneath
+		// must already be right.
+		$stored = Grades::stored( array( $blog ) );
+		$this->assertArrayHasKey( $blog, $stored, 'The sweep still reads it — it is excluded from a list, not from the site.' );
+		$this->assertNotContains( 'words', (array) $stored[ $blog ]['flagIds'], 'A container is not thin; it is not an article.' );
+		$this->assertFalse( $stored[ $blog ]['gradeable'], 'and the store says why it is not on the list.' );
+
 		// ⛔ The check is skipped for containers, not retired: a real article of
 		// the same length still says so, or this "fix" silenced the whole site.
 		$this->assertArrayHasKey( $thin, $by );

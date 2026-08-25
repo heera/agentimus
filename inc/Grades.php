@@ -71,6 +71,30 @@ final class Grades {
 	 */
 	const UNREADABLE_SQL = "(g.flags > 0 AND g.flag_ids = '' AND g.points = 0)";
 
+	/**
+	 * THE WORKLIST'S POPULATION, in one place.
+	 *
+	 * ⭐⭐ HIS LAW, 2026-08-25: one thing, one number, everywhere. A page whose
+	 * citability grade does not cover it — a Blog index, a Subscribe page, a
+	 * product — was counted as "worth fixing" and listed as such, while the
+	 * Readiness content list, the Optimized score and "Set all aside" all
+	 * required `gradeable = 1` and could not see it. So the owner was told to
+	 * fix a page that appears on no Readiness row, whose repair moves no number
+	 * they can read, and that the bulk action cannot clear either. On wpftest,
+	 * 19 of 119 flagged rows; on heera.it, two of the four left after a full
+	 * clean-up — "Blog" and "Subscribe".
+	 *
+	 * ⛔ The set-aside bucket is deliberately NOT narrowed by this. That list is
+	 * the owner's own ledger of decisions, not a measurement: a page they parked
+	 * before this rule existed must stay visible and restorable, whatever the
+	 * grade says about it.
+	 *
+	 * ⛔ Nor is the sweep queue ({@see ungraded()}, {@see remaining()}): a page
+	 * nobody has read yet HAS no gradeable value, so "still to read" is honestly
+	 * a count over everything, and it already says the number may move.
+	 */
+	const COVERED_SQL = 'g.gradeable = 1';
+
 	/** @var string The sweep's cron hook. */
 	const CRON = 'agentimus_grade_sweep';
 
@@ -598,6 +622,9 @@ final class Grades {
 		if ( 'setAside' === $filter ) {
 			$where .= " AND g.post_id IN ($in)";
 		} else {
+			// ⛔ The same population counts() counts, or the list and the chip
+			// above it are two answers to one question {@see COVERED_SQL}.
+			$where .= ' AND ' . self::COVERED_SQL;
 			$where .= " AND g.post_id NOT IN ($in)";
 			$where .= 'fixable' === $filter ? ' AND g.needs_work = 1' : ' AND g.needs_work = 0';
 		}
@@ -668,8 +695,8 @@ final class Grades {
 		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
 			"SELECT
 				SUM(CASE WHEN g.post_id IN ($in) THEN 1 ELSE 0 END) AS parked,
-				SUM(CASE WHEN g.post_id NOT IN ($in) AND g.needs_work = 1 THEN 1 ELSE 0 END) AS fixable,
-				SUM(CASE WHEN g.post_id NOT IN ($in) AND g.needs_work = 0 THEN 1 ELSE 0 END) AS clear
+				SUM(CASE WHEN " . self::COVERED_SQL . " AND g.post_id NOT IN ($in) AND g.needs_work = 1 THEN 1 ELSE 0 END) AS fixable,
+				SUM(CASE WHEN " . self::COVERED_SQL . " AND g.post_id NOT IN ($in) AND g.needs_work = 0 THEN 1 ELSE 0 END) AS clear
 			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)",
 			$types
@@ -1054,7 +1081,7 @@ final class Grades {
 				SUM(CASE WHEN g.flags = 0 THEN 1 ELSE 0 END) AS unanswered
 			FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
-				AND g.needs_work = 1 AND g.post_id NOT IN ($in)",
+				AND " . self::COVERED_SQL . " AND g.needs_work = 1 AND g.post_id NOT IN ($in)",
 			$types
 		), ARRAY_A );
 
@@ -1082,7 +1109,8 @@ final class Grades {
 
 		return (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; every value bound.
 			"SELECT COUNT(*) FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
-			WHERE p.post_status = 'publish' AND p.post_type IN ($holders) AND g.has_focus = 0",
+			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
+				AND " . self::COVERED_SQL . " AND g.has_focus = 0",
 			$types
 		) );
 	}
