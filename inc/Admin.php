@@ -988,14 +988,19 @@ final class Admin {
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
 				array(
-					'icon'  => 'search',
-					'title' => 'A Day Bing Says Nothing About Now Says So',
-					'text'  => 'Bing answers for some days without any numbers in them. Those days were drawn as a drop to zero pages in the index, which never happened. They now show as a gap you can hover, and the big number above the chart can no longer read zero because Bing stayed quiet.',
+					'icon'  => 'page',
+					'title' => 'An Assistant Can Fix a Page, Not Rewrite It',
+					'text'  => 'Until now the only way an AI assistant could change a page was to replace the whole thing, so a two-word fix meant handing back the entire article. It can change one passage now and leave every other character alone. What was there before is kept, so you can always go back.',
 				),
 				array(
-					'icon'  => 'link',
+					'icon'  => 'image',
+					'title' => 'It Can Describe Your Pictures',
+					'text'  => 'A picture with no description is the commonest thing wrong with content on most sites, and the one thing an assistant could not fix. It can write those sentences now — for a picture in your media library, or for one sitting inside a particular page, which turn out to be two different things.',
+				),
+				array(
+					'icon'  => 'shield',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'A page could be listed as not answering a search it is no longer found for, and is read again now when the search changes. The warning about Bing crawl errors no longer goes quiet on a day Bing said nothing. Report an Issue got its icon back. The changelog has the full list.',
+					'text'  => 'The tool that describes a picture used to refuse the very pages the checks were flagging. A picture marked as decoration but carrying a caption now counts as missing one. Your site reads its pages once after this update, so something that was true all along may appear on your list. The changelog has the full list.',
 				),
 			),
 		);

@@ -298,6 +298,19 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.46.0 =
+* New: a connected assistant can read a page and change one passage of it instead of replacing the whole thing. It quotes the passage back exactly and that passage has to appear once — not found and found-twice are both refusals that change nothing, because a fix applied to a guess is how content gets mangled. The previous version is kept as a revision, and the saved page is read back and compared.
+* New: an assistant can describe a picture that has no description — the commonest thing wrong with content on most sites, and the one thing it previously could not do.
+* New: and it can describe the pictures inside a page, which is a different job. WordPress copies an image's description into the page when you insert it and never looks at it again, so the words a reader gets from a published page are the ones written into that page — describing the library copy changes nothing a reader sees. There is a tool for each now, and each says which copy it writes.
+* New: a way to list the pictures in your media library that carry no description at all. Search matches words, and the images needing description are exactly the ones with no words on them, so that question could not be asked before. A description that is only the file name counts as none, the same way the page checks count it.
+* Fixed: the tool for describing a picture refused the exact pages the checks were flagging. Where a description was only the file name, the check asked for it to be replaced and the tool refused it as already described — and told the assistant the checks were satisfied. Those pages could be found and never closed. The checks and the tools that fix them now share one definition of what a description is.
+* Fixed: an empty description on a captioned picture is now a finding. An empty description means "this is decoration" and that is still respected, but WordPress leaves the field empty by default, so a captioned screenshot could reach every screen reader undescribed while the row said every image had one. A caption is evidence the picture means something.
+* Fixed: that new check would never have run on anything already published — a page is read again only when the set of checks changes, and a new rule inside an existing check did not register as one. Your site re-reads its pages once after updating.
+* Fixed: captions come in three shapes and only one was understood — the block editor's, the classic editor's, and the way the same classic caption is drawn on any theme that has not opted into HTML5 markup. All three are read now.
+* Fixed: an assistant was told "this page has no featured image, add one" even on kinds of content that cannot have one. The two absences are told apart now.
+* Fixed: the two counts of your worklist could disagree, and the probe that reads what your theme does with a picture's description had a gap in its filter.
+* Improved: on the dashboard's Today line, how each figure compares with yesterday is a small arrow at the end of its label rather than a coloured sentence beneath it. Hover it for the number; a figure that did not move says nothing at all.
+
 = 1.45.0 =
 * Fixed: a page could be told it does not answer a search it is no longer found for. That reading is measured in the background against the search the engines showed the page for at the time, and the engines move that search without anybody touching the page — so the reading beside it became an answer to a different question. Pages are read again when their search changes, and the old reading stays on screen, marked, until the new one replaces it.
 * Fixed: a day Bing reported nothing about was drawn as a drop to zero pages in the index. Bing answers for every date in its window whether or not it holds numbers for that date, so a date with nothing in it was stored and drawn as a measurement — a fall to zero and back, on a site that never left the index. Those days now keep their place in the chart as a gap you can hover, and say what they are when opened.
@@ -389,6 +402,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The five most recent releases are listed here. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.46.0 =
+A connected assistant can now maintain a site rather than only rewrite it: read a page, change one passage, and describe pictures that have none. Two alt-text faults are fixed — the tool that describes a picture used to refuse the exact pages the checks flagged, and an empty description on a captioned picture now counts as a gap. Your site re-reads its pages once after updating, so a finding that was true all along may appear. No breaking changes.
 
 = 1.45.0 =
 Two readings that could be quietly wrong are fixed. A page could be listed as not answering a search it is no longer found for; those pages are read again now when their search changes. And a day Bing reported nothing about was drawn as a fall to zero pages in the index — those days now show as a gap that says so, and the index figure above the chart can no longer read zero because Bing stayed quiet. No breaking changes.
