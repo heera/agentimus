@@ -824,14 +824,6 @@ export default {
                 <h4>What this page is for</h4>
                 <span class="ar-work__when">{{ focusLabel(i) }}</span>
               </div>
-              <button
-                v-if="canDismissSearch(i)"
-                type="button"
-                class="ar-linkbtn ar-linkbtn--mute ar-work__dismiss"
-                :disabled="!!dismissingSearch"
-                :title="'Stop judging any page on “' + i.focus.query + '”'"
-                @click="dismissSearchRow(i)"
-              >{{ isDismissing(i) ? 'Setting aside…' : 'Not a search for this site' }}</button>
               <span
                 v-for="f in searches(i)"
                 :key="f.query"
@@ -940,6 +932,25 @@ export default {
                 </svg>
                 Open in editor
               </a>
+              <!-- ⛔ AN ACTION, NOT A VERDICT. This first sat above the search in
+                   muted text, where "Not a search for this site" read as Agentimus
+                   declaring something about that search rather than offering to
+                   act on it — and nothing said it was clickable. Row actions live
+                   here, and the wording parallels the one beside it: that button
+                   excuses the PAGE, this one excuses the SEARCH. -->
+              <button
+                v-if="canDismissSearch(i)"
+                type="button"
+                class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
+                :disabled="!!dismissingSearch"
+                :title="'Stop judging any page on “' + i.focus.query + '”. Nothing about this page changes.'"
+                @click="dismissSearchRow(i)"
+              >
+                {{ isDismissing(i) ? 'Setting aside…' : 'Set this search aside' }}
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7.25" /><path d="M7.6 7.6l4.8 4.8M12.4 7.6l-4.8 4.8" stroke-linecap="round" />
+                </svg>
+              </button>
               <button
                 type="button"
                 class="ar-linkbtn ar-linkbtn--mute ar-work__undo"

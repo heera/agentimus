@@ -8018,6 +8018,11 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 }
 .ar-work__do, .ar-work__undo { display: inline-flex; align-items: center; gap: 7px; }
 .ar-work__undo { margin-left: auto; }
+/* Two of these now sit in the bar — set the SEARCH aside, or the PAGE. Only
+   the first may claim the free space: with an auto margin on each, flex
+   splits the gap between them and the pair drifts apart to the middle of
+   the row instead of grouping at its end. Measured: 257 / 730 / 1224. */
+.ar-work__undo + .ar-work__undo { margin-left: 0; }
 .ar-work__do svg, .ar-work__undo svg { flex: none; opacity: .75; }
 
 /* Said once, under the list — a screen of closed boxes has to admit there is
