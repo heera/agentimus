@@ -998,6 +998,11 @@ final class Admin {
 					'text'  => 'Search engines report every string that showed your site, including web addresses somebody pasted into a search box and whole prompts pasted in. Those were being held against your pages, and no amount of writing could ever answer them. They are left out now, so your list is shorter and everything on it is something you can actually do.',
 				),
 				array(
+					'icon'  => 'link',
+					'title' => 'An Assistant Sees the Whole Page Now',
+					'text'  => 'Ask a connected assistant to check a page and it was told only how readable that page is. So a page whose single problem was that its words never answer the search it is found for came back with full marks — and an assistant reading that would tell you there was nothing to do. It gets both halves now, and the exact words the page never uses.',
+				),
+				array(
 					'icon'  => 'shield',
 					'title' => 'And a Round of Fixes',
 					'text'  => 'If your site is not written in the Latin alphabet, every page was being told its words answer nothing — a search Agentimus could not read came out as a page that failed. That is fixed. Your site reads its pages once after this update, so something that was true all along may appear on your list. The changelog has the full list.',
