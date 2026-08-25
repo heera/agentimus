@@ -93,7 +93,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
 
 	/** @var Settings */
 	private $settings;
@@ -1864,6 +1864,48 @@ final class Registrar {
 		);
 
 		$this->add(
+			'read-content',
+			__( 'Read a page’s body', 'agentimus' ),
+			'Returns ONE post/page’s body EXACTLY as stored — the source an edit has to be written against, '
+				. 'block comments, shortcodes, HTML entities and all. ⛔ Not a rendering: preview-markdown '
+				. 'returns the .md twin, which is what an AI client reads, and check-page returns a grade; '
+				. 'neither can be edited and sent back. This is the FIRST half of changing anything on a page '
+				. '— read it here, then send edit-content an exact passage from what you got. '
+				. '`format` says whether the body is block markup or classic HTML, because a paragraph is '
+				. 'wrapped in comments in one and bare in the other. `editable` is false when this body is not '
+				. 'the thing to change: a page builder owns the layout, or somebody has the post open in the '
+				. 'editor right now — `note` says which, in words you can repeat to the owner.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post/page ID to read.' ),
+				),
+				array( 'post_id' )
+			),
+			self::obj(
+				array(
+					'postId'   => self::i( 'The page read.' ),
+					'title'    => self::s( 'Its title.' ),
+					'type'     => self::s( 'Post type slug.' ),
+					'status'   => self::s( 'publish, draft, pending, private…' ),
+					'url'      => self::s( 'Its address.' ),
+					'modified' => self::s( 'When it was last saved (GMT). If this moves between your read and your edit, somebody else has been writing.' ),
+					'format'   => self::s( '"blocks" when the body is block markup, "classic" when it is plain HTML.' ),
+					'builder'  => self::s( 'The page builder that owns this page’s layout, empty when none does. Not empty ⇒ the body below is not what visitors see.' ),
+					'lockedBy' => self::s( 'Who has the post open in the editor right now, empty when nobody does. An edit made while somebody is editing gets overwritten by their autosave.' ),
+					'editable' => self::b( 'TRUE when edit-content can act on this body — no builder, nobody editing.' ),
+					'content'  => self::s( 'The body, byte for byte as stored. Copy anchors for edit-content from HERE.' ),
+					'length'   => self::i( 'Its length in characters.' ),
+					'note'     => self::s( 'Anything that makes this body not the thing to edit, in plain words. Empty when there is nothing to say.' ),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return ( new ContentEditor() )->read( isset( $in['post_id'] ) ? (int) $in['post_id'] : 0 );
+			},
+			array( $this, 'can_edit_post' )
+		);
+
+		$this->add(
 			'suggest-internal-links',
 			__( 'Suggest internal links for a page', 'agentimus' ),
 			'Suggests which of the site’s OWN posts this post should link to, from local signals only '
@@ -2552,6 +2594,125 @@ final class Registrar {
 		);
 
 		$this->add(
+			'edit-content',
+			__( 'Change one passage of a page', 'agentimus' ),
+			self::guided(
+				'Replaces ONE passage of a post/page body, leaving everything else exactly as it was. This is '
+				. 'the tool for FIXING a page — adding a source link, splitting a long paragraph, writing the '
+				. 'opening sentence a check asked for. ⛔ Reach for update-content only when the whole body is '
+				. 'genuinely being rewritten: it replaces everything, and on a page that only needed one '
+				. 'sentence that is a rewrite nobody asked for. '
+				. 'HOW IT WORKS: read-content first, copy the exact text you mean into `old`, put what should '
+				. 'stand in its place in `new`. `old` must appear in the stored body EXACTLY ONCE — not found '
+				. 'is refused (the body is not what you think, so nothing is guessed at), found twice is '
+				. 'refused with the count (include more surrounding text until it is unique). Anchors come '
+				. 'from read-content and nowhere else: the rendered page and the .md twin both differ from '
+				. 'the source. '
+				. 'THREE THINGS IT WILL NOT DO, whatever it is asked: leave a block comment half-open, empty '
+				. 'the page, or write while somebody has the post open in the editor (their autosave would '
+				. 'undo it minutes later). Each is refused with the reason and nothing is written. '
+				. 'A page a page builder owns is refused too — its content is not in this body. '
+				. 'Pass dry_run to see exactly what the edit would produce without writing it. '
+				. 'The previous body is kept as a revision, and the answer returns its id.'
+			),
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post/page to edit — the `id` from any read-content-issues row.' ),
+					'old'     => self::s( 'The exact text to replace, copied from read-content’s `content`. Must appear exactly once.' ),
+					'new'     => self::s( 'What stands in its place. An empty string deletes the passage — allowed, as long as the page does not end up empty.' ),
+					'dry_run' => array(
+						'type'        => 'boolean',
+						'description' => 'True checks the edit and returns what it would produce, without writing anything.',
+						'default'     => false,
+					),
+				),
+				array( 'post_id', 'old' )
+			),
+			self::obj(
+				array(
+					'postId'     => self::i( 'The page acted on.' ),
+					'title'      => self::s( 'Its title.' ),
+					'changed'    => self::b( 'TRUE only when the body was actually written. A dry run and a no-op both answer false — report that honestly rather than as a change.' ),
+					'dryRun'     => self::b( 'TRUE when nothing was written because dry_run was asked for.' ),
+					'context'    => self::s( 'The changed passage with the text either side of it, so you can SHOW what landed instead of asserting it.' ),
+					'revisionId' => self::i( 'The revision holding the body from before this edit — the way back. 0 when nothing was written.' ),
+					'length'     => self::i( 'The body’s length in characters afterwards.' ),
+					'message'    => self::s( 'What happened, in the site’s own words.' ),
+				)
+			),
+			function ( $input ) {
+				return ( new ContentEditor() )->edit( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_edit_post' ),
+			false,
+			// Not destructive in the annotation's sense, and the reason is the
+			// guards rather than the intent: the change is one anchored passage,
+			// it cannot empty the page or break its blocks, and the body it
+			// replaced is kept as a revision. ⚠️ On a content type with no
+			// revision support there is no copy — the same caveat update-content
+			// is annotated destructive FOR, and the difference is that a passage
+			// is not a whole article.
+			false
+		);
+
+		$this->add(
+			'describe-image',
+			__( 'Describe an image', 'agentimus' ),
+			'Writes the alt text on an image ALREADY in the media library — the sentence that says what the '
+				. 'picture shows, which image search and screen readers read. This is the fix for the '
+				. '“Featured image not described” check, and it is usually the commonest row on the whole '
+				. 'worklist. '
+				. 'Aim it with post_id — the `id` from any read-content-issues row — to describe THAT page’s '
+				. 'featured image, which is what a run through the worklist wants; or with attachment_id from '
+				. 'search-media for one library item. One or the other, never both. '
+				. '⛔ IT WILL NOT SILENTLY REPLACE A DESCRIPTION SOMEBODY WROTE. An image that already has alt '
+				. 'text is refused, and the refusal quotes what is there. The checks only ever flag images '
+				. 'with no description, so a fixing run never needs to change one; if a description is '
+				. 'genuinely wrong, read it and send replace=true with the correction. It cannot blank a '
+				. 'description at all — removing one is done in the media library. '
+				. 'WHAT TO WRITE: one plain sentence saying what is IN the picture, to somebody who cannot see '
+				. 'it. Never the file name, never “image of”, and nothing you cannot see in the image itself — '
+				. 'a description that guesses is worse than none, because a screen reader reads it as fact. '
+				. 'Alt text lives on the image, not on the page, so writing it does not re-read the page: '
+				. '`refreshed` lists the pages now owed a fresh reading, and check-page reads one back now.',
+			self::obj(
+				array(
+					'post_id'       => self::i( 'Describe THIS page’s featured image. The id from any read-content-issues row.' ),
+					'attachment_id' => self::i( 'Describe this media library item directly — an id from search-media. Use one of the two, not both.' ),
+					'alt'           => self::s( 'The description: one plain sentence, at most 250 characters, saying what the picture shows.' ),
+					'replace'       => array(
+						'type'        => 'boolean',
+						'description' => 'True overwrites a description that is already there. Only after reading it — the refusal you get without this quotes what would be lost.',
+						'default'     => false,
+					),
+				),
+				array( 'alt' )
+			),
+			self::obj(
+				array(
+					'attachmentId' => self::i( 'The image described.' ),
+					'postId'       => self::i( 'The page this call was aimed at, 0 when it was aimed at the library item.' ),
+					'image'        => self::s( 'The image’s title in the library, for saying which picture this was.' ),
+					'url'          => self::s( 'Its address.' ),
+					'alt'          => self::s( 'The description stored NOW.' ),
+					'previous'     => self::s( 'What was there before, empty when nothing was.' ),
+					'changed'      => self::b( 'TRUE only when this call is what wrote it.' ),
+					'refreshed'    => array(
+						'type'        => 'array',
+						'description' => 'Pages using this image that are now owed a fresh reading — their stored verdict is marked out of date, not deleted. ⛔ They have NOT been re-read: say they will be, or read one now with check-page.',
+						'items'       => array( 'type' => 'integer' ),
+					),
+					'message'      => self::s( 'What happened, in the site’s own words.' ),
+				)
+			),
+			function ( $input ) {
+				return ( new MediaWriter() )->describe( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_describe_image' ),
+			false
+		);
+
+		$this->add(
 			'write-description',
 			__( 'Set a page’s AI description', 'agentimus' ),
 			'Sets ONE post/page’s AI description — the single plain sentence (≤300 chars) that feeds its '
@@ -2935,6 +3096,11 @@ final class Registrar {
 			// a duplicate of a term the site already has.
 			self::CATEGORY . '/read-terms',
 			self::CATEGORY . '/check-page',
+			// ⭐ The body an edit is written against. Read-only and gated on the
+			// same edit_post capability as check-page, but it exists FOR the write
+			// tier the way search-media and read-terms do: edit-content matches an
+			// exact passage, and the only honest source for one is this.
+			self::CATEGORY . '/read-content',
 			self::CATEGORY . '/preview-schema',
 			self::CATEGORY . '/preview-markdown',
 			self::CATEGORY . '/scan-exposed-files',
@@ -3176,6 +3342,29 @@ final class Registrar {
 	public function can_edit_post( $input ) {
 		$post_id = (int) ( is_array( $input ) && isset( $input['post_id'] ) ? $input['post_id'] : 0 );
 		return $post_id > 0 && current_user_can( 'edit_post', $post_id );
+	}
+
+	/**
+	 * Per-image gate for describe-image — the capability that guards the media
+	 * library's own alt field, checked on the attachment this call resolves to.
+	 *
+	 * ⭐ Resolved through {@see MediaWriter::target()}, the same call the write
+	 * uses. Re-deriving the image here would let the gate check one picture while
+	 * the write lands on another: aiming by post_id means the attachment is not
+	 * in the input at all.
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_describe_image( $input ) {
+		$target = MediaWriter::target( is_array( $input ) ? $input : array() );
+		if ( is_wp_error( $target ) ) {
+			// A malformed or unresolvable aim is not a permission answer — let the
+			// ability run and refuse with the reason, rather than turning "which
+			// image?" into "permission denied".
+			return current_user_can( 'upload_files' );
+		}
+		return current_user_can( 'edit_post', $target['attachment'] );
 	}
 
 	/**

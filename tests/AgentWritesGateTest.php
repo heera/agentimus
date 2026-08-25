@@ -73,6 +73,11 @@ namespace Agentimus\Tests {
 		private const WRITE_TOOLS = array(
 			'agentimus/create-content',
 			'agentimus/update-content',
+			// ⭐ The two that made "fix everything" safe to ask for, 2026-08-25:
+			// one anchored passage instead of a whole body, and the alt text that
+			// was 54 of one site's 58 content flags with no tool behind it.
+			'agentimus/edit-content',
+			'agentimus/describe-image',
 			'agentimus/write-description',
 			'agentimus/write-topics',
 			'agentimus/apply-fix',
