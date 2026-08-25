@@ -410,10 +410,17 @@ export default {
     },
     // ⛔ Through v-tip, never title="…" — the native one ignores this admin's
     // styling and its own timing, which is why main.js registers a replacement.
-    // Plainly worded: "judging" is our vocabulary, not the owner's.
+    //
+    // ⛔⛔ AND IT MUST NOT SOUND LIKE SEO ADVICE. This said "stops any page being
+    // MARKED DOWN for not answering…", which reads as a penalty in Google — the
+    // one thing a reader has most reason to fear and the one thing that is not
+    // happening. It also opened in the passive, so nobody was named as doing it.
+    // Now: who stops (Agentimus), what stops (checking pages against it), and the
+    // two reassurances that decide the click — nothing real changes, and it is
+    // reversible. The search is named because the bubble covers the row above it.
     dismissTip(i) {
       const q = (i.focus && i.focus.query) || '';
-      return `Stops any page being marked down for not answering “${q}”. Nothing on this page changes, and you can put the search back later.`;
+      return `Agentimus stops checking any page against “${q}”. Nothing on your site or in Google changes — you can put it back any time.`;
     },
     isDismissing(i) {
       return this.dismissingSearch && i.focus && this.dismissingSearch === i.focus.query;
