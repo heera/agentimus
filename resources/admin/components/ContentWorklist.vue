@@ -22,6 +22,7 @@ export default {
     // Only for /worklist/rows — the list itself stays App-owned and arrives
     // as `data`, so this panel cannot drift into loading two truths.
     api: { type: Object, default: null },
+    dismissingSearch: { type: String, default: '' },
     data: { type: Object, default: () => ({ items: [], counts: {}, capped: false, total: 0, noSearchData: 0, searchState: '', engine: '', pageCap: 0, waiting: 0 }) },
     // Cheap counts from the boot payload — no page parsed. They let the opening
     // state say something true about the site instead of just offering a button.
@@ -39,7 +40,7 @@ export default {
     // and what it does. The gear edits it; the line under the head states it.
     checkTypes: { type: Array, default: () => [] },
   },
-  emits: ['load', 'set-aside', 'open-scope', 'clear-issue'],
+  emits: ['load', 'set-aside', 'dismiss-search', 'open-scope', 'clear-issue'],
   data() {
     return {
       // Post IDs a finding asked for. Null means "show everything".
@@ -389,6 +390,33 @@ export default {
     // unchanged after the click, looking like the button did nothing. Flip
     // it here, optimistically: the parent toasts any failure, and the next
     // fetch corrects the rare miss.
+    // WHEN "this isn't a question for my site" is an honest thing to offer.
+    //
+    // ⛔ ONLY on a search an ENGINE chose. If the owner typed the focus
+    // themselves, setting it aside means overruling their own decision — there
+    // the honest action is to change it, which the editor's own field and
+    // write-search-fields already do. The two situations look identical on a
+    // row, and conflating them is how somebody sets aside a search they meant
+    // to aim at.
+    //
+    // ⛔ And only while the coverage half is actually asking for something. On
+    // "answered" there is nothing to excuse; on "unreadable" nothing was
+    // measured, so the row is not asking on that account either.
+    canDismissSearch(i) {
+      const f = i.focus;
+      const state = (i.coverage && i.coverage.state) || '';
+      if (!f || !f.query || f.chosen) return false;
+      return !!state && 'answered' !== state && 'unreadable' !== state;
+    },
+    isDismissing(i) {
+      return this.dismissingSearch && i.focus && this.dismissingSearch === i.focus.query;
+    },
+    // Site-wide, so the parent reloads the whole list rather than tweaking this
+    // row: the same search may be judging other pages, and they all stop at once.
+    dismissSearchRow(i) {
+      if (!this.canDismissSearch(i) || this.dismissingSearch) return;
+      this.$emit('dismiss-search', { query: i.focus.query });
+    },
     setAsideRow(i) {
       this.$emit('set-aside', { id: i.id, aside: !i.setAside });
       if (this.extraRows.some((r) => r.id === i.id)) i.setAside = !i.setAside;
@@ -796,6 +824,14 @@ export default {
                 <h4>What this page is for</h4>
                 <span class="ar-work__when">{{ focusLabel(i) }}</span>
               </div>
+              <button
+                v-if="canDismissSearch(i)"
+                type="button"
+                class="ar-linkbtn ar-linkbtn--mute ar-work__dismiss"
+                :disabled="!!dismissingSearch"
+                :title="'Stop judging any page on “' + i.focus.query + '”'"
+                @click="dismissSearchRow(i)"
+              >{{ isDismissing(i) ? 'Setting aside…' : 'Not a search for this site' }}</button>
               <span
                 v-for="f in searches(i)"
                 :key="f.query"

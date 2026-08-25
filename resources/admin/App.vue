@@ -119,6 +119,8 @@ export default {
       worklistStale: false,
       refreshingWorklist: false,
       settingAside: 0,
+      // The search mid-flight, so a second click cannot race the reload.
+      dismissingSearch: '',
       refreshingReadiness: false,
       discovery: this.boot.discovery || {},
       refreshingDiscovery: false,
@@ -1585,6 +1587,29 @@ export default {
         this.settingAside = 0;
       }
     },
+    // Set aside a SEARCH from a worklist row — the other half of what a row can
+    // be asking for. set-aside excuses the PAGE; this excuses the QUESTION, and
+    // nothing about any page changes.
+    //
+    // ⛔ THE WHOLE LIST RELOADS, deliberately. A page set aside changes one row,
+    // so moveOneRowBetweenBuckets can do the arithmetic locally. A search set
+    // aside stops judging every page it touches — on this site one query sat on
+    // two different posts — so the counts and the rows both have to come from
+    // the server or the chips start describing a list that no longer exists.
+    async dismissSearchFromWorklist({ query }) {
+      if (!query || this.dismissingSearch) return;
+      this.dismissingSearch = query;
+      try {
+        await this.api.dismissSearch(query, true);
+        await this.loadWorklist({ filter: this.worklistWhere.filter, page: this.worklistWhere.page });
+        this.silentRefreshFindings();
+        this.flash('success', 'Search set aside. No page is judged on it now — put it back on the Search screen.');
+      } catch (e) {
+        this.flash('error', e.message);
+      } finally {
+        this.dismissingSearch = '';
+      }
+    },
     // One row changed bucket, so move ONE from the chip it left to the chip it
     // joined.
     //
@@ -2381,6 +2406,8 @@ export default {
           @load="loadWorklist"
           @clear-issue="() => { workIssue = null; loadWorklist({ filter: 'fixable', page: 1, issue: '' }); }"
           @set-aside="setAsideItem"
+          :dismissing-search="dismissingSearch"
+          @dismiss-search="dismissSearchFromWorklist"
           @navigate="goTo"
           @open-scope="scopeOpen = true"
         />
