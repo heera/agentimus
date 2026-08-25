@@ -8018,11 +8018,12 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 }
 .ar-work__do, .ar-work__undo { display: inline-flex; align-items: center; gap: 7px; }
 .ar-work__undo { margin-left: auto; }
-/* Two of these now sit in the bar — set the SEARCH aside, or the PAGE. Only
-   the first may claim the free space: with an auto margin on each, flex
-   splits the gap between them and the pair drifts apart to the middle of
-   the row instead of grouping at its end. Measured: 257 / 730 / 1224. */
-.ar-work__undo + .ar-work__undo { margin-left: 0; }
+/* Set the SEARCH aside — pushed to the end of the verdict line, so the escape
+   hatch sits beside the verdict it overrules and the row's action bar keeps its
+   single action. Faint until wanted: this is the rarer of the two answers, and a
+   worklist should look like work to do, not like a row of ways to dismiss it. */
+.ar-work__aside-q { margin-left: auto; opacity: .62; transition: opacity .12s ease; }
+.ar-work__aside-q:hover, .ar-work__aside-q:focus-visible { opacity: 1; }
 .ar-work__do svg, .ar-work__undo svg { flex: none; opacity: .75; }
 
 /* Said once, under the list — a screen of closed boxes has to admit there is

@@ -844,6 +844,27 @@ export default {
                   <span class="ar-work__cover-t">{{ coverLabel(i.coverage.state) }}</span>
                 </span>
                 <span v-if="coverDetail(i)" class="ar-work__why">— {{ coverDetail(i) }}</span>
+                <!-- ⛔ BESIDE THE VERDICT IT OVERRULES, not down in the row's action
+                     bar. Sat there it was one word from "Set this aside" and the two
+                     read as the same thing twice — he said so, and he was right:
+                     adjacency was the confusion, not the wording. Up here there is
+                     nothing to confuse it with, and what it acts on is the thing it
+                     is standing next to. The vocabulary stays the site's own: this
+                     screen has a Set Aside tab and the Search screen a "Searches set
+                     aside" fold, so the same words mean the same thing throughout. -->
+                <button
+                  v-if="canDismissSearch(i)"
+                  type="button"
+                  class="ar-linkbtn ar-linkbtn--mute ar-work__aside-q"
+                  :disabled="!!dismissingSearch"
+                  :title="'Stop judging any page on “' + i.focus.query + '”. Nothing about this page changes.'"
+                  @click="dismissSearchRow(i)"
+                >
+                  {{ isDismissing(i) ? 'Setting aside…' : 'Set this search aside' }}
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="10" cy="10" r="7.25" /><path d="M7.6 7.6l4.8 4.8M12.4 7.6l-4.8 4.8" stroke-linecap="round" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -932,25 +953,6 @@ export default {
                 </svg>
                 Open in editor
               </a>
-              <!-- ⛔ AN ACTION, NOT A VERDICT. This first sat above the search in
-                   muted text, where "Not a search for this site" read as Agentimus
-                   declaring something about that search rather than offering to
-                   act on it — and nothing said it was clickable. Row actions live
-                   here, and the wording parallels the one beside it: that button
-                   excuses the PAGE, this one excuses the SEARCH. -->
-              <button
-                v-if="canDismissSearch(i)"
-                type="button"
-                class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
-                :disabled="!!dismissingSearch"
-                :title="'Stop judging any page on “' + i.focus.query + '”. Nothing about this page changes.'"
-                @click="dismissSearchRow(i)"
-              >
-                {{ isDismissing(i) ? 'Setting aside…' : 'Set this search aside' }}
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                  <circle cx="10" cy="10" r="7.25" /><path d="M7.6 7.6l4.8 4.8M12.4 7.6l-4.8 4.8" stroke-linecap="round" />
-                </svg>
-              </button>
               <button
                 type="button"
                 class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
