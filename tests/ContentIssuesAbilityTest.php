@@ -107,10 +107,29 @@ namespace Agentimus\Tests {
 			foreach ( array( 'id', 'issues', 'coverage', 'search', 'stale', 'readAt', 'setAside', 'postType' ) as $key ) {
 				$this->assertArrayHasKey( $key, $row, "A row must declare `$key`." );
 			}
-			$this->assertSame(
-				array( 'answered', 'scattered', 'barely', 'missing', '' ),
+			// ⛔ DERIVED, not listed. This was a hand-written array, and a
+			// hand-written mirror only catches the schema falling behind the
+			// mirror — never the mirror falling behind the code. When Coverage
+			// gained UNREADABLE, a literal here would have gone on asserting the
+			// old five while the ability rejected its own output in the field.
+			$states = array();
+			foreach ( ( new \ReflectionClass( \Agentimus\Search\Coverage::class ) )->getConstants() as $value ) {
+				if ( is_string( $value ) ) {
+					$states[] = $value;
+				}
+			}
+			$this->assertGreaterThanOrEqual( 5, count( $states ), 'Derived no states — this test is no longer reading Coverage.' );
+			foreach ( $states as $state ) {
+				$this->assertContains(
+					$state,
+					$row['coverage']['enum'],
+					"Coverage can emit '$state' and the enum does not allow it — the ability would reject its own response."
+				);
+			}
+			$this->assertContains(
+				'',
 				$row['coverage']['enum'],
-				'The coverage states are Search\Coverage’s own, plus the empty one that means “no search to judge it against”.'
+				'Plus the empty one that means “no search to judge it against”.'
 			);
 		}
 	}

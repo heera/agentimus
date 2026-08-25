@@ -92,7 +92,7 @@ final class Progress {
 				array_filter(
 					$rows,
 					static function ( $row ) {
-						return ! Opportunities::is_operator_query( (string) $row['query'] );
+						return ! Noise::is_noise( (string) $row['query'] );
 					}
 				)
 			)

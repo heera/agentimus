@@ -65,7 +65,7 @@ final class Collisions {
 				continue; // Site-wide rows describe the same traffic without a page.
 			}
 			$query = strtolower( trim( isset( $row['query'] ) ? (string) $row['query'] : '' ) );
-			if ( '' === $query || Opportunities::is_operator_query( $query ) ) {
+			if ( '' === $query || Noise::is_noise( $query ) ) {
 				continue;
 			}
 			$id = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;

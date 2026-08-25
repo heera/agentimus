@@ -540,4 +540,37 @@ final class Table {
 			$type
 		) );
 	}
+
+	/**
+	 * Has ANY connected source reported this exact search?
+	 *
+	 * ⛔ The guard on the dismissal ledger. That list names searches this site
+	 * was actually shown for; without this it would accept any string, and an
+	 * agent could fill it with text no engine ever reported — a store of
+	 * arbitrary strings wearing the name of a decision. Same discipline the
+	 * URL-keyed set-aside list already applies with its same-host check.
+	 *
+	 * ⚠️ Across EVERY source, not the primary one: a search Bing reports and
+	 * Google does not is still a search this site was shown for, and refusing to
+	 * dismiss it because the richer source is silent would be arbitrary.
+	 *
+	 * ⚠️ Matched case-insensitively. Engines report their own casing and the
+	 * ledger stores one normalized spelling; an exact-binary compare would
+	 * refuse a search the owner is looking straight at.
+	 *
+	 * @param string $query The search, in any casing.
+	 * @return bool
+	 */
+	public static function has_query( $query ) {
+		global $wpdb;
+		$query = trim( (string) $query );
+		if ( '' === $query ) {
+			return false;
+		}
+		$table = self::name();
+		return (bool) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
+			"SELECT 1 FROM $table WHERE LOWER(query_text) = LOWER(%s) AND staged = 0 LIMIT 1",
+			$query
+		) );
+	}
 }

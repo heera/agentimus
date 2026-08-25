@@ -40,7 +40,7 @@ final class Grades {
 	 *    the WHOLE site from this table instead of over a 25-post sample taken
 	 *    fresh in a page load. The sweep already ran every one of those checks
 	 *    and threw the result away.
-	 * 3: ruleset — WHICH checks produced each verdict {@see \Agentimus\PageCheck::ruleset()}.
+	 * 3: ruleset — WHICH checks produced each verdict {@see ruleset()}.
 	 *    A grade is an answer, and the store kept it while forgetting the
 	 *    question: adding a check or moving a threshold changed what every
 	 *    stored verdict meant, and nothing re-read a page.
@@ -94,6 +94,29 @@ final class Grades {
 	 * a count over everything, and it already says the number may move.
 	 */
 	const COVERED_SQL = 'g.gradeable = 1';
+
+	/**
+	 * WHICH RULES PRODUCED A STORED ROW — both halves of it.
+	 *
+	 * ⛔ A row here carries TWO verdicts: the content checks
+	 * ({@see \Agentimus\PageCheck::ruleset()}) and whether the page answers its
+	 * search ({@see \Agentimus\Search\Coverage::ruleset()}). The column that
+	 * decides "has this been re-read under the current rules?" has to cover both,
+	 * or a change to one of them is a change nothing is ever re-read under —
+	 * the fault 1.46.0 named, and the reason a coverage fix would otherwise never
+	 * reach a single existing install.
+	 *
+	 * ⚠️ Changing either half re-reads every page on every site, in the
+	 * background, at {@see SWEEP_CHUNK} a run, with the old verdicts on screen
+	 * throughout. That is the designed cost of being honest about what a stored
+	 * verdict means; the alternative is ranking pages by a question nobody asks
+	 * any more.
+	 *
+	 * @return string 12 hex characters.
+	 */
+	public static function ruleset() {
+		return substr( md5( PageCheck::ruleset() . '|' . Search\Coverage::ruleset() ), 0, 12 );
+	}
 
 	/** @var string The sweep's cron hook. */
 	const CRON = 'agentimus_grade_sweep';
@@ -320,7 +343,7 @@ final class Grades {
 			// caller is recording the result of a reading that just happened, so
 			// the answer is always "the checks as they are right now", and asking
 			// callers to state it would only create a way to state it wrongly.
-			PageCheck::ruleset(),
+			self::ruleset(),
 			(string) ( isset( $grade['hash'] ) ? $grade['hash'] : '' ),
 			gmdate( 'Y-m-d H:i:s' )
 		) );
@@ -392,7 +415,7 @@ final class Grades {
 	 * by a schema migration (its columns are defaults, not measurements), one
 	 * whose fingerprint a save emptied ({@see mark_stale()}), one judged by a
 	 * different set of checks than the ones this site runs now
-	 * ({@see \Agentimus\PageCheck::ruleset()}), and one whose verdict this schema
+	 * ({@see ruleset()}), and one whose verdict this schema
 	 * cannot read ({@see UNREADABLE_SQL}) — the last two being how a store
 	 * repairs itself instead of quietly ranking pages by a question nobody asks
 	 * any more. The last three still HAVE a
@@ -435,7 +458,7 @@ final class Grades {
 				AND (g.post_id IS NULL OR g.graded_at IS NULL OR g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ")
 			ORDER BY (g.post_id IS NULL OR g.graded_at IS NULL) DESC, p.post_modified DESC
 			LIMIT %d",
-			array_merge( $types, array( PageCheck::ruleset(), $limit ) )
+			array_merge( $types, array( self::ruleset(), $limit ) )
 		) );
 
 		return array_map( 'intval', (array) $ids );
@@ -578,7 +601,7 @@ final class Grades {
 			INNER JOIN $table g ON g.post_id = p.ID
 			WHERE p.post_status = 'publish' AND p.post_type IN ($holders)
 				AND g.graded_at IS NOT NULL $only AND (g.content_hash = '' OR g.ruleset <> %s OR " . self::UNREADABLE_SQL . ')',
-			array_merge( $types, array( PageCheck::ruleset() ) )
+			array_merge( $types, array( self::ruleset() ) )
 		) );
 	}
 
@@ -957,7 +980,7 @@ final class Grades {
 		if ( '' === (string) ( isset( $r['content_hash'] ) ? $r['content_hash'] : '' ) ) {
 			return true; // Saved since it was read {@see mark_stale()}.
 		}
-		if ( PageCheck::ruleset() !== (string) ( isset( $r['ruleset'] ) ? $r['ruleset'] : '' ) ) {
+		if ( self::ruleset() !== (string) ( isset( $r['ruleset'] ) ? $r['ruleset'] : '' ) ) {
 			return true; // Judged by a different set of checks than this site runs.
 		}
 		// Written by an older schema: flags counted, and not one of them named.

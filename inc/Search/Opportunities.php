@@ -116,6 +116,12 @@ final class Opportunities {
 		// different things were dropped — besides filling the sample below with
 		// the same string repeated.
 		$noise_by_query = array();
+		$noise_kind     = array();
+		// ⛔ COUNTED SEPARATELY, because only this one is evidence about WHO
+		// searched. The screen says "these views weren't people" and may only say
+		// it of operator probes; a pasted URL is dropped for a different reason
+		// and proves nothing about the searcher {@see Noise}.
+		$probe_impr = 0;
 		foreach ( $rows as $row ) {
 			if ( '' === (string) $row['page_url'] && (int) $row['page_id'] < 1 ) {
 				continue;
@@ -123,8 +129,12 @@ final class Opportunities {
 			$impr      = (int) $row['impressions'];
 			$all_impr += $impr;
 			$query     = (string) $row['query'];
-			if ( self::is_operator_query( $query ) ) {
+			$kind      = Noise::kind( $query );
+			if ( '' !== $kind ) {
 				$noise_impr += $impr;
+				if ( Noise::OPERATOR === $kind ) {
+					$probe_impr += $impr;
+				}
 				// Kept verbatim: a percentage asks to be believed, where the actual
 				// discarded searches can be read and judged — the only way an owner
 				// can tell an over-eager filter from a correct one.
@@ -132,13 +142,35 @@ final class Opportunities {
 					$noise_by_query[ $query ] = 0;
 				}
 				$noise_by_query[ $query ] += $impr;
+				$noise_kind[ $query ]      = $kind;
 			}
 		}
 		arsort( $noise_by_query );
 		$noise_rows     = count( $noise_by_query );
 		$noise_examples = array();
 		foreach ( array_slice( $noise_by_query, 0, self::NOISE_EXAMPLES, true ) as $query => $impr ) {
-			$noise_examples[] = array( 'query' => $query, 'impressions' => $impr );
+			// ⭐ Each row says WHY it was dropped. With one rule the reason could be
+			// stated once in a footnote; with four, a list that does not name the
+			// reason per row cannot be audited — which is the only thing it is for.
+			$noise_examples[] = array(
+				'query'       => $query,
+				'impressions' => $impr,
+				'kind'        => $noise_kind[ $query ],
+			);
+		}
+
+		// ⛔ THE OWNER'S OWN LEDGER, WHOLE — never the top six. The list above is
+		// illustrative and capped; this one is a set of decisions the owner made
+		// and must be able to undo, and a dismissal they cannot see is a dismissal
+		// they cannot lift. Built from the STORED list, not from the rows: a
+		// search the engines have since stopped reporting is still dismissed, and
+		// would vanish from a rows-derived list while still quietly filtering.
+		$dismissed = array();
+		foreach ( Noise::dismissed() as $query ) {
+			$dismissed[] = array(
+				'query'       => (string) $query,
+				'impressions' => isset( $noise_by_query[ $query ] ) ? (int) $noise_by_query[ $query ] : 0,
+			);
 		}
 
 		// 2. Group the surviving page-attributed rows by page. Rows with no page
@@ -146,7 +178,7 @@ final class Opportunities {
 		// below, but can never form a card — a worklist entry that can't name the
 		// page to fix isn't a worklist.
 		$rows  = array_values( array_filter( $rows, static function ( $row ) {
-			return ! self::is_operator_query( (string) $row['query'] );
+			return ! Noise::is_noise( (string) $row['query'] );
 		} ) );
 		$pages = self::page_index( $rows );
 
@@ -297,9 +329,15 @@ final class Opportunities {
 			// borrowed from another screen's arithmetic.
 			'noise'           => array(
 				// Distinct searches, not rows ({@see $noise_by_query}).
-				'searches' => $noise_rows,
-				'share'    => $all_impr > 0 ? (int) round( ( $noise_impr / $all_impr ) * 100 ) : 0,
-				'examples' => $noise_examples,
+				'searches'   => $noise_rows,
+				'share'      => $all_impr > 0 ? (int) round( ( $noise_impr / $all_impr ) * 100 ) : 0,
+				// ⛔ The share the screen may call "not people" — operator probes
+				// ONLY. `share` above covers everything left out, for whatever
+				// reason, and saying THAT was machines would be a claim about the
+				// searcher with nothing behind it.
+				'probeShare' => $all_impr > 0 ? (int) round( ( $probe_impr / $all_impr ) * 100 ) : 0,
+				'examples'   => $noise_examples,
+				'dismissed'  => $dismissed,
 			),
 			// False = rows exist, but every one is too thin to judge. The screen
 			// must say that plainly instead of implying everything is fine.
@@ -343,16 +381,12 @@ final class Opportunities {
 	 * @return bool
 	 */
 	public static function is_operator_query( $query ) {
-		$q = strtolower( trim( (string) $query ) );
-		if ( '' === $q ) {
-			return false;
-		}
-		foreach ( array( 'site:', 'intext:', 'inurl:', 'intitle:', 'filetype:', 'cache:', 'related:' ) as $operator ) {
-			if ( preg_match( '/(?:^|[\s("\'\[])[-+]?' . preg_quote( $operator, '/' ) . '/u', $q ) ) {
-				return true;
-			}
-		}
-		return false;
+		// ⛔ The NARROW question, and it keeps its narrow name: does this use
+		// search operators — the evidence Search Performance puts the words
+		// "machine traffic" behind. {@see Noise} owns the wider one, "can a page
+		// be judged against this at all?", which a URL fails without being a
+		// probe. Merging them would have `isProbe` claim a searcher it cannot see.
+		return Noise::is_operator( $query );
 	}
 
 	/**

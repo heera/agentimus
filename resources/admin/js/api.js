@@ -296,6 +296,13 @@ export function createApi(boot) {
     // some sites, an archive). Returns the refreshed report.
     ignoreSearch: (ident, ignored) =>
       request('/search/ignore', { method: 'POST', body: JSON.stringify({ ...ident, ignored }) }),
+    // Set aside (dismissed=true) or restore (false) a SEARCH — the string, not a
+    // page. The other three ledgers all excuse a page from a kind of work; this
+    // excuses a question from being asked of any page, for when the reported
+    // search is the problem and setting aside the page it landed on would
+    // silence good writing. Returns the refreshed report.
+    dismissSearch: (query, dismissed) =>
+      request('/search/dismiss', { method: 'POST', body: JSON.stringify({ query, dismissed }) }),
     getBingSummary: (days = 30) => request(`/bing/summary?days=${Math.max(1, days | 0)}`),
     // Ask Bing about ONE page, live — the Bing twin of Google's per-URL Re-check.
     checkBingUrl: (url) => request('/bing/url-check', { method: 'POST', body: JSON.stringify({ url }) }),

@@ -324,7 +324,7 @@ final class Report {
 			'medianReason'   => '',
 			'medianRows'     => 0,
 			'medianNeeds'    => 0,
-			'noise'          => array( 'searches' => 0, 'share' => 0, 'examples' => array() ),
+			'noise'          => array( 'searches' => 0, 'share' => 0, 'probeShare' => 0, 'examples' => array(), 'dismissed' => array() ),
 			'counts'         => array( 'opportunities' => 0, 'almost' => 0, 'seen' => 0, 'setAside' => 0 ),
 			'almostThere'    => array(),
 			'seenNotClicked' => array(),
@@ -379,18 +379,43 @@ final class Report {
 		$out['medianReason']   = (string) $report['median_reason'];
 		$out['medianRows']     = (int) $report['median_rows'];
 		$out['medianNeeds']    = (int) $report['median_needs'];
+		// ⛔⛔ THIS PROJECTION IS THE AGENT'S ONLY VIEW OF THE NOISE BLOCK. The
+		// owner's screen reads the raw report straight off the REST route, so a
+		// field added to Opportunities::build() reaches THEM for free and reaches
+		// an agent only if it is copied here. Three did not, and the result was a
+		// surface the owner had and an agent did not: no reason per dropped
+		// search, no operator-only share to put the "not people" claim behind,
+		// and no sight of the owner's dismissal ledger — so no agent could ever
+		// put a set-aside search back.
 		$out['noise']          = array(
-			'searches' => (int) $report['noise']['searches'],
-			'share'    => (int) $report['noise']['share'],
-			// Verbatim, so a reader can judge the filter instead of trusting it.
-			'examples' => array_map(
+			'searches'   => (int) $report['noise']['searches'],
+			'share'      => (int) $report['noise']['share'],
+			// The operator-only slice, kept apart because it is a different claim:
+			// only this one is evidence about WHO searched {@see Noise}.
+			'probeShare' => (int) $report['noise']['probeShare'],
+			// Verbatim, so a reader can judge the filter instead of trusting it —
+			// and with the REASON, because four rules now feed this list and one
+			// that does not say which applied cannot be audited.
+			'examples'   => array_map(
 				static function ( $ex ) {
 					return array(
 						'query'       => (string) $ex['query'],
 						'impressions' => (int) $ex['impressions'],
+						'kind'        => (string) $ex['kind'],
 					);
 				},
 				$report['noise']['examples']
+			),
+			// The owner's own ledger, WHOLE — the only way an agent can discover
+			// what was set aside, and therefore the only way one can offer it back.
+			'dismissed'  => array_map(
+				static function ( $row ) {
+					return array(
+						'query'       => (string) $row['query'],
+						'impressions' => (int) $row['impressions'],
+					);
+				},
+				$report['noise']['dismissed']
 			),
 		);
 		$out['counts']         = array(

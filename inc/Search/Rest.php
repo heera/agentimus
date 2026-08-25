@@ -68,6 +68,16 @@ final class Rest {
 			),
 		) );
 
+		register_rest_route( self::NS, '/search/dismiss', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'dismiss' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+			'args'                => array(
+				'query'     => array( 'type' => 'string', 'required' => true ),
+				'dismissed' => array( 'type' => 'boolean', 'required' => true ),
+			),
+		) );
+
 		register_rest_route( self::NS, '/search/performance', array(
 			'methods'             => \WP_REST_Server::READABLE,
 			'callback'            => array( $this, 'performance' ),
@@ -119,6 +129,57 @@ final class Rest {
 		} else {
 			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
 		}
+		$this->core->update( $all );
+
+		return $this->report( $request ); // The worklist the caller is looking at, already refreshed.
+	}
+
+	/**
+	 * POST /search/dismiss — set aside (or restore) a SEARCH.
+	 *
+	 * ⭐ THE THIRD LEDGER, and the only one that is not about a page. The other
+	 * two excuse a page from a kind of work; this excuses a QUESTION from being
+	 * asked of any page. It exists because the alternative was worse: when the
+	 * reported search is the problem — a URL somebody pasted, a phrase this site
+	 * can never answer — the only lever available was setting aside the PAGE it
+	 * landed on, which removes good writing from the worklist to silence a bad
+	 * query. That price had already been paid once on a real site.
+	 *
+	 * ⛔ DISMISSING REQUIRES THE SEARCH TO BE ONE THIS SITE WAS ACTUALLY SHOWN
+	 * FOR {@see Table::has_query()}. Otherwise this stops being a ledger of
+	 * decisions and becomes a store of arbitrary strings — the same reason the
+	 * URL-keyed list refuses an address on another host.
+	 *
+	 * ⭐ RESTORING IS ALWAYS ALLOWED, deliberately: an engine that stops
+	 * reporting a search must never be able to strand it in the ledger with no
+	 * way back. A decision has to be reversible on worse evidence than it was
+	 * made on.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function dismiss( \WP_REST_Request $request ) {
+		$query   = Noise::normal( (string) $request->get_param( 'query' ) );
+		$dismiss = (bool) $request->get_param( 'dismissed' );
+
+		if ( '' === $query ) {
+			return new \WP_Error( 'agentimus_bad_query', __( 'No search given.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		if ( $dismiss && ! Table::has_query( $query ) ) {
+			return new \WP_Error(
+				'agentimus_unknown_query',
+				__( 'No search engine has reported that search for this site, so there is nothing to set aside.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$all  = $this->core->all();
+		$list = ( isset( $all['search_dismissed'] ) && is_array( $all['search_dismissed'] ) ) ? array_map( 'strval', $all['search_dismissed'] ) : array();
+		$list = array_values( array_diff( $list, array( $query ) ) );
+		if ( $dismiss ) {
+			$list[] = $query;
+		}
+		$all['search_dismissed'] = $list;
 		$this->core->update( $all );
 
 		return $this->report( $request ); // The worklist the caller is looking at, already refreshed.

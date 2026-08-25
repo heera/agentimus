@@ -184,6 +184,8 @@ final class Plugin {
 		( new Google\Module( $google ) )->register();
 		( new Google\Rest( $google ) )->register();
 		( new Search\Rest( $this->settings ) )->register();
+		// One hook: forget the cached list of dismissed searches when settings change.
+		Search\Noise::register();
 
 		// Self-heal the /.well-known rewrite rules: flush ONCE whenever the routed-name
 		// set changes — an Agentimus update that adds a built-in name (e.g. tdmrep.json)

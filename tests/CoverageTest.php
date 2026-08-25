@@ -133,12 +133,81 @@ final class CoverageTest extends TestCase {
 		$this->assertSame( array( 'block', 'gptbot' ), Coverage::words( 'how to block gptbot' ) );
 	}
 
-	/** A search of nothing but stopwords cannot be answered or failed. */
+	/**
+	 * A search of nothing but stopwords cannot be answered OR FAILED.
+	 *
+	 * ⛔ This test said exactly that in its name and then asserted MISSING —
+	 * which is a failure, and a claim about a page nothing was ever compared to.
+	 * The name was right and the assertion was wrong.
+	 */
 	public function test_a_meaningless_search_measures_nothing() {
 		$m = Coverage::measure( '<p>Anything at all.</p>', '', 'how to' );
 
 		$this->assertSame( 0, $m['words'] );
-		$this->assertSame( Coverage::MISSING, $m['state'] );
+		$this->assertSame( Coverage::UNREADABLE, $m['state'] );
+		$this->assertFalse( Coverage::is_measured( $m['state'] ), 'Nothing was compared, so nothing may be claimed.' );
+	}
+
+	/**
+	 * ⛔⛔ THE ONE THAT MATTERED. terms() extracts `[a-z0-9._-]`, so a search in
+	 * any non-Latin script yields nothing to look for — and that used to come
+	 * back MISSING: "None of it is on the page — this may not be what the post
+	 * is for", about a page that answers it perfectly.
+	 *
+	 * On a site written in any of these languages that was EVERY page carrying a
+	 * reported search: permanently on the worklist, permanently accused, and
+	 * unfixable by writing anything at all. The plugin is not for English sites.
+	 */
+	public function test_a_search_in_a_script_this_check_cannot_read_is_not_a_failed_page() {
+		$pages = array(
+			'Russian'  => array( 'как заблокировать роботов', '<p>Как заблокировать роботов через robots.txt.</p>' ),
+			'Chinese'  => array( '如何向智能体分发结构化内容', '<p>我们解释了如何向智能体分发结构化的机器可读内容。</p>' ),
+			'Japanese' => array( 'クローラー ブロック 方法', '<p>ワードプレスでクローラーをブロックする方法。</p>' ),
+			'Arabic'   => array( 'كيفية حظر الروبوتات', '<p>كيفية حظر الروبوتات في ووردبريس.</p>' ),
+			'Greek'    => array( 'πώς να μπλοκάρετε ρομπότ', '<p>πώς να μπλοκάρετε τα ρομπότ.</p>' ),
+			'Hindi'    => array( 'रोबोट कैसे ब्लॉक करें', '<p>रोबोट को कैसे ब्लॉक करें।</p>' ),
+		);
+		foreach ( $pages as $language => $case ) {
+			list( $query, $html ) = $case;
+			$m = Coverage::measure( $html, 'Title', $query );
+
+			$this->assertSame(
+				Coverage::UNREADABLE,
+				$m['state'],
+				"⛔ In $language the page answers its search and this used to report MISSING."
+			);
+			$this->assertFalse( Coverage::is_measured( $m['state'] ), "⛔ $language: nothing was compared." );
+		}
+	}
+
+	/** And the sentence an owner reads has to name the limit, not blame the page. */
+	public function test_an_unreadable_search_explains_itself_without_accusing_the_page() {
+		$said = Coverage::explain( array( 'state' => Coverage::UNREADABLE ) );
+
+		$this->assertSame( 'Not measured', $said['label'] );
+		$this->assertStringNotContainsString( 'None of it is on the page', $said['why'] );
+		$this->assertStringContainsString( 'Latin', $said['why'], '⭐ The absence has to name itself.' );
+	}
+
+	/**
+	 * ⛔ A change to what coverage SAYS must move the key that decides whether a
+	 * stored verdict is re-read — or the fix reaches no existing install.
+	 */
+	public function test_the_ruleset_covers_what_this_class_judges_by_and_is_stable() {
+		$one = Coverage::ruleset();
+
+		$this->assertNotSame( '', $one );
+		$this->assertSame( $one, Coverage::ruleset(), 'Unstable between calls would re-grade for ever.' );
+
+		$widen = static function ( $stop ) {
+			return array_merge( (array) $stop, array( 'wordpress' ) );
+		};
+		add_filter( 'agentimus_coverage_stopwords', $widen );
+		$after = Coverage::ruleset();
+		remove_filter( 'agentimus_coverage_stopwords', $widen );
+
+		$this->assertNotSame( $one, $after, 'Dropping a word from the search changes what "answered" means.' );
+		$this->assertSame( $one, Coverage::ruleset(), 'And it settles again when the filter goes.' );
 	}
 
 	/* ---- passages ----------------------------------------------------------- */

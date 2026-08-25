@@ -99,6 +99,7 @@ final class Settings {
 			'optimize_ignored'     => array(), // Post IDs the owner marked "not cited content" from the Optimize worklist — pages that aren't meant to be quoted (landing/utility/index). Left out of citability grading entirely; always shown as a visible "set aside" count so the score stays honest.
 			'search_ignored'       => array(), // Post IDs set aside from the Search Opportunities worklist — pages the owner doesn't want search suggestions for. Its OWN list, not shared with optimize_ignored: "don't grade this for citability" and "don't suggest search fixes for this" are different judgements. Shown inside the Search Opportunities section so it is never a hidden ledger.
 			'search_ignored_urls'  => array(), // Its URL-keyed twin, for pages that map to no post (the homepage on some sites, an archive, a gone permalink) — the only identity such a page has. Same judgement, different key ({@see \Agentimus\Search\Pages::key}).
+			'search_dismissed'     => array(), // SEARCHES the owner dismissed — the strings themselves, not pages. The three lists above all excuse a PAGE; this excuses a QUESTION. When the reported search is the problem (a URL somebody pasted, a phrase this site can never answer), setting aside the page it landed on would remove good writing from the worklist to silence a bad query — so this is its own ledger, and no page is touched. Site-wide by design: a junk search is junk wherever it lands, and it lands on several pages ({@see \Agentimus\Search\Noise}).
 			'rest_namespaces'  => array(), // Owner-curated REST namespaces to publish in discovery (opt-in; empty = none).
 			'oauth_auth_server' => '',     // Optional OAuth authorization-server URL; when set, serve RFC 9728 protected-resource metadata. Never fabricate RFC 8414.
 			'suppressed_resources' => array(), // Owner opt-OUT: ids of provider-registered Resources to hide from all output. Declared Resources default to published (spec §04), so empty = publish everything a provider declared.
@@ -1078,6 +1079,22 @@ final class Settings {
 			}
 		}
 		$clean['search_ignored_urls'] = array_values( array_slice( array_unique( $surl ), 0, 1000 ) );
+
+		// Dismissed SEARCHES — the strings, not pages. Normalized through the same
+		// helper that matches them, so a difference in case or spacing can never
+		// leave an entry that matches nothing and cannot be restored. Length is
+		// capped at the focus field's own limit: anything longer is already left
+		// out as a paste ({@see \Agentimus\Search\Noise::is_paste}), so storing it
+		// would be a ledger entry that changes nothing.
+		$dismissed_in = isset( $input['search_dismissed'] ) ? (array) $input['search_dismissed'] : array();
+		$dismissed    = array();
+		foreach ( $dismissed_in as $q ) {
+			$q = Search\Noise::normal( sanitize_text_field( (string) $q ) );
+			if ( '' !== $q && mb_strlen( $q ) <= Focus::MAX_LEN ) {
+				$dismissed[] = $q;
+			}
+		}
+		$clean['search_dismissed'] = array_values( array_slice( array_unique( $dismissed ), 0, 1000 ) );
 
 		/**
 		 * Filter the sanitised settings before they are stored.

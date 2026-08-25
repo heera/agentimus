@@ -33,6 +33,7 @@ export default {
       search: null,
       searchPick: '', // The engine the owner chose; '' = let the server pick the richer one.
       busySearchIgnore: 0, // Post id mid-flight in the search worklist's own set-aside.
+      busySearchDismiss: '', // The SEARCH mid-flight in the dismissal ledger.
       // Which groups the owner has opened or closed by hand, keyed by the
       // group's own key — NEVER by index. This list re-reads on `polled` and
       // on every return, and the cards re-sort as ranks move, so an
@@ -67,8 +68,11 @@ export default {
     // The section shows whenever there is anything to act on — a worklist, an
     // honest state, or set-aside pages waiting to be restored (a held-back page
     // must never become invisible just because today's report is empty).
+    // ⛔ Set-aside SEARCHES count for exactly the same reason, and more sharply:
+    // an agent can add to that ledger, so the only screen that can empty it must
+    // not hide itself on a quiet day.
     hasSearchSection() {
-      return !!this.searchState || this.searchAside.length > 0;
+      return !!this.searchState || this.searchAside.length > 0 || this.searchDismissed.length > 0;
     },
     // What Readiness's pointer card needs to know, and nothing more: whether
     // this section would show at all, and the two counts its chip states.
@@ -147,8 +151,33 @@ export default {
       const n = this.search && this.search.report && this.search.report.noise;
       return n ? Number(n.share) || 0 : 0;
     },
+    // ⛔ ITS OWN NUMBER, and the only one the "these weren't people" paragraph
+    // may quote. searchNoiseShare covers everything left out for any reason —
+    // operator probes, pasted addresses, pasted prompts, searches the owner set
+    // aside — and calling all of that machine traffic would be a claim about
+    // the searcher with nothing behind it.
+    searchProbeShare() {
+      const n = this.search && this.search.report && this.search.report.noise;
+      return n ? Number(n.probeShare) || 0 : 0;
+    },
     showSearchNoise() {
-      return this.searchNoiseShare >= 25;
+      return this.searchProbeShare >= 25;
+    },
+    // The owner's own ledger of set-aside SEARCHES, whole — never the capped
+    // examples list. A dismissal they cannot see is one they cannot lift.
+    searchDismissed() {
+      const n = this.search && this.search.report && this.search.report.noise;
+      return (n && Array.isArray(n.dismissed)) ? n.dismissed : [];
+    },
+    // Why a search was left out, in the owner's words. Anything unrecognised
+    // returns '' and the cell stays empty — never a guess at a reason.
+    noiseReason() {
+      return (kind) => ({
+        operator: 'uses a search operator',
+        address: 'a web address, not a question',
+        paste: 'too long to be a typed search',
+        dismissed: 'you set it aside',
+      }[kind] || '');
     },
     searchNoiseExamples() {
       const n = this.search && this.search.report && this.search.report.noise;
@@ -312,6 +341,20 @@ export default {
     // `ident` is { post } for mapped pages, { url } for pages with no post
     // behind them (the homepage on some sites, an archive) — the ledger keys
     // differ, and the URL is the only identity an unmapped page has.
+    // Put a set-aside SEARCH back. There is no dismiss button on this screen yet
+    // — the machinery and the agent action exist, and WHERE an owner reaches for
+    // "this isn't a question for my site" is a placement decision for the owner
+    // to make, not one to guess at on a busy card. Restore lives here regardless,
+    // because a ledger an agent can add to and nobody can empty is a trap.
+    async restoreSearch(query) {
+      if (this.busySearchDismiss) return;
+      this.busySearchDismiss = query;
+      try {
+        this.search = await this.api.dismissSearch(query, false);
+      } finally {
+        this.busySearchDismiss = '';
+      }
+    },
     async setAsideSearch(ident, ignored = true) {
       const busy = (ident && (ident.post || ident.url)) || 0;
       if (this.busySearchIgnore || !busy) return;
@@ -433,7 +476,7 @@ export default {
          it comes first: it explains both an empty worklist and why Search
          Performance — which keeps the raw record — shows bigger numbers. -->
     <p v-if="showSearchNoise" class="ar-checkgroup__blurb ar-opp__state ar-opp__noise">
-      <strong>{{ searchNoiseShare }}% of the views {{ searchSourceLabel }} recorded on your
+      <strong>{{ searchProbeShare }}% of the views {{ searchSourceLabel }} recorded on your
       pages weren’t people.</strong> They came from automated <code>site:</code> and
       <code>intext:</code> probes — scrapers and SEO tools running bulk searches. Those
       are left out of everything below, because no title rewrite makes a scraper click.
@@ -458,11 +501,16 @@ export default {
                  larger than the single site-wide number Search Performance shows
                  for the same search — and without a header that reads as a
                  contradiction. -->
-            <tr><th>Search left out</th><th>Views across your pages</th></tr>
+            <tr><th>Search left out</th><th>Why</th><th>Views across your pages</th></tr>
           </thead>
           <tbody>
+            <!-- ⛔ THE REASON, PER ROW. With one rule it could live in a
+                 footnote; there are four now, and a list that does not say which
+                 one applied cannot be audited — which is the only thing it is
+                 for. -->
             <tr v-for="(ex, i) in searchNoiseExamples" :key="i">
               <td class="ar-opp__q">{{ ex.query }}</td>
+              <td class="ar-opp__why">{{ noiseReason(ex.kind) }}</td>
               <td class="ar-opp__num">{{ ex.impressions.toLocaleString() }}</td>
             </tr>
           </tbody>
@@ -470,9 +518,13 @@ export default {
       </div>
       <p class="ar-opp__noisefoot">
         <template v-if="searchNoiseExamples.length > 1">Showing the {{ searchNoiseExamples.length }} biggest.</template>
-        A search is only dropped when it uses an operator — <code>site:</code>
+        A search is dropped when it uses an operator — <code>site:</code>
         <code>intext:</code> <code>inurl:</code> <code>filetype:</code> and the
-        like — the way machines search, not people.
+        like, the way machines search rather than people; when it is a web
+        address somebody pasted into the search box; when it is far longer than
+        anything a person types; or when you set it aside yourself. Nothing else
+        is filtered — a short search that reads like nonsense is still a search
+        somebody ran, and it stays until you say otherwise.
       </p>
     </details>
 
@@ -782,6 +834,30 @@ export default {
          quietly excluded forever; the rows are a reference, read on the rare
          visit that restores something. Same classes as the Readiness fold on
          purpose: two lists doing one job must not look like two ideas. -->
+    <!-- Set-aside SEARCHES. Same shape and classes as the page ledger below it:
+         two lists doing one job must not look like two ideas. Shown whenever it
+         has anything in it, because an agent can add to this list and an owner
+         who cannot see it cannot lift it. -->
+    <details v-if="searchDismissed.length" class="ar-fold ar-setaside">
+      <summary class="ar-setaside__head">
+        <strong class="ar-setaside__title">Searches set aside <span class="ar-optcheck__n">· {{ searchDismissed.length }}</span></strong>
+        <span class="ar-setaside__note">no page is judged on these</span>
+      </summary>
+      <ul class="ar-optcheck__pages">
+        <li v-for="q in searchDismissed" :key="q.query" class="ar-optcheck__row">
+          <div class="ar-optcheck__asided">
+            <span class="ar-optcheck__page ar-optcheck__page--muted">{{ q.query }}</span>
+          </div>
+          <button
+            type="button"
+            class="ar-optcheck__restore"
+            :disabled="busySearchDismiss === q.query"
+            @click="restoreSearch(q.query)"
+          >Restore</button>
+        </li>
+      </ul>
+    </details>
+
     <details v-if="searchAside.length" class="ar-fold ar-setaside">
       <summary class="ar-setaside__head">
         <strong class="ar-setaside__title">Set aside from search <span class="ar-optcheck__n">· {{ searchAside.length }}</span></strong>

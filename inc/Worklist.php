@@ -349,15 +349,26 @@ final class Worklist {
 	 * Whether a row is asking for something. A page answering its search with no
 	 * content flags is finished, and saying so is how the list stays short.
 	 *
-	 * @param array $item One row.
+	 * ⭐ PUBLIC because it is the whole definition of "is this page done?", and a
+	 * second surface answering that question with its own `if` is how two screens
+	 * begin to disagree. {@see \Agentimus\Abilities\Registrar}'s check-page asks
+	 * it with a one-page item so an agent's answer and the owner's list are the
+	 * same sentence, computed once, here.
+	 *
+	 * @param array $item One row: `flags` and `coverage.state`.
 	 * @return bool
 	 */
-	private function needs_work( array $item ) {
+	public function needs_work( array $item ) {
 		if ( $item['flags'] ) {
 			return true;
 		}
 		$state = isset( $item['coverage']['state'] ) ? $item['coverage']['state'] : '';
-		return '' !== $state && Coverage::ANSWERED !== $state;
+		// ⛔ Through Coverage::is_measured(), never a bare `!== ANSWERED`. That
+		// test counts "no verdict yet" and "we could not read this search" as
+		// work — and the second one put every page of every non-Latin-script
+		// site on this list permanently, with nothing anyone could write to
+		// clear it {@see Coverage::UNREADABLE}.
+		return Coverage::is_measured( $state ) && Coverage::ANSWERED !== $state;
 	}
 
 	/**
@@ -385,7 +396,7 @@ final class Worklist {
 			}
 			// A machine probe is not a search anyone typed, and no edit to a page
 			// makes one click. Excluded here exactly as the worklists exclude it.
-			if ( Search\Opportunities::is_operator_query( (string) $row['query'] ) ) {
+			if ( Search\Noise::is_noise( (string) $row['query'] ) ) {
 				continue;
 			}
 			$out[ $id ][] = $row;
@@ -1223,6 +1234,137 @@ final class Worklist {
 		}
 
 		return array( $chosen, $best );
+	}
+
+
+	/**
+	 * The coverage verdict for ONE page, measured now — does this page's words
+	 * answer the search it is found for?
+	 *
+	 * ⛔⛔ THE GAP THIS CLOSES. Coverage is half of what makes a page need work
+	 * {@see needs_work()}, and until this existed only the whole-site worklist
+	 * could answer it. The per-page tool an agent naturally reaches for —
+	 * check-page — graded the eight content checks and nothing else, so a page
+	 * flagged ONLY on coverage came back a clean fourteen-of-fourteen. An agent
+	 * told "fix this page" read that as "nothing to fix" and reported success on
+	 * work it had not done. Measured on a real site: 28 of 28 rows on the
+	 * worklist were coverage-only, so the per-page reading was wrong every
+	 * single time it was asked.
+	 *
+	 * ⭐ The owner was never blind to this — the editor's Search & AI panel has
+	 * always shown the verdict and its reason. The blindness was the agent's
+	 * alone, which is the shape of fault worth naming: a surface the owner has
+	 * and an agent does not.
+	 *
+	 * ⭐ THROUGH {@see focus_choice()}, deliberately. Which search a page is
+	 * judged on is a decision — the author's chosen focus first, the engine's
+	 * best-reported search otherwise — and a tool that re-derived it would
+	 * eventually name a different search than the owner's list does for the same
+	 * page. One chooser, both surfaces.
+	 *
+	 * ⭐ MEASURED, NOT READ BACK. The stored verdict has an age and can outlive
+	 * the question it answered {@see age_if_question_moved()}; this renders the
+	 * post and measures against the search reported right now, so it has no
+	 * staleness to declare. That is exactly the reading read-content-issues
+	 * sends a caller here for when a row comes back `stale`.
+	 *
+	 * ⛔ AN UNMEASURED PAGE MUST NOT LOOK LIKE A MEASURED ONE. `measured` is
+	 * false and `state` is empty when there is no search to judge against —
+	 * never "missing", which is a reading of the page. `reason` says which
+	 * silence it is, and `detail` says it in words the caller can repeat.
+	 *
+	 * @param \WP_Post $post The page to measure.
+	 * @return array The verdict block, always complete, never null.
+	 */
+	public function coverage_for( \WP_Post $post ) {
+		$out = array(
+			'measured'  => false,
+			'state'     => '',
+			'label'     => '',
+			'detail'    => '',
+			'query'     => '',
+			'chosen'    => false,
+			'engine'    => '',
+			'words'     => 0,
+			'onPage'    => 0,
+			'inPassage' => 0,
+			'inTitle'   => 0,
+			'terms'     => array(),
+			'heading'   => '',
+			'quote'     => '',
+			'reason'    => '',
+			'setAside'  => in_array( (int) $post->ID, $this->set_aside_ids(), true ),
+		);
+
+		$by_post = $this->search_by_post();
+		$rows    = isset( $by_post[ (int) $post->ID ] ) ? $by_post[ (int) $post->ID ] : array();
+
+		list( $chosen, $best ) = $this->focus_choice( $post, $rows );
+
+		if ( ! $best ) {
+			$state = $this->search_state();
+			if ( 'not_connected' === $state ) {
+				$out['reason'] = 'not_connected';
+				$out['detail'] = __( 'No search source is connected and nobody has chosen what this page is for, so there is no search to measure it against. This is not a reading of the page.', 'agentimus' );
+			} elseif ( 'collecting' === $state ) {
+				$out['reason'] = 'collecting';
+				$out['detail'] = __( 'A search source is connected but has not reported yet, so there is no search to measure this page against. This is not a reading of the page.', 'agentimus' );
+			} else {
+				$out['reason'] = 'no_search';
+				$out['detail'] = __( 'No search has been reported for this page and nobody has chosen what it is for, so there is nothing to measure it against. Normal for a recent post. This is not a reading of the page.', 'agentimus' );
+			}
+			return $out;
+		}
+
+		$out['query']  = (string) $best['query'];
+		$out['chosen'] = (bool) $chosen['chosen'];
+		// Named exactly as the worklist row names it: empty when the owner chose
+		// the words themselves, because then no engine is the one claiming this.
+		$out['engine'] = (bool) $chosen['chosen'] ? '' : $this->engine_label();
+
+		$cov = Focus::coverage( $post, $out['query'], $this->rendered( $post ) );
+		if ( ! $cov || ! Coverage::is_measured( isset( $cov['state'] ) ? $cov['state'] : '' ) ) {
+			// There IS a search; it just holds no word this check can look for —
+			// only common or two-letter words, or a script it cannot read at all
+			// {@see Coverage::UNREADABLE}. Reported as the absence it is.
+			$state         = is_array( $cov ) && isset( $cov['state'] ) ? (string) $cov['state'] : Coverage::UNREADABLE;
+			$said          = Coverage::explain( array( 'state' => $state ) );
+			// ⛔ The STATE is carried through, not blanked. The worklist row for
+			// this same page stores "unreadable", and a per-page tool answering ''
+			// where the list says "unreadable" is two surfaces disagreeing about
+			// one page. `measured` stays false — that is the field that decides
+			// whether any of this may be read as a verdict.
+			$out['state']  = $state;
+			$out['label']  = $said['label'];
+			$out['reason'] = 'unreadable';
+			$out['detail'] = $said['why'];
+			return $out;
+		}
+
+		$said = Coverage::explain( $cov );
+
+		$out['measured']  = true;
+		$out['state']     = (string) $cov['state'];
+		$out['label']     = $said['label'];
+		$out['detail']    = $said['why'];
+		$out['words']     = (int) $cov['words'];
+		$out['onPage']    = (int) $cov['on_page'];
+		$out['inPassage'] = (int) $cov['in_passage'];
+		$out['inTitle']   = (int) $cov['in_title'];
+		$out['heading']   = (string) $cov['heading'];
+		$out['quote']     = (string) $cov['quote'];
+		// WHICH words, not how many. A count says "3 of 5"; this says which two
+		// to go and write about, in the searcher's own spelling — the same list
+		// the editor panel draws as badges.
+		foreach ( (array) ( isset( $cov['terms'] ) ? $cov['terms'] : array() ) as $term ) {
+			$out['terms'][] = array(
+				'word'      => (string) $term['word'],
+				'onPage'    => (bool) $term['on_page'],
+				'inPassage' => (bool) $term['in_passage'],
+			);
+		}
+
+		return $out;
 	}
 
 	/**

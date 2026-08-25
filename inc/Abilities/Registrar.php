@@ -93,7 +93,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'retry-announcement', 'review-client', 'recheck-client' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client' );
 
 	/** @var Settings */
 	private $settings;
@@ -1015,18 +1015,35 @@ final class Registrar {
 					),
 					'noise'     => self::obj(
 						array(
-							'searches' => self::i( 'Distinct searches discarded as search-operator probes (one search on six pages counts once).' ),
-						'examples' => self::arr(
-							array(
-								'query'       => self::s( 'The discarded search, verbatim.' ),
-								'impressions' => self::i(),
-							)
-						),
-							'share'    => self::i(
-								'Percentage of the reported views that came from automated site:/intext: probes rather than people. '
-								. 'These are excluded from every judgement here (no title rewrite makes a scraper click), which is why '
+							'searches'   => self::i( 'Distinct searches left out of every judgement here (one search on six pages counts once). ⛔ For FOUR different reasons — read `examples[].kind` before describing them as anything.' ),
+							'examples'   => self::arr(
+								array(
+									'query'       => self::s( 'The discarded search, verbatim.' ),
+									'impressions' => self::i(),
+									'kind'        => self::s(
+										'WHY this one was left out — ⛔ they are not the same claim. "operator" = it uses site:/inurl:/intitle: and the like, which is how machines search rather than people. '
+										. '"address" = a web address somebody put in the search box. "paste" = far longer than anything a person types, usually a prompt or a paragraph. '
+										. '"dismissed" = the OWNER set this search aside (put it back with dismiss-search). ⛔ Only "operator" is evidence about WHO searched; a pasted address says nothing about the searcher.'
+									),
+								)
+							),
+							'share'      => self::i(
+								'Percentage of the reported views left out of the judgements here, for ANY of the four reasons. '
+								. 'These are excluded from every judgement (no title rewrite makes a scraper click, and no edit answers a URL), which is why '
 								. 'read-search-performance — the raw record — reports larger numbers. A high share is the real story on a '
-								. 'site with no worklist: state it before concluding anything about how the pages are performing.'
+								. 'site with no worklist: state it before concluding anything about how the pages are performing. '
+								. '⛔ Do NOT describe this share as machine traffic — that claim belongs to `probeShare` alone.'
+							),
+							'probeShare' => self::i(
+								'Percentage of the reported views that were search-operator probes — the ONLY number here that supports saying "these were not people". '
+								. 'Always less than or equal to `share`, which also counts searches left out for reasons that say nothing about who typed them.'
+							),
+							'dismissed'  => self::arr(
+								array(
+									'query'       => self::s( 'A search the owner set aside, in the one spelling the ledger stores.' ),
+									'impressions' => self::i( 'Views it drew across this site’s pages in the window, 0 when no engine reports it any more.' ),
+								),
+								'⭐ THE OWNER’S OWN LEDGER, WHOLE — not the capped `examples` list above. These are decisions, not rules: each one can be put back with dismiss-search, and this is the only way to find out what is in it. ⛔ Read this before concluding a search "isn’t reported" — it may simply have been set aside.'
 							),
 						)
 					),
@@ -1701,6 +1718,17 @@ final class Registrar {
 				. 'checks it fails (each with the id check-page uses), while `coverage` says whether it answers '
 				. 'the search it is found for — a row with an EMPTY `issues` list and coverage "barely" or '
 				. '"missing" is not a clean page, it is a page whose words never answer its search. '
+				. '⭐ SUCH A ROW HAS THREE REMEDIES AND THEY ARE NOT INTERCHANGEABLE. If the PAGE is lacking, '
+				. 'write a paragraph that ANSWERS the search (update-content / edit-content), aimed by '
+				. 'check-page’s `coverage.terms` — ⛔ which names words the page never says, NOT words to '
+				. 'insert; stuffing them in moves the verdict and helps no reader. If the page is simply not '
+				. 'for that search, aim it at one it IS for with write-search-fields. If the SEARCH is not a '
+				. 'question this site could ever answer, dismiss-search drops it and leaves the page graded. '
+				. '⛔ Do NOT reach for set-aside-page in that second case: it excuses the page and keeps the bad '
+				. 'search, which then goes on flagging every other page it touches. '
+				. '⚠️ Coverage "unreadable" is neither of those — it means the search held no word this check '
+				. 'could look for (a script it cannot read, or only common words), so nothing was measured and '
+				. 'the row is asking for nothing on that account. '
 				. 'No page is rendered to build this: every verdict is one the background sweep already measured, '
 				. 'which is what makes paging through a whole site affordable. The cost is that a verdict has an '
 				. 'age — `stale` is TRUE when the owner saved that page after it was read, so its issues describe '
@@ -1755,8 +1783,8 @@ final class Registrar {
 							'points'    => self::i( 'Citability score 0–100 for this page: the share of content checks it passes. Only meaningful for article-like content.' ),
 							'coverage'  => array(
 								'type'        => 'string',
-								'enum'        => array( 'answered', 'scattered', 'barely', 'missing', '' ),
-								'description' => 'How well the page answers the search in `search`. answered = one passage carries the whole search; scattered = the words are all on the page but never together; barely = some of them; missing = none. Empty string when there is no search to judge it against — which is not a verdict, and must never be reported as a bad one.',
+								'enum'        => array( 'answered', 'scattered', 'barely', 'missing', 'unreadable', '' ),
+								'description' => 'How well the page answers the search in `search`. answered = one passage carries the whole search; scattered = the words are all on the page but never together; barely = some of them; missing = none. ⛔ TWO OF THESE SIX ARE NOT VERDICTS AND MUST NEVER BE REPORTED AS BAD ONES: the empty string means there was no search to judge this page against, and "unreadable" means there was a search but it held no word the check could look for — a script it cannot read, or only common words. Nothing was compared in either case, so the page is not being asked for anything.',
 							),
 							'search'    => array(
 								'type'                 => array( 'object', 'null' ),
@@ -1826,11 +1854,30 @@ final class Registrar {
 		$this->add(
 			'check-page',
 			__( 'Check a page’s AI readability', 'agentimus' ),
-			'Checks ONE post/page’s readability for AI: grades how easily an AI can read, section and cite it — '
-				. 'word count, an opening summary, concrete figures or cited sources, heading structure, quotable '
-				. 'passage length, link density, image alt text, and freshness. Returns a pass/warn/fail row per '
-				. 'check plus a tally. Use it when asked to check a page’s readability, or to tell an author '
-				. 'exactly what to improve on a specific page.',
+			'Checks ONE post/page and answers the TWO separate questions that decide whether it needs work. '
+				. 'FIRST, readability for AI: how easily an AI can read, section and cite it — word count, an '
+				. 'opening summary, concrete figures or cited sources, heading structure, quotable passage '
+				. 'length, link density, image alt text, and freshness, as a pass/warn/fail row per check plus '
+				. 'a tally. ⛔ THAT TALLY COUNTS THE CONTENT CHECKS AND NOTHING ELSE. `coverage` answers the '
+				. 'SECOND question — do this page’s words answer the search it is actually found for — and a '
+				. 'page can pass every content check and still fail it, which is the single most common way a '
+				. 'page lands on the owner’s worklist. ⛔ So a clean `summary` is NOT "nothing to fix": read '
+				. '`needsWork`, true when EITHER half is asking for something, and the same verdict the owner’s '
+				. 'list shows for this page. `coverage.measured` is FALSE when there is no search to judge this '
+				. 'page against — none reported, none chosen, no source connected — and then `state` is empty '
+				. 'and `reason` names which silence it is; ⛔ never report that as a page that failed, it is not '
+				. 'a reading of the page at all. When it IS measured, `terms` says WHICH of the searcher’s words '
+				. 'the page does not carry. ⭐ THREE REMEDIES, AND CHOOSING BETWEEN THEM IS THE WORK: (1) write '
+				. 'a paragraph that ANSWERS the search — ⛔ never just insert the missing words; (2) when the '
+				. 'page is simply not for that search, aim it at one it IS for with write-search-fields — most '
+				. 'often right on a "missing" verdict, where the honest reading is that this was never the '
+				. 'page for it; (3) when the search is not a question this site could answer at all, '
+				. 'dismiss-search drops it and leaves the page graded (⛔ set-aside-page is the wrong tool '
+				. 'there; it excuses the page and keeps the search). `detail` is the same sentence the '
+				. 'owner reads in their editor. Measured live against the search reported right now, so — unlike '
+				. 'a read-content-issues row — it has no age: this is the fresh reading that tool sends you here '
+				. 'for when a row comes back `stale`. `coverage.setAside` TRUE means the owner excused this page '
+				. 'from the worklist; ⛔ do not suggest editing it, the exclusion is a decision.',
 			self::obj(
 				array(
 					'post_id' => self::i( 'The post/page ID to grade.' ),
@@ -1839,14 +1886,52 @@ final class Registrar {
 			),
 			self::obj(
 				array(
-					'summary' => self::obj(
+					'summary'   => self::obj(
 						array(
 							'pass' => self::i(),
 							'warn' => self::i(),
 							'fail' => self::i(),
 						)
 					),
-					'checks'  => self::status_rows_schema( false ),
+					'checks'    => self::status_rows_schema( false ),
+					'needsWork' => self::b( 'TRUE when this page is asking for something — a content check flags it, OR its words do not answer its search. ⭐ THE ONE FIELD TO READ to decide whether there is work here: `summary` alone answers only half the question, and a page with a spotless tally can still be true here. Computed by the same rule the owner’s worklist rows use, so the two can never disagree.' ),
+					'coverage'  => self::obj(
+						array(
+							'measured'  => self::b( '⛔ READ THIS FIRST. FALSE means no search was measured against this page, so every field below is empty for want of a question — not because the page failed one. `reason` says which silence it is.' ),
+							'state'     => self::s(
+								'How well one passage of this page answers that search — and each state calls for a DIFFERENT act, which is the same advice the owner reads in their editor. '
+								. '"answered" = one passage carries the whole search; nothing to do. '
+								. '"scattered" = every word is on the page but never together, so ⛔ `terms` will show them all present and look like nothing is wrong: the act is to put them in ONE paragraph that answers the search, not to add anything. '
+								. '"barely" = some of the words appear; write a paragraph that answers the search, using the ones `terms` marks absent. '
+								. '"missing" = none of it is there, and the honest reading is often that this was never the page for that search — consider aiming it elsewhere with write-search-fields instead of writing to order. '
+								. 'Two further values are NOT verdicts: EMPTY means there was no search to judge against, and "unreadable" means the search held no word the check could look for. '
+								. '⛔ Neither is "missing", and neither may be reported as a page that failed — read `measured` first. This is the same word the owner’s worklist row carries for this page.'
+							),
+							'label'     => self::s( 'That state in the site’s own words ("Answered", "Barely"), empty when nothing was measured.' ),
+							'detail'    => self::s( 'One sentence saying WHY — either the reading ("3 of 5 words appear anywhere on the page") or, when nothing was measured, what is missing to measure with. The same sentence the owner reads in their editor.' ),
+							'query'     => self::s( 'The search this page was judged on, empty when there was none.' ),
+							'chosen'    => self::b( 'TRUE when the owner chose these words themselves, FALSE when a search engine reported them. A chosen focus cannot drift; a reported one moves without anybody touching the page.' ),
+							'engine'    => self::s( 'Which engine reported that search ("Google", "Bing"). Empty when the owner chose it — then no engine is claiming anything.' ),
+							'words'     => self::i( 'How many meaningful words the search has, after common words are dropped. The denominator of the reading.' ),
+							'onPage'    => self::i( 'How many of them appear anywhere on the page.' ),
+							'inPassage' => self::i( 'How many appear together in its best single passage — the number that decides "answered".' ),
+							'inTitle'   => self::i( 'How many appear in the title a searcher sees. Zero on a page that otherwise answers well is usually the cheapest fix there is.' ),
+							'terms'     => self::arr(
+								array(
+									'word'      => self::s( 'One word of the search, in the searcher’s own spelling.' ),
+									'onPage'    => self::b( 'Whether it appears anywhere on the page.' ),
+									'inPassage' => self::b( 'Whether it appears in the best passage.' ),
+								),
+								'⭐ THE ACTIONABLE HALF: which words, not how many. A page reading "barely" with two words false here names the two things it never says. '
+								. '⛔ THEY ARE NOT WORDS TO INSERT. Dropping the missing words into the page is keyword stuffing: it moves this verdict and helps nobody, because the check is a proxy for "does a passage here ANSWER that search". '
+								. 'Write a paragraph that answers it, using those words because it has to — the same instruction the owner reads in their editor. Empty when nothing was measured.'
+							),
+							'heading'   => self::s( 'The heading above the passage that answers, when one does. Empty otherwise — pointing at the best of a bad set would send an author to the wrong paragraph.' ),
+							'quote'     => self::s( 'That passage, clipped. Empty unless the state is "answered".' ),
+							'reason'    => self::s( 'Why nothing was measured, empty when something was: "not_connected" (no search source and no chosen focus), "collecting" (a source is connected but has not reported yet), "no_search" (nothing reported for this page and nobody chose words — normal for a recent post), "unreadable" (there IS a search, but it holds no word this check can look for: a script it cannot read, or only common words — it reads Latin letters and numbers).' ),
+							'setAside'  => self::b( 'TRUE when the owner excused this page from the worklist. It is still graded here, because you asked — but ⛔ never suggest editing it: the exclusion is a decision, not an oversight.' ),
+						)
+					),
 				)
 			),
 			function ( $input ) {
@@ -1855,9 +1940,27 @@ final class Registrar {
 					return new \WP_Error( 'agentimus_not_found', __( 'Post not found.', 'agentimus' ), array( 'status' => 404 ) );
 				}
 				$rows = PageCheck::analyze( $post );
+				// ⛔ NOT folded into `checks`. Those rows feed PageCheck::summarize(),
+				// which is where every page's stored citability score comes from —
+				// appending a fifteenth row would silently rescore the whole site
+				// and move a fingerprint that has nothing to do with content. The
+				// coverage verdict is a SECOND question, so it gets its own field
+				// and leaves the content tally with its one owner.
+				$worklist = new Worklist( $this->settings );
+				$coverage = $worklist->coverage_for( $post );
 				return array(
-					'summary' => PageCheck::summary( $rows ),
-					'checks'  => $rows,
+					'summary'   => PageCheck::summary( $rows ),
+					'checks'    => $rows,
+					// The worklist's own predicate, asked with this page's two
+					// halves — so "is there work here?" is one sentence computed
+					// in one place for the agent and the owner alike.
+					'needsWork' => $worklist->needs_work(
+						array(
+							'flags'    => PageCheck::summarize( $rows )['flags'],
+							'coverage' => array( 'state' => $coverage['state'] ),
+						)
+					),
+					'coverage'  => $coverage,
 				);
 			},
 			array( $this, 'can_edit_post' )
@@ -2980,9 +3083,10 @@ final class Registrar {
 			__( 'Set a page aside, or put it back', 'agentimus' ),
 			'Marks ONE page as not-cited content — a landing page, a utility page, an index — so no content '
 				. 'check grades it and it stops appearing on the worklist. Or puts it back, with aside=false. '
-				. 'This is the THIRD thing to do with a row from read-content-issues: fix it, leave it, or say '
-				. 'it is fine as it is. Use it when a flagged page is not meant to be quoted in the first place, '
-				. 'so the flags are describing a page doing its job. '
+				. 'This is one of FOUR things to do with a row from read-content-issues: fix it, leave it, say '
+				. 'the PAGE is fine as it is (this tool), or say the SEARCH is not a question this site should '
+				. 'answer (dismiss-search). Use this one when a flagged page is not meant to be quoted in the '
+				. 'first place, so the flags are describing a page doing its job. '
 				. 'Nothing about the page changes — it stays published exactly as it is; what changes is whether '
 				. 'it is judged, and therefore the site’s content score. Set-aside pages are not hidden: the '
 				. 'owner sees them in their own list with a live count. '
@@ -2990,6 +3094,13 @@ final class Registrar {
 				. 'number look better, quietly removes real work from the owner’s view — the count they read '
 				. 'afterwards is one you changed. Set aside only what the OWNER would call not-cited content, '
 				. 'and when unsure, leave the page flagged and say why you are unsure. '
+				. '⛔ AND NOT A WAY TO SILENCE A BAD SEARCH — the mistake this tool is most likely to be used '
+				. 'for. When a row carries an EMPTY `issues` list, nothing is wrong with the page as content: '
+				. 'it is flagged because its words do not answer the search it is found for. If that search is '
+				. 'the problem — a URL somebody pasted into a search box, a phrase that landed here by accident '
+				. '— setting the PAGE aside removes good writing from the worklist to quiet a bad query, and '
+				. 'the query goes on flagging every other page it touches. Use dismiss-search instead: it drops '
+				. 'the search and leaves the page graded. '
 				. 'One page per call, both directions. There is no bulk form: setting aside every page a check '
 				. 'flags is a large, quiet action, and it stays with the owner, behind the confirmation their '
 				. 'own screen shows them. '
@@ -3036,6 +3147,69 @@ final class Registrar {
 			// content score is measured over. The REST route the owner's own click
 			// takes ({@see Rest::optimize_ignore}) requires the same capability, so
 			// the ability is exactly as reachable as the button, and no more.
+			$manage,
+			false
+		);
+
+		$this->add(
+			'dismiss-search',
+			__( 'Set a search aside, or put it back', 'agentimus' ),
+			'Sets aside ONE SEARCH — the string itself, not a page — so no page is judged on whether it '
+				. 'answers it. Or puts it back, with dismissed=false. '
+				. '⭐ THIS IS THE OTHER HALF of a worklist row. A row says a page does not answer the search it '
+				. 'is found for, and there are two ways that can be true: the PAGE is lacking (fix it, or '
+				. 'set-aside-page), or the SEARCH is not a question this site could ever answer — a URL somebody '
+				. 'pasted into the search box, a phrase that landed here by accident. Before this existed the '
+				. 'only lever for the second case was setting aside the PAGE, which removes good writing from '
+				. 'the worklist to silence a bad query. ⛔ Do not do that: use this instead. '
+				. 'Nothing about any page changes, and the search stays in Search Performance’s raw record — '
+				. 'what changes is whether pages are marked down for not answering it. '
+				. '⛔ NOT A WAY TO CLEAR THE LIST. Setting aside a search because pages keep failing it is how '
+				. 'you delete real demand from the owner’s view — and a search with real views behind it is a '
+				. 'finding, not noise. Set aside only what the OWNER would call "not a question for this site", '
+				. 'and when unsure, leave it and say why you are unsure. ⚠️ A search that already looks like '
+				. 'machine noise — it uses `site:`, `inurl:` and the like — is left out automatically and needs '
+				. 'nothing from you. '
+				. 'One search per call, both directions, no bulk form. ⛔ A search no engine has reported for '
+				. 'this site is REFUSED: this ledger names real searches, never arbitrary text. Putting one '
+				. 'back is always allowed, so an engine that goes quiet can never strand a decision. '
+				. 'Returns the state now and the whole set-aside list, so quote that rather than keeping your own.',
+			self::obj(
+				array(
+					'query'     => self::s( 'The search to set aside or put back, exactly as a read-search-opportunities or read-content-issues row spells it. Matched without regard to case or extra spacing.' ),
+					'dismissed' => array(
+						'type'        => 'boolean',
+						'description' => 'True (the default) sets the search aside; false puts it back.',
+						'default'     => true,
+					),
+				),
+				array( 'query' )
+			),
+			self::obj(
+				array(
+					'query'     => self::s( 'The search acted on, in the one spelling this ledger stores.' ),
+					'dismissed' => self::b( 'Whether it is set aside NOW — the state after the call, not the change.' ),
+					'changed'   => self::b( 'Whether THIS call is what put it there. False means it was already in that state and nothing was written; report that honestly rather than as a change.' ),
+					'message'   => self::s( 'What happened, in the site’s own words.' ),
+					'setAside'  => array(
+						'type'        => 'array',
+						'items'       => self::s(),
+						'description' => 'Every search currently set aside, whole and sorted — the owner sees this same list on their Search screen and can put any of them back.',
+					),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return ( new Triage( $this->settings ) )->dismiss_search(
+					isset( $in['query'] ) ? (string) $in['query'] : '',
+					isset( $in['dismissed'] ) ? (bool) $in['dismissed'] : true
+				);
+			},
+			// ⭐ manage_options, exactly like set-aside-page and for the same reason:
+			// this does not edit a page, it changes what the site's worklist is
+			// measured over. The REST route the owner's own click takes
+			// ({@see \Agentimus\Search\Rest::dismiss}) requires the same capability,
+			// so the ability is exactly as reachable as the button, and no more.
 			$manage,
 			false
 		);

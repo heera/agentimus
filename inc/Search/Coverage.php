@@ -45,6 +45,29 @@ final class Coverage {
 	/** None of the search is on the page. */
 	const MISSING = 'missing';
 
+	/**
+	 * ⛔⛔ NOT A READING OF THE PAGE — the search itself could not be read.
+	 *
+	 * {@see terms()} extracts `[a-z0-9._-]`, so a search written in Cyrillic,
+	 * Greek, Arabic, Hebrew, Devanagari or any CJK script yields NOTHING to look
+	 * for. That case used to return {@see MISSING}, and the difference is not
+	 * academic: on a site in any of those languages every page carrying a
+	 * reported search was told "None of it is on the page — this may not be what
+	 * the post is for", was counted as needing work, and could never be fixed by
+	 * writing anything. Measured 2026-08-25: a page that answers its search
+	 * perfectly scored MISSING in Russian, Chinese, Japanese, Arabic, Greek and
+	 * Hindi, and ANSWERED in English.
+	 *
+	 * ⭐ THE LAW IT BROKE is the one 1.45.0 already wrote down: an UNKNOWN must
+	 * never print as a MEASUREMENT. Nothing was compared here, so nothing may be
+	 * claimed — least of all the worst available verdict.
+	 *
+	 * ⚠️ Also the honest answer when a search holds only common or two-letter
+	 * words, and when the `agentimus_coverage` filter returns something this
+	 * class cannot use. Every path that produces no comparison ends here.
+	 */
+	const UNREADABLE = 'unreadable';
+
 	/** Shortest word taken seriously. Below this it is noise in every language we can check. */
 	const MIN_WORD = 3;
 
@@ -69,6 +92,70 @@ final class Coverage {
 	);
 
 	/**
+	 * A fingerprint of the rules THIS class judges by.
+	 *
+	 * ⛔⛔ THE LAW 1.46.0 WROTE DOWN: a change to what a check SAYS must move
+	 * whatever key decides "has this row been re-read?" — correct code that
+	 * nothing is re-read under is indistinguishable from code never written.
+	 * {@see \Agentimus\Grades} stores ONE `ruleset` per row, and that row holds a
+	 * coverage verdict as well as the content checks, so this half has to be in
+	 * it. Without this, the sites hurt worst by {@see UNREADABLE} — every page on
+	 * every non-Latin-script install, told its writing answers nothing — would
+	 * keep their stored accusation until somebody re-saved each post by hand.
+	 *
+	 * ⚠️ The stopword list is FILTERED, not the constant: dropping a word from it
+	 * changes what "answered" means, and {@see \Agentimus\PageCheck::ruleset()}
+	 * folds its own filter in for exactly the same reason. ⛔ It must be stable
+	 * between requests — a value that moved on every call would re-grade for ever.
+	 *
+	 * @return string 8 hex characters.
+	 */
+	public static function ruleset() {
+		static $cache = array();
+
+		$stop = (array) apply_filters( 'agentimus_coverage_stopwords', self::STOPWORDS );
+		sort( $stop );
+		$key = implode( ',', $stop );
+		if ( isset( $cache[ $key ] ) ) {
+			return $cache[ $key ];
+		}
+
+		// The states and thresholds, name and value, in a stable order — the same
+		// whole-constants sweep PageCheck uses, and for the same reason: a new one
+		// is far likelier to change a verdict than not.
+		$constants = ( new \ReflectionClass( __CLASS__ ) )->getConstants();
+		ksort( $constants );
+		$parts = array();
+		foreach ( $constants as $name => $value ) {
+			if ( is_scalar( $value ) ) {
+				$parts[] = $name . '=' . ( is_bool( $value ) ? (int) $value : (string) $value );
+			}
+		}
+
+		$cache[ $key ] = substr( md5( implode( ',', $parts ) . '|' . $key ), 0, 8 );
+		return $cache[ $key ];
+	}
+
+	/**
+	 * Is this state a READING of a page, rather than a note about why there was
+	 * no reading?
+	 *
+	 * ⛔ THE ONE PLACE THAT DECIDES IT. Every surface asking "does this page
+	 * answer its search?" has to tell three things apart: a verdict, no verdict
+	 * yet ('' — nothing has been measured), and a search we could not read
+	 * ({@see UNREADABLE}). Only the first may ever be shown as an answer or
+	 * counted as work, and a caller writing its own `!== ANSWERED` test gets
+	 * the last two wrong in the direction that accuses the owner.
+	 *
+	 * @param string $state A stored or measured coverage state.
+	 * @return bool
+	 */
+	public static function is_measured( $state ) {
+		$state = (string) $state;
+		return '' !== $state && self::UNREADABLE !== $state;
+	}
+
+	/**
 	 * Measure one search against one page.
 	 *
 	 * @param string $html  The page's rendered HTML.
@@ -77,8 +164,11 @@ final class Coverage {
 	 * @return array{state:string,words:int,in_passage:int,on_page:int,in_title:int,heading:string,quote:string}
 	 */
 	public static function measure( $html, $title, $query ) {
+		// ⛔ The fallback verdict is UNREADABLE, not MISSING. Every `return $empty`
+		// below is a path where nothing was compared, and the old default turned
+		// each of them into a claim about the page {@see UNREADABLE}.
 		$empty = array(
-			'state'      => self::MISSING,
+			'state'      => self::UNREADABLE,
 			'words'      => 0,
 			'in_passage' => 0,
 			'on_page'    => 0,
@@ -92,7 +182,7 @@ final class Coverage {
 		$wanted = array_column( $terms, 'stem' );
 		$total  = count( $wanted );
 		if ( ! $total ) {
-			return $empty; // Nothing meaningful was searched for.
+			return $empty; // Nothing in the search this class can look for.
 		}
 		$empty['words'] = $total;
 
@@ -311,4 +401,90 @@ final class Coverage {
 		$space = mb_strrpos( $cut, ' ' );
 		return ( false !== $space ? mb_substr( $cut, 0, $space ) : $cut ) . '…';
 	}
+
+	/**
+	 * The verdict in words: what this state is called, and WHY it came out that
+	 * way for this particular search.
+	 *
+	 * ⭐ ONE OWNER FOR THE SENTENCE. These four readings were written inline in
+	 * {@see \Agentimus\Focus::render_verdict()}, which is a rendering method — so
+	 * the owner's editor panel could explain a verdict ("3 of 5 words appear
+	 * anywhere on the page") while every other surface had nothing but the state
+	 * word to repeat. An agent handed "barely" and no reason cannot act on it,
+	 * and a second surface writing its own phrasing for the same measurement is
+	 * how two screens start disagreeing about one number. The words live with
+	 * the measurement that produced them; the renderer keeps only its own
+	 * business — tone and mark.
+	 *
+	 * ⚠️ UNRECOGNISED STATES ARE INVITED HERE. {@see measure()} is filterable on
+	 * purpose — its docblock offers `agentimus_coverage` to anyone replacing this
+	 * with a semantic model or a language this stemmer does not fit — so a state
+	 * word this class never named is a scenario, not a hypothetical. Indexing a
+	 * map blind used to fatal the whole editor screen.
+	 *
+	 * ⭐ And the answer is the one {@see \Agentimus\PageCheck::issue_label()}
+	 * already settled for the same question: NAME IT WITH WHAT YOU HAVE. A state
+	 * we cannot explain still gets its own word as the label, and an empty
+	 * reason — because silence reads as "no verdict", and the raw word at least
+	 * names something the owner can go and look up. Only a verdict with no state
+	 * at all says nothing, because there is nothing to say.
+	 *
+	 * @param array $cover A {@see measure()} verdict.
+	 * @return array{label:string,why:string} `why` is empty for a state we cannot read; both are empty when there is no state.
+	 */
+	public static function explain( array $cover ) {
+		$state = isset( $cover['state'] ) ? (string) $cover['state'] : '';
+		$words = isset( $cover['words'] ) ? (int) $cover['words'] : 0;
+
+		switch ( $state ) {
+			case self::ANSWERED:
+				$heading = isset( $cover['heading'] ) ? (string) $cover['heading'] : '';
+				return array(
+					'label' => __( 'Answered', 'agentimus' ),
+					'why'   => '' !== $heading
+						? sprintf(
+							/* translators: %s: the heading above the passage that answers. */
+							__( 'One passage carries it, under “%s”.', 'agentimus' ),
+							$heading
+						)
+						: __( 'One passage carries the whole search.', 'agentimus' ),
+				);
+			case self::SCATTERED:
+				return array(
+					'label' => __( 'Scattered', 'agentimus' ),
+					'why'   => sprintf(
+						/* translators: %d: how many words the search has. */
+						__( 'All %d words are on the page, but never together in one passage.', 'agentimus' ),
+						$words
+					),
+				);
+			case self::BARELY:
+				return array(
+					'label' => __( 'Barely', 'agentimus' ),
+					'why'   => sprintf(
+						/* translators: 1: words found, 2: words in the search. */
+						__( '%1$d of %2$d words appear anywhere on the page.', 'agentimus' ),
+						isset( $cover['on_page'] ) ? (int) $cover['on_page'] : 0,
+						$words
+					),
+				);
+			case self::MISSING:
+				return array(
+					'label' => __( 'Missing', 'agentimus' ),
+					'why'   => __( 'None of it is on the page — this may not be what the post is for.', 'agentimus' ),
+				);
+			case self::UNREADABLE:
+				// ⭐ NAMES ITS OWN LIMIT. An owner writing in Greek or Japanese is
+				// owed the reason their pages are not being judged, not silence —
+				// and certainly not a verdict about writing nobody compared.
+				return array(
+					'label' => __( 'Not measured', 'agentimus' ),
+					'why'   => __( 'This search gives the check no word it can look for, so the page has not been judged on it. It reads words written with Latin letters and numbers.', 'agentimus' ),
+				);
+		}
+
+		// Named with its own word, never with another verdict's sentence.
+		return array( 'label' => $state, 'why' => '' );
+	}
+
 }

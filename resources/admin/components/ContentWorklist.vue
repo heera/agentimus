@@ -421,11 +421,17 @@ export default {
     needsWork(i) {
       return 'nothing to fix' !== this.stateChip(i);
     },
+    // 'unreadable' is NOT a verdict about the page — the search itself held no
+    // word the grader could look for (a non-Latin script, or only common
+    // words). Neutral mark, and a label that says so. See Coverage::UNREADABLE.
     coverMark(state) {
-      return { answered: '●', scattered: '◐', barely: '○', missing: '✕' }[state] || '';
+      return { answered: '●', scattered: '◐', barely: '○', missing: '✕', unreadable: '○' }[state] || '';
     },
     coverLabel(state) {
-      return { answered: 'Answered', scattered: 'Scattered', barely: 'Barely', missing: 'Missing' }[state] || '';
+      return {
+        answered: 'Answered', scattered: 'Scattered', barely: 'Barely', missing: 'Missing',
+        unreadable: 'Not measured',
+      }[state] || '';
     },
     /* "Google mostly shows it for" — named from the row's own source, never
        assumed. A Bing-only site must not be told Google said it. */
@@ -491,7 +497,16 @@ export default {
       if ('barely' === c.state) {
         return 'Some of the search is here, most of it isn’t.';
       }
-      return 'None of it is on the page — either the wrong search for this one, or an opening.';
+      if ('missing' === c.state) {
+        return 'None of it is on the page — either the wrong search for this one, or an opening.';
+      }
+      if ('unreadable' === c.state) {
+        return 'This search gives the check no word it can look for, so this page has not been judged on it.';
+      }
+      // ⛔ NEVER a fall-through. Every unrecognised state used to arrive at the
+      // "none of it is on the page" sentence above — a verdict about the page,
+      // handed out for a word we do not understand.
+      return '';
     },
     // Who decided this is the page's search, in as few words as will carry it.
     focusLabel(i) {
@@ -508,6 +523,7 @@ export default {
         scattered: 'Words are on the page, never together',
         barely: 'Some of the words are here',
         missing: 'None of it is on the page',
+        unreadable: 'Not measured — this search has no words the check can read',
       }[state] || '';
     },
     // Put this card under the sticky header. Instant, not smooth: a smooth

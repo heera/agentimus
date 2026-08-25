@@ -34,6 +34,8 @@ namespace Agentimus\Abilities;
 use Agentimus\Settings;
 use Agentimus\Gradeability;
 use Agentimus\Worklist;
+use Agentimus\Search\Noise;
+use Agentimus\Search\Table;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -227,6 +229,106 @@ final class Triage {
 	 * @param string $message Plain-language account of what happened.
 	 * @return array
 	 */
+	/**
+	 * Set a SEARCH aside, or put it back.
+	 *
+	 * ⭐ THE THIRD ANSWER, for the other half of a worklist row. `set_aside()`
+	 * excuses a PAGE from being judged; this excuses a QUESTION from being asked
+	 * of any page. Without it, the only lever when the SEARCH is the problem was
+	 * to set aside the page it landed on — removing good writing from the
+	 * worklist to silence a bad query, which the set-aside tool's own text warns
+	 * against. On a real site that had already happened: a post was excused from
+	 * grading because a spam URL pointed at it.
+	 *
+	 * ⛔ Dismissing demands the search be one this site was actually shown for;
+	 * restoring never does {@see \Agentimus\Search\Rest::dismiss()}.
+	 *
+	 * @param string $query     The reported search.
+	 * @param bool   $dismissed True to set it aside, false to put it back.
+	 * @return array|\WP_Error
+	 */
+	public function dismiss_search( $query, $dismissed ) {
+		$query     = Noise::normal( $query );
+		$dismissed = (bool) $dismissed;
+
+		if ( '' === $query ) {
+			return new \WP_Error( 'agentimus_bad_query', __( 'No search given.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		if ( $dismissed && ! Table::has_query( $query ) ) {
+			return new \WP_Error(
+				'agentimus_unknown_query',
+				__( 'No search engine has reported that search for this site, so there is nothing to set aside. Check the spelling against a row from read-search-opportunities.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$already = Noise::is_dismissed( $query );
+		if ( $already === $dismissed ) {
+			return $this->search_result(
+				$query,
+				$dismissed,
+				false,
+				$dismissed
+					? __( 'Already set aside — nothing changed. No page is being judged on it.', 'agentimus' )
+					: __( 'Not set aside, so there was nothing to put back. Pages are already judged on it.', 'agentimus' )
+			);
+		}
+
+		// ⛔ stored(), never all() — see Settings::stored() and set_aside() above.
+		$all  = $this->settings->stored();
+		$list = isset( $all['search_dismissed'] ) && is_array( $all['search_dismissed'] )
+			? array_values( array_map( 'strval', $all['search_dismissed'] ) )
+			: array();
+		$list = array_values( array_diff( $list, array( $query ) ) );
+		if ( $dismissed ) {
+			$list[] = $query;
+		}
+
+		$all['search_dismissed'] = $list;
+		$this->settings->update( $all );
+
+		// ⭐ READ IT BACK. The sanitiser is the last word on what got stored, and a
+		// write whose effect it dropped must never answer "saved".
+		if ( Noise::is_dismissed( $query ) !== $dismissed ) {
+			return new \WP_Error(
+				'agentimus_dismiss_failed',
+				__( 'The change did not stick. Read the searches back with read-search-opportunities before trying again.', 'agentimus' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return $this->search_result(
+			$query,
+			$dismissed,
+			true,
+			$dismissed
+				? __( 'Set aside. No page is judged on that search any more, and nothing about any page changed.', 'agentimus' )
+				: __( 'Put back. Pages are judged on that search again.', 'agentimus' )
+		);
+	}
+
+	/**
+	 * The answer shape for a search decision — and the WHOLE ledger with it, so
+	 * a caller never has to keep its own count of what it has dismissed.
+	 *
+	 * @param string $query     The search acted on, normalized.
+	 * @param bool   $dismissed Its state now.
+	 * @param bool   $changed   Whether this call is what put it there.
+	 * @param string $message   What happened, in the site's own words.
+	 * @return array
+	 */
+	private function search_result( $query, $dismissed, $changed, $message ) {
+		$all = Noise::dismissed();
+		sort( $all );
+		return array(
+			'query'     => (string) $query,
+			'dismissed' => (bool) $dismissed,
+			'changed'   => (bool) $changed,
+			'message'   => (string) $message,
+			'setAside'  => array_values( $all ),
+		);
+	}
+
 	private function result( $post_id, $aside, $changed, $message ) {
 		return array(
 			'postId'  => (int) $post_id,

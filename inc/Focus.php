@@ -286,7 +286,7 @@ final class Focus {
 				continue;
 			}
 			$query = (string) ( isset( $row['query'] ) ? $row['query'] : '' );
-			if ( '' === $query || Search\Opportunities::is_operator_query( $query ) ) {
+			if ( '' === $query || Search\Noise::is_noise( $query ) ) {
 				continue;
 			}
 			$out[] = array(
@@ -736,7 +736,13 @@ final class Focus {
 
 	public function render_verdict( $post, $query, $cover = null, $live = false, $with_todo = true, $with_note = true ) {
 		$cover = null === $cover ? self::coverage( $post, $query ) : $cover;
-		if ( ! $cover || ! $cover['words'] ) {
+		// ⛔ ONLY when there is no focus at all. This used to bail on
+		// `! $cover['words']` too — a focus that yielded no readable word — and
+		// told an owner who had just typed one to "add the words this page should
+		// be found for". In Greek, Russian, Japanese or any non-Latin script that
+		// is EVERY page on the site {@see Coverage::UNREADABLE}. A search we
+		// cannot read has its own verdict now, and it says so in its own words.
+		if ( ! $cover ) {
 			// No focus, so no verdict — and saying so is the live region's job,
 			// because clearing the words has to remove the old answer rather
 			// than leave it standing over an empty field.
@@ -746,41 +752,28 @@ final class Focus {
 			return;
 		}
 
-		$states = array(
-			Coverage::ANSWERED  => array( 'ok', '●', __( 'Answered', 'agentimus' ) ),
-			Coverage::SCATTERED => array( 'warn', '◐', __( 'Scattered', 'agentimus' ) ),
-			Coverage::BARELY    => array( 'mute', '○', __( 'Barely', 'agentimus' ) ),
-			Coverage::MISSING   => array( 'bad', '✕', __( 'Missing', 'agentimus' ) ),
+		// Tone and mark are this renderer's own business; the LABEL and the
+		// reason belong to the measurement, so every surface repeats one sentence
+		// {@see Coverage::explain()}. ⚠️ An unrecognised state — measure() is
+		// filterable — used to fatal here on a blind array index and fall through
+		// the switch's default to the "Missing" wording, which is a reading, not a
+		// shrug. Now it draws neutral and says nothing it cannot support.
+		$tones = array(
+			Coverage::ANSWERED  => array( 'ok', '●' ),
+			Coverage::SCATTERED => array( 'warn', '◐' ),
+			Coverage::BARELY    => array( 'mute', '○' ),
+			Coverage::MISSING   => array( 'bad', '✕' ),
+			// ⛔ Neutral, never 'bad'. Nothing was compared, so nothing is wrong.
+			Coverage::UNREADABLE => array( 'mute', '○' ),
 		);
-		list( $tone, $mark, $label ) = $states[ $cover['state'] ];
+		$state = (string) $cover['state'];
+		list( $tone, $mark ) = isset( $tones[ $state ] ) ? $tones[ $state ] : array( 'mute', '○' );
 
-		switch ( $cover['state'] ) {
-			case Coverage::ANSWERED:
-				$why = '' !== $cover['heading']
-					? sprintf(
-						/* translators: %s: the heading above the passage that answers. */
-						__( 'One passage carries it, under “%s”.', 'agentimus' ),
-						$cover['heading']
-					)
-					: __( 'One passage carries the whole search.', 'agentimus' );
-				break;
-			case Coverage::SCATTERED:
-				$why = sprintf(
-					/* translators: %d: how many words the search has. */
-					__( 'All %d words are on the page, but never together in one passage.', 'agentimus' ),
-					$cover['words']
-				);
-				break;
-			case Coverage::BARELY:
-				$why = sprintf(
-					/* translators: 1: words found, 2: words in the search. */
-					__( '%1$d of %2$d words appear anywhere on the page.', 'agentimus' ),
-					$cover['on_page'],
-					$cover['words']
-				);
-				break;
-			default:
-				$why = __( 'None of it is on the page — this may not be what the post is for.', 'agentimus' );
+		$said  = Coverage::explain( $cover );
+		$label = $said['label'];
+		$why   = $said['why'];
+		if ( '' === $label ) {
+			return;
 		}
 
 		// Exactly two flex children — the mark, then the whole sentence. Leaving
@@ -800,7 +793,11 @@ final class Focus {
 		// becomes the instruction itself (see the answered next-step below) —
 		// whispering the one remaining fix in grey was how an owner arrived from
 		// "Improve meta title & description" and read a green verdict as "done".
-		if ( 0 === (int) $cover['in_title'] && Coverage::ANSWERED !== $cover['state'] ) {
+		// ⛔ Only beside a real reading. On a search this check could not read,
+		// `in_title` is 0 because nothing was looked for — accusing the title of
+		// missing words nobody extracted is inventing a second complaint out of
+		// the same silence.
+		if ( 0 === (int) $cover['in_title'] && Coverage::ANSWERED !== $cover['state'] && Coverage::is_measured( $cover['state'] ) ) {
 			echo '<p class="agentimus-focus__verdict is-mute"><span class="agentimus-focus__mark" aria-hidden="true">○</span><span>'
 				. esc_html__( 'Not in your title — the words people typed do not appear in the title they see.', 'agentimus' )
 				. '</span></p>';
