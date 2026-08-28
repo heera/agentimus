@@ -41,6 +41,46 @@ final class Data {
 	 * @param array|null $snapshot The previous digest's snapshot ({score, sent_at}), or null on the first run.
 	 * @return array
 	 */
+	/**
+	 * Live edge-vs-policy conflicts, as { level, title, since } — or an empty
+	 * list when no Cloudflare zone is connected, which is most sites.
+	 *
+	 * Wrapped: the digest is sent on a schedule with nobody watching, so a
+	 * subsystem that throws must cost its own section and never the email.
+	 *
+	 * @param Settings $settings Core settings — the declared policy conflicts compare against.
+	 * @return array<int,array{level:string,title:string,since:int}>
+	 */
+	private static function edge_conflicts( Settings $settings ) {
+		try {
+			if ( ! class_exists( '\\Agentimus\\Cloudflare\\Settings' ) ) {
+				return array();
+			}
+			$store = new \Agentimus\Cloudflare\Settings();
+			if ( ! $store->connected() ) {
+				return array();
+			}
+			$summary = \Agentimus\Cloudflare\Summary::build( $store, $settings, 7 );
+			$out     = array();
+			// Visible only: one the owner hid is a decision, and the email must
+			// not reopen an argument they have already settled.
+			foreach ( (array) ( $summary['conflicts'] ?? array() ) as $c ) {
+				if ( is_array( $c ) && ! empty( $c['title'] ) ) {
+					$out[] = array(
+						'level' => (string) ( $c['level'] ?? 'info' ),
+						'title' => (string) $c['title'],
+						'since' => (int) ( $c['since'] ?? 0 ),
+						// The phrase Summary already built — date and claim together.
+						'sinceText' => (string) ( $c['sinceText'] ?? '' ),
+					);
+				}
+			}
+			return $out;
+		} catch ( \Throwable $e ) {
+			return array();
+		}
+	}
+
 	public static function collect( Settings $settings, $snapshot ) {
 		$retention = Repository::retention_days();
 		$days      = min( 7, max( 1, $retention ) );
@@ -74,6 +114,12 @@ final class Data {
 			),
 			'impostors' => array( 'total' => self::count_between( $from, $to, 2 ) ),
 			'robots'    => array( 'change' => \Agentimus\RobotsWatch::change() ),
+			// ⭐ THE ONE CHANNEL THAT REACHES AN OWNER WHO IS NOT IN WP-ADMIN. An
+			// edge-vs-policy conflict lived only on the Request Log, so it was
+			// found by walking onto that screen — and one of his went unseen for
+			// weeks. It is a finding now too, but the digest is what arrives
+			// whether or not anybody opens the plugin.
+			'edge'      => array( 'conflicts' => self::edge_conflicts( $settings ) ),
 			'access'    => array( 'events' => self::access_events( $from, $to ) ),
 			'score'     => array(
 				'now'  => null !== $report && isset( $report['score'] ) ? (int) $report['score'] : null,

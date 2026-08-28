@@ -281,4 +281,100 @@ final class FindingsTest extends TestCase {
 		$this->assertLessThanOrEqual( Findings::MAX, count( $this->payload()['findings'] ) );
 		$this->assertGreaterThan( 0, Findings::MAX );
 	}
+
+	/* ---- the edge conflicts, and the all-clear that used to overstate ------- */
+
+	/**
+	 * Most sites have no Cloudflare zone connected, so the commonest outcome by
+	 * far is "nothing to say" — and it must be silent rather than a failure.
+	 * `failed` naming this source would tell every owner without a CDN that part
+	 * of their front door is broken.
+	 */
+	public function test_the_edge_source_is_silent_and_unbroken_without_a_connected_zone() {
+		$out = $this->payload();
+
+		$this->assertNotContains( 'edge_conflicts', (array) $out['failed'] );
+		$ids = array_map( static function ( $r ) {
+			return $r['id'];
+		}, (array) $out['findings'] );
+		$this->assertNotContains( 'edge_conflict', $ids );
+		$this->assertNotContains( 'edge_unenforced', $ids );
+	}
+
+	/**
+	 * ⭐ THE RANKING IS A CONTRACT. A setup gap is something the owner fixes here
+	 * in a minute; the edge turning an assistant away is a live trust problem
+	 * they can only fix in somebody else's dashboard, and until they do, none of
+	 * the work ranked below it reaches the assistant it was written for.
+	 */
+	public function test_a_blocking_edge_conflict_outranks_every_other_finding() {
+		$weights = Findings::WEIGHTS;
+
+		$this->assertGreaterThan( $weights['config_gap'], $weights['edge_conflict'] );
+		$this->assertGreaterThan( $weights['content_issues'], $weights['edge_conflict'] );
+		$this->assertLessThan(
+			$weights['never_measured'],
+			$weights['edge_unenforced'],
+			'an unenforced wish is worth knowing, not worth interrupting for'
+		);
+	}
+
+	/**
+	 * ⛔⛔ A CLEAR LINE MAY NOT CLAIM MORE THAN IT MEASURED. This read "Nothing is
+	 * blocking AI assistants — all N setup checks pass", and on his site on
+	 * 2026-08-28 it sat on the front door while Cloudflare turned away 3,289 of
+	 * 3,466 requests from OpenAI's crawler. Every setup check really did pass:
+	 * the configuration was perfect and the assistant still got an error, because
+	 * what blocks an assistant is not only what this plugin configures.
+	 *
+	 * Asserted on the source because the sentence is the whole point and the
+	 * branch that emits it needs a live readiness report to reach — the same
+	 * reason {@see NavigationTargetsTest} reads files rather than rendering.
+	 */
+	public function test_the_all_clear_no_longer_claims_nothing_is_blocking_assistants() {
+		$source = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Findings.php' );
+
+		$this->assertStringNotContainsString(
+			"'Nothing is blocking AI assistants",
+			$source,
+			'a false all-clear is worse than no line: it stops the owner looking'
+		);
+		$this->assertStringContainsString( "'All %s setup checks pass.'", $source );
+	}
+
+	/**
+	 * ⛔⛔ ONE CLOCK NAMES THE DAY. The first cut of this feature let the browser
+	 * format the conflict's start date for the card while PHP formatted it for
+	 * the findings row and the weekly email. On a site set to UTC, read from a
+	 * UTC+6 laptop, the two surfaces printed different days for the same fact —
+	 * caught on screen, not by a test. The label is now built once, server-side,
+	 * in the site's timezone, and every surface prints that string.
+	 */
+	public function test_the_conflict_date_is_never_formatted_twice() {
+		// ⚠️ SCOPED TO THE METHOD, not the file. Findings.php legitimately formats
+		// another date elsewhere — the "waiting on Google" row's own since-stamp —
+		// and a file-wide ban on date formatting would fail on an innocent
+		// bystander, which is exactly what the first version of this test did.
+		$src  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Findings.php' );
+		$from = strpos( $src, 'private function edge_conflicts()' );
+		$this->assertNotFalse( $from, 'the source exists' );
+		$edge = substr( $src, $from, strpos( $src, 'private function clear_lines()' ) - $from );
+
+		// Same scoping for the digest: section_robots() formats its own date, and
+		// rightly so — it is a different fact with one surface.
+		$dsrc  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Digest/Renderer.php' );
+		$dfrom = strpos( $dsrc, 'private static function section_edge(' );
+		$this->assertNotFalse( $dfrom, 'the digest section exists' );
+		$digest = substr( $dsrc, $dfrom, strpos( $dsrc, 'private static function section_robots(' ) - $dfrom );
+
+		$app = (string) file_get_contents( dirname( __DIR__ ) . '/resources/admin/App.vue' );
+
+		foreach ( array( 'edge_conflicts()' => $edge, 'section_edge()' => $digest ) as $where => $code ) {
+			$this->assertStringContainsString( 'sinceText', $code, "$where reads the shared phrase" );
+			$this->assertStringNotContainsString( 'date_i18n(', $code, "$where does not re-format it" );
+			$this->assertStringNotContainsString( 'wp_date(', $code, "$where does not re-format it" );
+		}
+		$this->assertStringContainsString( 'c.sinceText', $app, 'the card prints the server phrase' );
+		$this->assertStringNotContainsString( 'conflictSince(', $app, 'and formats no date of its own' );
+	}
 }

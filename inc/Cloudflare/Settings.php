@@ -62,6 +62,18 @@ final class Settings {
 			// drops the record once the conflict stops firing, so a later
 			// recurrence shows again instead of staying silenced forever.
 			'dismissed'    => array(),
+			// When each currently-firing conflict was FIRST seen: { id => unix }.
+			// ⭐⭐ WHY THIS EXISTS. The conflicts are recomputed from observed
+			// behaviour on every read and stored nowhere, so a card could say "in
+			// the last 7 days" and nothing could say WHEN IT STARTED — his words,
+			// 2026-08-28: "I don't know since when these are there." A warning
+			// with no age reads as either brand new or ancient, and the two call
+			// for different reactions.
+			// ⛔ Same lifecycle as `dismissed` above, deliberately: the record
+			// dies with the situation ({@see note_first_seen}), so a conflict that
+			// ends and returns is correctly dated from its RETURN, not from the
+			// first time it ever happened.
+			'first_seen'   => array(),
 		);
 	}
 
@@ -126,6 +138,40 @@ final class Settings {
 			$all['dismissed'] = $kept;
 			$this->persist( $all );
 		}
+	}
+
+	/**
+	 * Stamp the conflicts firing right now, and forget the ones that stopped.
+	 *
+	 * Returns the whole map so the caller can date each conflict without a second
+	 * read. Ids already known keep their original stamp — that is the entire
+	 * point — and ids no longer firing are dropped, so a situation that ends and
+	 * later returns is dated from the return.
+	 *
+	 * ⭐ WRITES ONLY WHEN THE SET CHANGES, exactly as {@see prune_dismissed()}
+	 * does. On a site whose conflicts are steady — which is every site, most days
+	 * — this costs one option read and no write at all, which is what makes it
+	 * safe on the read paths that call it (the screen, the MCP tool, and the
+	 * findings list, whose own rule is that it must not do real work on an admin
+	 * page load).
+	 *
+	 * @param string[] $active_ids The ids currently detected.
+	 * @return array<string,int> id => first-seen unix timestamp.
+	 */
+	public function note_first_seen( array $active_ids ) {
+		$all   = $this->all();
+		$known = (array) ( isset( $all['first_seen'] ) ? $all['first_seen'] : array() );
+		$now   = time();
+		$kept  = array();
+		foreach ( $active_ids as $id ) {
+			$id          = (string) $id;
+			$kept[ $id ] = isset( $known[ $id ] ) ? (int) $known[ $id ] : $now;
+		}
+		if ( $kept !== $known ) {
+			$all['first_seen'] = $kept;
+			$this->persist( $all );
+		}
+		return $kept;
 	}
 
 	/**

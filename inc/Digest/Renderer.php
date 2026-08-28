@@ -82,6 +82,7 @@ final class Renderer {
 		$out .= self::section_agents( $data );
 		$out .= self::section_referrals( $data );
 		$out .= self::section_impostors( $data );
+		$out .= self::section_edge( $data );
 		$out .= self::section_robots( $data );
 		$out .= self::section_access( $data );
 		$out .= self::section_score( $data );
@@ -185,6 +186,31 @@ final class Renderer {
 			number_format_i18n( $total )
 		);
 		return self::section( __( 'Impostors caught', 'agentimus' ), self::stat_row( $line, '' ) );
+	}
+
+	/**
+	 * What the CDN is doing to AI crawlers, when it contradicts the site's own
+	 * declared policy — absent unless a conflict is live right now.
+	 *
+	 * ⭐ IT NAMES THE AGE. A conflict that started three weeks ago and one that
+	 * started yesterday call for different reactions, and the email is often the
+	 * first the owner hears of either.
+	 */
+	private static function section_edge( array $data ) {
+		$conflicts = (array) ( $data['edge']['conflicts'] ?? array() );
+		if ( ! $conflicts ) {
+			return '';
+		}
+		$rows = '';
+		foreach ( $conflicts as $c ) {
+			$since = (string) ( $c['sinceText'] ?? '' );
+			$line  = (string) ( $c['title'] ?? '' );
+			if ( '' !== $since ) {
+				$line .= ' — ' . $since;
+			}
+			$rows .= self::stat_row( $line, '' );
+		}
+		return self::section( __( 'At your CDN', 'agentimus' ), $rows );
 	}
 
 	/** A robots.txt policy change this period — absent when nothing changed. */

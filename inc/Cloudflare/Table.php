@@ -201,6 +201,49 @@ final class Table {
 	}
 
 	/**
+	 * Per-crawler totals broken down BY DAY, oldest first.
+	 *
+	 * ⭐ WHY THIS EXISTS. summary() answers "how big was this week" and recent()
+	 * answers "is it still happening", and between them a conflict could say how
+	 * much and whether — but never SINCE WHEN. The stored first-seen stamp can
+	 * only date a conflict from the moment the plugin looked, so on a fresh
+	 * install it reports the install date for a problem that started weeks ago,
+	 * which is a claim we cannot support. The hours are already on disk; this
+	 * hands them over a day at a time so {@see Conflicts::onset()} can find the
+	 * real beginning.
+	 *
+	 * ⚠️ Days with no rows are ABSENT, not zero-filled. A day we recorded nothing
+	 * for is not a day nothing happened — the poll may simply not have run — and
+	 * the caller must be free to tell those apart.
+	 *
+	 * @param int $days How far back to read.
+	 * @return array<string,array<string,array{requests:int,blocked:int,passed:int}>>
+	 *         day (Y-m-d, UTC) => ua => totals.
+	 */
+	public static function daily( $days ) {
+		global $wpdb;
+		$table = self::name();
+		$since = gmdate( 'Y-m-d H:i:s', time() - ( max( 1, (int) $days ) * DAY_IN_SECONDS ) );
+		$rows  = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
+			"SELECT DATE(hour_at) AS day, ua,
+				SUM(requests) AS requests, SUM(blocked) AS blocked,
+				SUM(cached) + SUM(origin) AS passed
+			FROM $table WHERE hour_at >= %s GROUP BY day, ua ORDER BY day ASC",
+			$since
+		), ARRAY_A );
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[ (string) $row['day'] ][ (string) $row['ua'] ] = array(
+				'requests' => (int) $row['requests'],
+				'blocked'  => (int) $row['blocked'],
+				'passed'   => (int) $row['passed'],
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * Age out old rows, then enforce the absolute cap regardless — so nothing
 	 * grows unbounded even if the clock-based prune misses.
 	 *

@@ -597,4 +597,171 @@ final class CloudflareTest extends TestCase {
 		$this->assertSame( '', $view['lastError'], 'the poll stays clean' );
 		$this->assertNotSame( '', $view['lastPurgeError'], 'the purge wears its own failure' );
 	}
+
+	/* ---- when a conflict started: the half that answers "since when?" ------- */
+
+	/**
+	 * ⭐⭐ THE COMPLAINT THIS ANSWERS, in his words on 2026-08-28: "I don't know
+	 * since when these are there." The conflicts are recomputed from observed
+	 * behaviour on every read and stored nowhere, so nothing could date them —
+	 * and a warning of unknown age reads as either brand new or ancient.
+	 */
+	public function test_a_conflict_keeps_the_moment_it_was_first_seen() {
+		$store = new Settings();
+
+		$first = $store->note_first_seen( array( 'edge-blocks-openai' ) );
+		$this->assertArrayHasKey( 'edge-blocks-openai', $first );
+		$this->assertGreaterThan( 0, $first['edge-blocks-openai'] );
+
+		// ⚠️⚠️ PLANTED IN THE PAST, and that is not decoration. Calling the method
+		// twice in a row proves nothing: both calls land in the same second, so
+		// the assertion passes just as happily against a version that restamps on
+		// every read — which is exactly what the control run showed. A week-old
+		// stamp can only survive if the code genuinely preserves it.
+		$week_ago                                   = time() - 604800; // a week
+		$stored                                     = (array) \get_option( Settings::OPTION, array() );
+		$stored['first_seen']['edge-blocks-openai'] = $week_ago;
+		\update_option( Settings::OPTION, $stored );
+
+		// ⚠️ A FRESH INSTANCE. ConnectionStore memoizes all() for the object's
+		// lifetime, so reusing $store here would read its own cache and never see
+		// what was planted — which is also the truthful shape of the thing being
+		// tested: the stamp has to survive to the NEXT page load, not to the next
+		// line of this test.
+		$again = ( new Settings() )->note_first_seen( array( 'edge-blocks-openai' ) );
+		$this->assertSame(
+			$week_ago,
+			$again['edge-blocks-openai'],
+			'seeing it again does not restart its clock'
+		);
+	}
+
+	public function test_a_new_conflict_is_stamped_without_disturbing_the_older_one() {
+		$store = new Settings();
+		$first = $store->note_first_seen( array( 'edge-blocks-openai' ) );
+
+		$both = $store->note_first_seen( array( 'edge-blocks-openai', 'train-not-enforced' ) );
+
+		$this->assertSame( $first['edge-blocks-openai'], $both['edge-blocks-openai'] );
+		$this->assertArrayHasKey( 'train-not-enforced', $both );
+	}
+
+	/**
+	 * ⛔ Same lifecycle as a dismissal, and deliberately so: the record dies with
+	 * the situation, so a conflict that ends and later returns is dated from its
+	 * RETURN. Carrying the original date forward would tell an owner a problem
+	 * they fixed in March has been running since March.
+	 */
+	public function test_a_conflict_that_stops_is_forgotten_and_redated_if_it_returns() {
+		$store = new Settings();
+		$store->note_first_seen( array( 'edge-blocks-openai' ) );
+
+		$this->assertSame( array(), $store->note_first_seen( array() ), 'it stopped: the record goes with it' );
+
+		$back = $store->note_first_seen( array( 'edge-blocks-openai' ) );
+		$this->assertArrayHasKey( 'edge-blocks-openai', $back, 'and a recurrence is dated afresh' );
+	}
+
+	/**
+	 * ⭐ The numbers travel as numbers. Every other surface — the findings row,
+	 * the weekly digest — needs the same two figures in a shorter sentence, and
+	 * re-deriving them from the card's prose would make that copy load-bearing.
+	 */
+	public function test_a_conflict_carries_its_figures_not_only_its_sentence() {
+		$warn = Conflicts::detect(
+			array( $this->crawler( 'oai-searchbot', 'OpenAI', 100, 0, 10, 90 ) ),
+			array(),
+			7
+		);
+		$this->assertSame( 90, $warn[0]['counts']['blocked'] );
+		$this->assertSame( 100, $warn[0]['counts']['requests'] );
+	}
+
+	/* ---- onset: when it BEGAN, not when we noticed --------------------------- */
+
+	/** A day of per-crawler totals, as Table::daily() hands them over. */
+	private function day( $ua, $requests, $blocked, $passed = 0 ) {
+		return array( $ua => array( 'requests' => $requests, 'blocked' => $blocked, 'passed' => $passed ) );
+	}
+
+	/**
+	 * ⭐⭐ THE REASON THIS EXISTS. The recorded stamp can only date a conflict from
+	 * the moment the plugin first looked, so installing the feature today reports
+	 * today for a problem that started days ago. On the real site OpenAI's crawler
+	 * sat around 12% blocked for three weeks — noise, under the bar — and then
+	 * jumped to 98%. The conflict began at the jump, and dating it from the noise
+	 * would be as wrong as dating it from the install.
+	 */
+	public function test_the_onset_is_the_day_the_condition_started_holding() {
+		$daily = array(
+			'2026-08-23' => $this->day( 'oai-searchbot', 100, 12 ),  // 12% — under the bar.
+			'2026-08-24' => $this->day( 'oai-searchbot', 100, 11 ),
+			'2026-08-25' => $this->day( 'oai-searchbot', 100, 13 ),
+			'2026-08-26' => $this->day( 'oai-searchbot', 248, 200 ), // 81% — the event.
+			'2026-08-27' => $this->day( 'oai-searchbot', 1546, 1527 ),
+			'2026-08-28' => $this->day( 'oai-searchbot', 1537, 1518 ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'edge-blocks-openai', array( 'oai-searchbot' => 'OpenAI' ) );
+
+		$this->assertSame( '2026-08-26', $onset['at'] );
+		$this->assertFalse( $onset['bounded'], 'a quiet day before it is proof the run started there' );
+	}
+
+	/**
+	 * ⚠️⚠️ AN ABSENCE MUST NAME ITSELF. When the condition holds on every day we
+	 * still keep, we do NOT know when it began — only that it is at least that
+	 * old. Reporting that day as the start would invent a fact out of a retention
+	 * limit, so the flag makes the caller word it differently.
+	 */
+	public function test_a_run_older_than_the_kept_history_says_so_instead_of_guessing() {
+		$daily = array(
+			'2026-08-26' => $this->day( 'oai-searchbot', 100, 90 ),
+			'2026-08-27' => $this->day( 'oai-searchbot', 100, 95 ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'edge-blocks-openai', array( 'oai-searchbot' => 'OpenAI' ) );
+
+		$this->assertSame( '2026-08-26', $onset['at'] );
+		$this->assertTrue( $onset['bounded'], 'we ran out of data, we did not find a beginning' );
+	}
+
+	/** No history at all: nothing to derive, and nothing invented. */
+	public function test_no_history_yields_no_date() {
+		$onset = Conflicts::onset( array(), 'edge-blocks-openai' );
+
+		$this->assertSame( '', $onset['at'] );
+		$this->assertFalse( $onset['bounded'] );
+	}
+
+	/**
+	 * ⭐ A GAP IS NOT A CONTRADICTION. A day the poll never ran records nothing,
+	 * and treating that silence as "the conflict stopped" would cut the run short
+	 * and date a three-week problem to yesterday.
+	 */
+	public function test_a_day_with_no_rows_does_not_break_the_run() {
+		$daily = array(
+			'2026-08-24' => $this->day( 'oai-searchbot', 100, 5 ),   // under the bar: a real end.
+			'2026-08-25' => $this->day( 'oai-searchbot', 200, 180 ),
+			'2026-08-26' => array(),                                  // the poll did not run.
+			'2026-08-27' => $this->day( 'oai-searchbot', 200, 190 ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'edge-blocks-openai', array( 'oai-searchbot' => 'OpenAI' ) );
+
+		$this->assertSame( '2026-08-25', $onset['at'] );
+	}
+
+	public function test_the_training_notice_is_dated_from_the_first_day_one_got_through() {
+		$daily = array(
+			'2026-08-25' => $this->day( 'gptbot', 10, 10, 0 ),   // all blocked: enforced.
+			'2026-08-26' => $this->day( 'gptbot', 10, 0, 10 ),   // through.
+			'2026-08-27' => $this->day( 'gptbot', 10, 0, 10 ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'train-not-enforced' );
+
+		$this->assertSame( '2026-08-26', $onset['at'] );
+		$this->assertFalse( $onset['bounded'] );
+	}
 }

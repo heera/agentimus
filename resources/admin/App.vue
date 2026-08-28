@@ -2583,11 +2583,18 @@ export default {
           @flash="flash"
           @reload-audience="refreshActivity"
         />
-        <div v-if="settings.enable_activity && edgeConflicts.length" v-show="tab === 'log'" class="ar-edge-pins">
+        <!-- id: a finding about the edge sends the owner straight here, so the
+             card carrying the evidence is what they land on. -->
+        <div v-if="settings.enable_activity && edgeConflicts.length" id="ar-edge-pins" v-show="tab === 'log'" class="ar-edge-pins">
           <div v-for="c in edgeConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
             <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
             <p class="ar-edge-pin__title">{{ c.title }}</p>
             <p class="ar-edge-pin__body">{{ c.body }}</p>
+            <!-- ⭐ WHEN IT STARTED. The body says "in the last 7 days", which is
+                 the window it measured, not the age of the problem — and a
+                 warning whose age is unknown reads as either brand new or
+                 ancient. His catch: "I don't know since when these are there." -->
+            <p v-if="c.sinceText" class="ar-edge-pin__since">{{ c.sinceText }}</p>
             <div class="ar-edge-pin__actions">
               <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare →</a>
               <button type="button" class="ar-linkbtn ar-edge-pin__hide" @click="hideEdgeConflict(c)">

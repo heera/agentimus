@@ -82,11 +82,17 @@ final class Findings {
 	 * lost. Change these numbers to change the front door's opinion.
 	 */
 	const WEIGHTS = array(
+		// ⭐ ABOVE config_gap. A setup gap is something the owner can fix here in
+		// a minute; the edge turning an assistant away is a live trust problem
+		// they can only fix in somebody else's dashboard, and until they do, none
+		// of the work below it reaches the assistant it was written for.
+		'edge_conflict'  => 95,
 		'config_gap'     => 90,
 		'near_page_one'  => 70,
 		'content_issues' => 60,
 		'seen_not_chosen' => 50,
 		'never_measured' => 20,
+		'edge_unenforced' => 18,
 		// The waiting pair sort last among themselves; the tier, not the weight,
 		// is what puts them in their own band at the foot of the screen.
 		'near_page_one_waiting'   => 15,
@@ -134,6 +140,7 @@ final class Findings {
 			'content_issues'  => 'content_issues',
 			'config_gap'      => 'config_gaps',
 			'never_measured'  => 'never_measured',
+			'edge_conflicts'  => 'edge_conflicts',
 		);
 
 		foreach ( $sources as $id => $method ) {
@@ -1238,6 +1245,101 @@ final class Findings {
 	 *
 	 * @return array<int,string>
 	 */
+	/**
+	 * What the EDGE is doing to AI crawlers, when that contradicts what the owner
+	 * declared — the conflicts the "At Cloudflare" panel already detects.
+	 *
+	 * ⛔⛔ WHY THIS IS A FINDING AT ALL. These lived only on the Request Log, so
+	 * an owner learned about them by walking onto that screen — his catch,
+	 * 2026-08-28, after Cloudflare had been turning away 95% of OpenAI's crawler
+	 * for two days and letting training crawlers through for weeks, while the
+	 * front door said nothing needed attention. Findings exists precisely because
+	 * "each is correct and each lives on its own screen"; this was the sixth
+	 * orphan.
+	 *
+	 * ⚠️ The review queue is deliberately NOT a source here — his call — because
+	 * the nav bell already carries its count, and a row on the front door was the
+	 * same information twice. That reasoning is exactly why these belong: they
+	 * have no counter anywhere.
+	 *
+	 * ⭐ VISIBLE CONFLICTS ONLY. {@see Cloudflare\Summary} splits out the ones the
+	 * owner hid, and a warning dismissed on one screen must not reappear on
+	 * another — "hidden" is a decision, not a display quirk.
+	 *
+	 * Safe on an admin page load, which is this class's rule: Summary reads the
+	 * stored hourly rows and stored settings, Conflicts::detect() is pure, and
+	 * the only write is a first-seen stamp that fires when the set of live
+	 * conflicts changes.
+	 *
+	 * @return array<int,array>
+	 */
+	private function edge_conflicts() {
+		if ( ! class_exists( '\\Agentimus\\Cloudflare\\Settings' ) ) {
+			return array();
+		}
+		$store = new Cloudflare\Settings();
+		if ( ! $store->connected() ) {
+			return array(); // No zone connected: the edge is not ours to report on.
+		}
+
+		$summary = Cloudflare\Summary::build( $store, $this->settings, 7 );
+		$rows    = array();
+		foreach ( (array) ( isset( $summary['conflicts'] ) ? $summary['conflicts'] : array() ) as $c ) {
+			if ( ! is_array( $c ) || empty( $c['title'] ) ) {
+				continue;
+			}
+			$warn   = 'warn' === (string) ( isset( $c['level'] ) ? $c['level'] : '' );
+			$counts = (array) ( isset( $c['counts'] ) ? $c['counts'] : array() );
+
+			// ⭐ The evidence chip carries the two things the card's prose spends a
+			// paragraph on: how much, and since when.
+			$evidence = array();
+			if ( $warn && isset( $counts['blocked'], $counts['requests'] ) ) {
+				$evidence[] = sprintf(
+					/* translators: 1: requests turned away, 2: requests attempted. */
+					__( '%1$s of %2$s turned away', 'agentimus' ),
+					number_format_i18n( (int) $counts['blocked'] ),
+					number_format_i18n( (int) $counts['requests'] )
+				);
+			} elseif ( ! empty( $counts['passed'] ) ) {
+				$evidence[] = sprintf(
+					/* translators: %s: requests let through. */
+					__( '%s let through', 'agentimus' ),
+					number_format_i18n( (int) $counts['passed'] )
+				);
+			}
+			// ⛔ Built ONCE, by Summary — the date AND the word in front of it.
+			// Two renderings of one timestamp is how the card and this row ended up
+			// naming different days; two wordings would be how they end up making
+			// different claims about the same fact.
+			$since_text = (string) ( isset( $c['sinceText'] ) ? $c['sinceText'] : '' );
+			if ( '' !== $since_text ) {
+				$evidence[] = $since_text;
+			}
+
+			$rows[] = $this->row(
+				$warn ? 'edge_conflict' : 'edge_unenforced',
+				$warn ? self::URGENT : self::LATER,
+				(string) $c['title'],
+				$warn
+					? __( 'Your site welcomes AI reading, but your CDN is turning it away before the request reaches you.', 'agentimus' )
+					: __( 'You asked AI companies not to train on your content. Your CDN is the only thing that can enforce it, and it is not.', 'agentimus' ),
+				$evidence,
+				$this->go( __( 'See what the edge did', 'agentimus' ), 'log', '', 'ar-edge-pins' ),
+				$warn
+					? array(
+						__( 'Only you can settle this, and only at Cloudflare.', 'agentimus' ),
+						__( 'Allowing it there, or accepting that they cannot read the site, both end it.', 'agentimus' ),
+					)
+					: array(
+						__( 'Nothing is broken — a wish you expressed is simply not being enforced.', 'agentimus' ),
+						__( 'Polite crawlers obey the request; the rest ignore it.', 'agentimus' ),
+					)
+			);
+		}
+		return $rows;
+	}
+
 	private function clear_lines() {
 		$lines = array();
 		try {
@@ -1259,9 +1361,21 @@ final class Findings {
 				}
 			}
 			if ( $total > 0 && $pass === $total ) {
+				// ⛔⛔ IT CLAIMS ONLY WHAT IT MEASURED. This used to read "Nothing is
+				// blocking AI assistants — all N setup checks pass", and on his site
+				// on 2026-08-28 that sentence sat on the front door while Cloudflare
+				// turned away 3,289 of 3,466 requests from OpenAI's crawler. Every
+				// setup check really did pass: the configuration was perfect and the
+				// assistant still got an error, because what blocks an assistant is
+				// not only what this plugin configures. A clear line that a card two
+				// screens away can contradict is worth less than one that never
+				// overstates — and a false all-clear is worse than no line at all,
+				// because it stops the owner looking. The edge conflict now arrives
+				// as an urgent finding directly above this ({@see edge_conflicts}),
+				// so the bad news has a place to be said properly.
 				$lines[] = sprintf(
 					/* translators: %s: number of configuration checks, all passing. */
-					__( 'Nothing is blocking AI assistants — all %s setup checks pass.', 'agentimus' ),
+					__( 'All %s setup checks pass.', 'agentimus' ),
 					number_format_i18n( $total )
 				);
 			}

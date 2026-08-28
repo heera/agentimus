@@ -70,7 +70,7 @@ final class Conflicts {
 	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, passed } }
 	 *                             (see Table::recent()), or null to treat all
 	 *                             evidence as current.
-	 * @return array<int,array{id:string,level:string,title:string,body:string,link:string}>
+	 * @return array<int,array{id:string,level:string,title:string,body:string,link:string,counts:array}>
 	 *         Worst first: warns (a real breakage) before infos (an unenforced wish).
 	 */
 	public static function detect( array $crawlers, array $policy, $days, $recent = null ) {
@@ -140,6 +140,11 @@ final class Conflicts {
 						$days
 					),
 					'link'  => 'bots',
+					// ⭐ THE NUMBERS, BESIDE THE PROSE THAT USES THEM. Every other
+					// consumer — the findings row, the weekly digest — needs the
+					// same two figures in a shorter sentence, and re-parsing them
+					// back out of $body would make the copy above load-bearing.
+					'counts' => array( 'blocked' => (int) $sums['blocked'], 'requests' => (int) $sums['requests'] ),
 				);
 			}
 		}
@@ -175,10 +180,108 @@ final class Conflicts {
 						$days
 					),
 					'link'  => 'ai-crawlers',
+					'counts' => array( 'passed' => (int) $passes ),
 				);
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * When a conflict actually began — the first day of the unbroken run of days
+	 * on which its own condition held.
+	 *
+	 * ⛔⛔ WHY DERIVED RATHER THAN REMEMBERED. The stored first-seen stamp can
+	 * only date a conflict from the moment the plugin first looked at it, so a
+	 * site that installs this feature today is told a problem that started three
+	 * days ago "started today". The hours are already on disk; the beginning is
+	 * in them, and reading it is honest where remembering is not.
+	 *
+	 * The SAME thresholds the conflict itself uses ({@see detect()}), applied a
+	 * day at a time. A day of light blocking that never crossed the bar is not
+	 * part of the run — on the site this was built for, OpenAI's crawler sat at
+	 * 10-13% blocked for three weeks, which is noise, and then jumped to 98%,
+	 * which is the event. Dating the conflict from the noise would be as wrong as
+	 * dating it from the install.
+	 *
+	 * ⚠️ BOUNDED SAYS WE RAN OUT OF DATA, and the caller must not print it as a
+	 * start. When the run reaches the oldest day we kept, all we know is "at
+	 * least this long" — the beginning is older than our retention, or there
+	 * never was one. An absence has to name itself.
+	 *
+	 * Pure — no DB, no time() — so it unit-tests standalone, like detect().
+	 *
+	 * @param array  $daily    Day => ua => { requests, blocked, passed }, oldest first ({@see Table::daily()}).
+	 * @param string $id       The conflict id to date.
+	 * @param array  $operators ua => operator name, for the per-operator rollup a warn conflict uses.
+	 * @return array{at:string,bounded:bool} at = 'Y-m-d' (UTC) or '' when the condition holds on no day at all.
+	 */
+	public static function onset( array $daily, $id, array $operators = array() ) {
+		if ( ! $daily ) {
+			return array( 'at' => '', 'bounded' => false );
+		}
+		ksort( $daily );
+		$days = array_keys( $daily );
+
+		$holds = static function ( $day ) use ( $daily, $id, $operators ) {
+			$rows = (array) $daily[ $day ];
+			if ( 'train-not-enforced' === $id ) {
+				$passed = 0;
+				foreach ( $rows as $ua => $t ) {
+					if ( in_array( (string) $ua, self::TRAINERS, true ) ) {
+						$passed += (int) $t['passed'];
+					}
+				}
+				// A day's share of the weekly bar: the run is about whether the
+				// behaviour was happening, not whether one day alone would have
+				// tripped a seven-day threshold.
+				return $passed > 0;
+			}
+			// edge-blocks-<operator>: roll the day up per operator and apply the
+			// same "enough, and mostly" test detect() applies to the window.
+			$want = substr( (string) $id, strlen( 'edge-blocks-' ) );
+			$sums = array( 'blocked' => 0, 'requests' => 0 );
+			foreach ( $rows as $ua => $t ) {
+				$op = isset( $operators[ $ua ] ) ? (string) $operators[ $ua ] : '';
+				if ( '' === $op || trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $op ) ), '-' ) !== $want ) {
+					continue;
+				}
+				$sums['blocked']  += (int) $t['blocked'];
+				$sums['requests'] += (int) $t['requests'];
+			}
+			return $sums['blocked'] >= self::MIN_BLOCKED
+				&& $sums['blocked'] >= $sums['requests'] * self::MIN_BLOCKED_SHARE;
+		};
+
+		// Walk back from the newest day while the condition keeps holding. A day
+		// we have no rows for BREAKS nothing and EXTENDS nothing: it is a gap in
+		// the record, not evidence either way, so the run walks straight over it.
+		$start = '';
+		$hit   = false;
+		for ( $i = count( $days ) - 1; $i >= 0; $i-- ) {
+			$day = $days[ $i ];
+			// ⛔ A GAP IS NOT A CONTRADICTION. A day the poll never ran records
+			// nothing, and reading that silence as "the conflict stopped" would
+			// cut the run short and date a three-week problem to yesterday.
+			// {@see Table::daily()} leaves such days out entirely, so this only
+			// fires for a caller that zero-fills — but the rule belongs with the
+			// walk, not with one caller's habits.
+			if ( ! $daily[ $day ] ) {
+				continue;
+			}
+			if ( $holds( $day ) ) {
+				$start = $day;
+				$hit   = true;
+				continue;
+			}
+			if ( $hit ) {
+				// A day that positively contradicts the condition ends the run.
+				return array( 'at' => $start, 'bounded' => false );
+			}
+		}
+		// Never contradicted: either it has held for as long as we have kept, or
+		// it holds on no day at all.
+		return array( 'at' => $start, 'bounded' => '' !== $start );
 	}
 }
