@@ -6882,6 +6882,20 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
    quiet, but distinguishable from a DNS-based verdict at a glance. */
 .ar-log__mark.is-verified.is-signed { background: color-mix(in srgb, var(--ar-good) 10%, transparent); border-color: color-mix(in srgb, var(--ar-good) 50%, var(--ar-line)); }
 .ar-log__mark.is-spoofed.is-signed  { background: color-mix(in srgb, var(--ar-bad) 10%, transparent);  border-color: color-mix(in srgb, var(--ar-bad) 50%, var(--ar-line)); }
+/* Signed, and the maths held — but by an operator this site has no opinion about,
+   so the verdict stayed 0. It takes back the pill that .is-none gives up, because
+   something WAS checked here; in plain ink, because there is nothing good or bad
+   to report, only that it happened. */
+.ar-log__mark.is-none.is-signed {
+  /* Stated once: .is-none's :hover would otherwise repaint the bottom edge accent
+     and leave the pill with three grey sides and a coloured one. */
+  --ar-signed-edge: color-mix(in srgb, var(--ar-ink-soft) 34%, var(--ar-line));
+  color: var(--ar-ink-soft); opacity: 1;
+  background: color-mix(in srgb, var(--ar-ink-soft) 8%, transparent);
+  border: 1px solid var(--ar-signed-edge);
+  border-radius: 3px; padding: 0 5px;
+}
+.ar-log__mark.is-none.is-signed:hover { border-color: var(--ar-signed-edge); }
 /* "Refused" is an OUTCOME, not one more verification state — the only solid mark
    in the column, so it reads as different in kind, not merely in colour. */
 .ar-log__mark.is-refused {

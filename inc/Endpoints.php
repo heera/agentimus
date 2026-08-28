@@ -508,7 +508,10 @@ final class Endpoints {
 	 * entirely when the `link_headers` surface is ceded.
 	 */
 	public function link_headers() {
-		if ( is_admin() || $this->yields( 'link_headers' ) ) {
+		// headers_sent(): as ai_signal_headers() below. Nothing can be added to a
+		// response that has already begun, and trying only logs a warning over
+		// whatever emitted early.
+		if ( is_admin() || headers_sent() || $this->yields( 'link_headers' ) ) {
 			return;
 		}
 		if ( ! $this->link_present( 'api-catalog' ) ) {

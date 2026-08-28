@@ -4,9 +4,12 @@
  *
  * First-party, local-only (never transmitted anywhere). Stores the endpoint,
  * the classified agent, and a truncated User-Agent — and DELIBERATELY no IP
- * address, so there's no PII/GDPR footprint by default. Called only from the
- * discovery/agent serve paths (low-frequency), so a single INSERT per hit is
- * negligible.
+ * address, so there's no PII/GDPR footprint by default.
+ *
+ * Called from the discovery/agent serve paths, and — when the owner leaves it on
+ * — from {@see PageViews} for a machine reading ordinary HTML. Those two streams
+ * differ in volume by orders of magnitude, which is why they no longer share a
+ * write budget ({@see flood_bucket()}).
  *
  * @package Agentimus
  */
@@ -109,7 +112,8 @@ final class Recorder {
 		// ~1-in-FLOOD_SAMPLE, so no single source drives unbounded INSERTs; the row cap
 		// (trim_to_cap) is the hard backstop.
 		//
-		// TWO buckets only — 'a' for ALL recognised traffic, 'u' for all unrecognised — deliberately
+		// Two buckets PER STREAM — 'a' for ALL recognised traffic, 'u' for all unrecognised
+		// (see flood_bucket(), which keeps the page-view stream's pair separate) — deliberately
 		// NOT one per bot name. A per-name bucket handed each of the ~22 forgeable known-bot strings
 		// its own 300-budget, so an attacker rotating names multiplied the budget to thousands of
 		// guaranteed INSERTs/min. Sharing one recognised budget removes that multiplier entirely:
@@ -119,8 +123,9 @@ final class Recorder {
 		// over it they are sampled (not dropped), preserving proportions.
 		$recognised = Classifier::is_recognised_agent( $ua );
 		$threshold  = $recognised ? self::RECOGNISED_THRESHOLD : self::FLOOD_THRESHOLD;
-		$count      = self::note_hit( $recognised ? 'a' : 'u', $threshold );
-		if ( ! self::survives_flood( $count, $threshold, wp_rand( 1, self::FLOOD_SAMPLE ) ) ) {
+		$count      = self::note_hit( self::flood_bucket( $endpoint, $recognised ), $threshold );
+		if ( ! self::survives_flood( $count, $threshold, wp_rand( 1, self::FLOOD_SAMPLE ) )
+			&& ! self::beats_flood_by_signature() ) {
 			return;
 		}
 
@@ -146,11 +151,13 @@ final class Recorder {
 		// math is a stronger "2". Unsigned/unknown/indeterminate leaves the claim-based
 		// verdict exactly as it was — most crawlers don't sign yet, and never lose
 		// standing for it.
+		// ⭐ THE SIGNER IS RECORDED SEPARATELY FROM THE VERDICT, and on purpose: a
+		// signature that changed nothing about this client's standing still HAPPENED,
+		// and a row is the only place that fact can survive. See signature_face().
 		$sig_verdict = self::signature_verdict();
-		$signer      = '';
+		$signer      = self::signature_face();
 		if ( 0 !== $sig_verdict ) {
 			$verdict = $sig_verdict;
-			$signer  = \Agentimus\BotSignature::face();
 		}
 		$is_spoof = Classifier::is_spoof( $ua );
 
@@ -230,6 +237,54 @@ final class Recorder {
 	}
 
 	/**
+	 * Which flood budget this hit spends.
+	 *
+	 * ⛔⛔ PAGE VIEWS GET THEIR OWN, and this is not a nicety. A crawl of the
+	 * CONTENT is orders of magnitude more requests than a crawl of the generated
+	 * files — one llms.txt fetch, then five hundred articles. Sharing a bucket
+	 * would let the page stream spend the whole per-minute budget and start
+	 * sampling away the llms.txt, .md and sitemap hits this log was built to
+	 * show. Two streams, two ceilings, so adding the second cannot cost the
+	 * first anything.
+	 *
+	 * ⚠️ The existing keys ('a' / 'u') are deliberately UNCHANGED, so an upgrade
+	 * does not hand every site a fresh budget mid-window.
+	 *
+	 * @param string $endpoint   The endpoint label being recorded.
+	 * @param bool   $recognised Whether the UA names a specific known crawler.
+	 * @return string Bucket key.
+	 */
+	private static function flood_bucket( $endpoint, $recognised ) {
+		$stream = ( PageViews::LABEL === $endpoint ) ? 'p' : '';
+		return $stream . ( $recognised ? 'a' : 'u' );
+	}
+
+	/**
+	 * Whether this request's signature earns it a place in the log even though its
+	 * bucket is over budget.
+	 *
+	 * ⭐⭐ A CRYPTOGRAPHICALLY VERIFIED REQUEST IS NEVER SAMPLED AWAY. Signed
+	 * traffic is vanishingly rare — nothing has ever signed to heera.it — and it
+	 * is the entire reason the `signer` column exists. Losing the one signed
+	 * request in a million to a 1-in-20 flood sample would put us straight back
+	 * where we were: the maths passed, and the log said nothing happened.
+	 *
+	 * ⛔ VERIFIED ONLY, never merely "carried a signature". A FAILED signature is
+	 * cheap to manufacture at volume — any garbage in the header fails — so
+	 * exempting those would hand a flooder an unlimited bypass around the write
+	 * budget. A verified one needs the operator's private key, which is not
+	 * something a flood can produce.
+	 *
+	 * @return bool
+	 */
+	private static function beats_flood_by_signature() {
+		if ( ! Guard::verification_on() ) {
+			return false;
+		}
+		return 'verified' === \Agentimus\BotSignature::current()['state'];
+	}
+
+	/**
 	 * The live forward-confirmed reverse-DNS verdict for a UA that CLAIMS a verifiable
 	 * search engine, as a storable tinyint — the "verify the identity, keep no IP"
 	 * design. Runs only when the owner has opted into verification and only for a UA
@@ -269,6 +324,36 @@ final class Recorder {
 			return 2;
 		}
 		return '' !== \Agentimus\BotSignature::verified_known_label() ? 1 : 0;
+	}
+
+	/**
+	 * WHO the current request's signature speaks for, for the log's `signer`
+	 * column — asked and answered independently of what that signature was WORTH.
+	 *
+	 * ⭐⭐ RECORDED EVEN WHEN THE VERDICT STAYS 0. A valid signature from an origin
+	 * this site does not recognise grants no standing — that is deliberate, and
+	 * {@see BotSignature::verified_known_label()} keeps it that way — but until
+	 * this existed it also left no trace whatsoever, because the signer was only
+	 * written when the verdict moved. So the first operator to sign a site that
+	 * is neither Google nor OpenAI was INVISIBLE: the crypto passed, the row said
+	 * "unchecked", and the owner asking "has anything signed to me yet?" was told
+	 * no by a log that had in fact seen it. The three readable pairs now are:
+	 *   verdict 1 + signer — signed, and by an operator we recognise;
+	 *   verdict 0 + signer — signed, by an operator we cannot vouch for;
+	 *   verdict 2 + signer — signed badly: the maths failed, and it claimed them.
+	 * A row can never carry a signer for any other reason — face() speaks only
+	 * for the verified and the failed — so the pairs stay unambiguous.
+	 *
+	 * Costs nothing extra: the verdict path above has already memoised the one
+	 * inspection this request will ever do ({@see BotSignature::current()}).
+	 *
+	 * @return string
+	 */
+	private static function signature_face() {
+		if ( ! Guard::verification_on() ) {
+			return '';
+		}
+		return \Agentimus\BotSignature::face();
 	}
 
 	/**

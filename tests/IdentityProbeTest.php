@@ -121,6 +121,14 @@ final class IdentityProbeTest extends TestCase {
 		$this->assertSame( '', IdentityProbe::normalize( 'javascript:alert(1)' ) );
 		$this->assertSame( '', IdentityProbe::normalize( 'https://user:pass@example.com/' ) );
 		$this->assertSame( '', IdentityProbe::normalize( 'https://localhost/bot' ) ); // Single-label host.
+		// ⛔⛔ AND NEVER THIS SITE. home_url() is example.test here. A crawler may
+		// declare our own address as its home page, and probing it would let any
+		// stranger point this server at itself — proving nothing, and (now that
+		// pages are logged) writing the plugin into the owner's own request log.
+		$this->assertSame( '', IdentityProbe::normalize( 'https://example.test/bot' ) );
+		$this->assertSame( '', IdentityProbe::normalize( 'https://www.example.test/bot' ), 'www. is the same site' );
+		$this->assertSame( '', IdentityProbe::normalize( 'HTTPS://Example.Test/' ), 'and case is not a disguise' );
+		$this->assertSame( 'https://notexample.test/bot', IdentityProbe::normalize( 'https://notexample.test/bot' ), 'a host that merely ENDS with ours is a stranger' );
 		$this->assertSame( '', IdentityProbe::normalize( 'https://exa mple.com/' ) );
 		$this->assertSame( '', IdentityProbe::normalize( '' ) );
 		$this->assertSame( '', IdentityProbe::normalize( 'https://example.com/' . str_repeat( 'a', 400 ) ) );

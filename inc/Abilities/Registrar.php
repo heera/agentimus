@@ -384,11 +384,15 @@ final class Registrar {
 		$this->add(
 			'read-request-log',
 			__( 'Get the AI request log', 'agentimus' ),
-			'Returns individual requests AI crawlers and agents made to this site’s discovery endpoints '
-				. '(llms.txt, the .md twins, JSON-LD, sitemaps), newest first and cursor-paginated. Each row has '
+			'Returns individual requests AI crawlers and agents made to this site — the discovery endpoints '
+				. '(llms.txt, the .md twins, JSON-LD, sitemaps) and, unless the owner turned that stream off, '
+				. 'ordinary pages too, which arrive under the endpoint label "page" (one label for every URL, '
+				. 'as "markdown" is one label for every .md twin). Newest first and cursor-paginated. Each row has '
 				. 'the endpoint, the detected agent, its user-agent, the owning network, and a verdict '
 				. '(0=unchecked, 1=verified real engine, 2=spoofed impersonator). Filter by agent, endpoint, '
-				. 'network, verdict, or a user-agent prefix.',
+				. 'network, verdict, signer, or a user-agent prefix. To answer "has any AI signed its requests '
+				. 'to this site?", pass signer="*" — the rows that come back are the ones that carried a '
+				. 'cryptographic signature, and none coming back is a real answer, not a missing feature.',
 			self::obj(
 				array(
 					'from'     => self::date( 'Start date (YYYY-MM-DD).' ),
@@ -407,6 +411,12 @@ final class Registrar {
 							. '⚠️ "refused" is an OUTCOME, not a verdict, and lives in its own column — mixing it with '
 							. 'a verdict in one list is allowed and means exactly what it reads like.',
 					),
+					'signer'   => self::slist(
+						'Web Bot Auth. Exact signer, or a list of them (OR-ed) — and the wildcard "*" meaning '
+						. '"carried a cryptographic signature at all", which is how you ask whether ANYTHING has '
+						. 'signed to this site yet (you cannot name an operator you have never seen). Mixing "*" '
+						. 'with exact names is allowed and reads as it looks.'
+					),
 					'ua'       => self::s( 'User-agent prefix to match.' ),
 					'before'   => self::i( 'Pagination cursor: return rows with id below this (use the previous page’s "cursor").' ),
 					'per_page' => self::i( 'Rows per page (the store clamps this).' ),
@@ -421,7 +431,12 @@ final class Registrar {
 							'ua'       => self::s(),
 							'network'  => self::s(),
 							'verdict'  => self::i(),
-							'signer'   => self::s( 'Web Bot Auth: who the signature proves (verdict 1) or claimed (verdict 2); empty when the verdict came from DNS/ranges or nothing.' ),
+							'signer'   => self::s(
+								'Web Bot Auth: who the signature proves (verdict 1), who signed validly but is not an '
+								. 'operator this site recognises, so it earned no standing (verdict 0), or who a failed '
+								. 'signature claimed to be (verdict 2). Empty when no signature was involved and the '
+								. 'verdict came from DNS/ranges or nothing.'
+							),
 							'refused'  => self::b( 'True = turned away at the door, never served.' ),
 							'at'       => self::s(),
 						)
@@ -438,6 +453,11 @@ final class Registrar {
 					// 1.30.0 shipped exactly that bug (verifyOn arrived, the schema never did).
 					'verifyOn'      => self::b( 'Whether Web Bot Auth signature verification is on.' ),
 					'identifyOn'    => self::b( 'Whether "identify every bot" (network attribution) is on.' ),
+					'pageViewsOn'   => self::b(
+						'Whether visits to ORDINARY PAGES are recorded (endpoint "page"), or only the generated '
+						. 'agent files. False means the absence of page rows says nothing about whether crawlers '
+						. 'read the content — the question was never asked.'
+					),
 					// ⛔ AND THE SORT, for the same reason — 1.40.0 shipped the same bug a
 					// second time: sorting added `sort`/`offset` to the response and this
 					// schema did not learn them, so the ability rejected its own output.
@@ -467,7 +487,7 @@ final class Registrar {
 				//    and "the caller cleared the picker" must mean no narrowing, not
 				//    a 500. Dropping empties here keeps that true before the store
 				//    ever sees it.
-				foreach ( array( 'agent', 'endpoint', 'network' ) as $k ) {
+				foreach ( array( 'agent', 'endpoint', 'network', 'signer' ) as $k ) {
 					if ( ! isset( $input[ $k ] ) ) {
 						continue;
 					}
@@ -570,20 +590,40 @@ final class Registrar {
 					),
 					'conflicts'   => self::arr(
 						array(
-							'id'    => self::s(),
-							'level' => self::s( 'warn = the edge contradicts the declared policy; info = a declared preference is not enforced.' ),
-							'title' => self::s(),
-							'body'  => self::s(),
-							'url'   => self::s( 'Cloudflare dashboard deep link where the owner can act.' ),
+							'id'     => self::s(),
+							'level'  => self::s( 'warn = the edge contradicts the declared policy; info = a declared preference is not enforced.' ),
+							'title'  => self::s(),
+							'body'   => self::s(),
+							'url'    => self::s( 'Cloudflare dashboard deep link where the owner can act.' ),
+							'since'  => self::i( 'Unix time this conflict was first seen. It is forgotten when the conflict stops, so a situation that ends and returns is dated from the return. 0 = not yet stamped.' ),
+							'sinceOf' => self::s( 'What the timestamp above MEANS: "started" = derived from the stored hourly data, the day the conflict actually began; "atleast" = the condition held on every day we still keep, so it began then or earlier and we cannot say which; "noticed" = no usable history, so this is only when the plugin first saw it; "unknown" = no date at all.' ),
+							'sinceText' => self::s( 'The one sentence the owner\'s screens show, in the site\'s date format and timezone, with the wording that matches sinceOf — e.g. "Started August 26, 2026", "Running since at least July 30, 2026", "First seen August 29, 2026". Quote this rather than re-formatting `since`, so a machine and a human make the same claim.' ),
+							'counts' => self::obj(
+								array(
+									'blocked'  => self::i( 'warn only: requests the edge turned away in the window.' ),
+									'requests' => self::i( 'warn only: requests that operator made in the window.' ),
+									'passed'   => self::i( 'info only: training-crawler requests the edge let through.' ),
+								)
+							),
 						)
 					),
 					'hiddenConflicts' => self::arr(
 						array(
-							'id'    => self::s(),
-							'level' => self::s(),
-							'title' => self::s(),
-							'body'  => self::s(),
-							'url'   => self::s(),
+							'id'     => self::s(),
+							'level'  => self::s(),
+							'title'  => self::s(),
+							'body'   => self::s(),
+							'url'    => self::s(),
+							'since'      => self::i(),
+							'sinceOf'    => self::s(),
+							'sinceText'  => self::s(),
+							'counts'     => self::obj(
+								array(
+									'blocked'  => self::i(),
+									'requests' => self::i(),
+									'passed'   => self::i(),
+								)
+							),
 						)
 					),
 					'dashUrl'     => self::s(),

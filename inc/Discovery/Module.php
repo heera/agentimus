@@ -55,7 +55,10 @@ final class Module {
 	 * find it from a single header without guessing.
 	 */
 	public function link_header() {
-		if ( is_admin() ) {
+		// headers_sent(): the same guard ai_signal_headers() has always carried.
+		// A theme or plugin that echoes before send_headers has already lost the
+		// header; emitting anyway only adds a PHP warning on top of their bug.
+		if ( is_admin() || headers_sent() ) {
 			return;
 		}
 		$url = esc_url_raw( home_url( '/.well-known/discovery.json' ) );

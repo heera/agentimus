@@ -27,6 +27,10 @@
  */
 const NAMES = {
   markdown: 'Page markdown (.md)',
+  // The other GROUP, and the biggest: every ordinary URL on the site rolled into
+  // one row, the way `markdown` rolls up every .md twin. Named so it cannot be
+  // mistaken for a file called "page".
+  page: 'Page (HTML)',
   'rest:discovery': 'Discovery (REST API)',
   'api-catalog': 'API catalog',
   'agent-skills': 'Agent skill',

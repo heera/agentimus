@@ -570,6 +570,10 @@ final class Repository {
 			'agents'    => $distinct( 'agent' ),
 			'endpoints' => $distinct( 'endpoint' ),
 			'networks'  => $distinct( 'network' ),
+			// Every operator that has ever signed to this site. Usually empty —
+			// almost nothing signs yet — and that emptiness is itself the answer
+			// the filter's "Any signature" option exists to deliver.
+			'signers'   => $distinct( 'signer' ),
 		);
 	}
 
@@ -588,8 +592,11 @@ final class Repository {
 			'network'  => (string) $r['network'], // '' unless "identify every bot" is on.
 			'verdict'  => (int) $r['verdict'],     // 1 = forward-confirmed; a network with verdict != 1 is self-declared (PTR only).
 			// Web Bot Auth face: with verdict 1, WHO the signature proves ("OpenAI agent");
-			// with verdict 2, WHO the failed signature claimed ("chatgpt.com"). '' = the
-			// verdict came from DNS/ranges (or nothing) — the pre-signature wording stands.
+			// with verdict 0, WHO signed validly but is not an operator this site
+			// recognises ("agents.acme.example") — proof of identity that earns no
+			// standing, which is still worth showing; with verdict 2, WHO the failed
+			// signature claimed ("chatgpt.com"). '' = no signature was involved at all
+			// and the verdict came from DNS/ranges (or nothing).
 			'signer'   => isset( $r['signer'] ) ? (string) $r['signer'] : '',
 			// TRUE = turned away at the door, never served. Counts toward no read total;
 			// the row exists so a proven impostor can't be refused in silence.
@@ -615,7 +622,8 @@ final class Repository {
 	 *
 	 * `ua` is a PREFIX match: `KEY ua(191)` can serve `LIKE 'x%'` but never `LIKE '%x%'`.
 	 *
-	 * @param array $args from, to (Y-m-d), agent, endpoint, network, verdict, ua, before, per_page.
+	 * @param array $args from, to (Y-m-d), agent, endpoint, network, verdict, signer
+	 *                    ('*' = signed by anyone), ua, before, per_page.
 	 * @return array{rows:array,total:int,perPage:int,cursor:?int,hasMore:bool,retentionDays:int,autoPrune:bool,maxRows:int,verifyOn:bool,identifyOn:bool}
 	 */
 	/**
@@ -730,6 +738,37 @@ final class Repository {
 				$where[] = '(' . implode( ' OR ', $parts ) . ')';
 			}
 		}
+		// ⭐⭐ THE SIGNATURE FILTER, AND ITS WILDCARD. The first question an owner
+		// asks about Web Bot Auth is "has ANYTHING signed to me yet?" — and no list
+		// of exact names can ask it, because you cannot pick the name of an
+		// operator you have never seen. `*` means "carried a signature at all";
+		// exact values narrow to one signer. The two mix inside one OR'd group,
+		// exactly like verdict/refused above, so picking more widens this control
+		// and never the query.
+		// ⛔ `*` cannot collide with a stored value: a signer is a bare host or a
+		// catalog label, and neither can ever be a lone asterisk.
+		$signers = self::as_list( isset( $args['signer'] ) ? $args['signer'] : '' );
+		if ( $signers ) {
+			$parts = array();
+			$names = array();
+			foreach ( $signers as $s ) {
+				if ( '*' === $s ) {
+					$parts[] = "signer <> ''";
+					continue;
+				}
+				$names[] = $s;
+			}
+			if ( $names ) {
+				$names   = array_values( array_unique( $names ) );
+				$parts[] = 1 === count( $names )
+					? 'signer = %s'
+					: 'signer IN (' . implode( ', ', array_fill( 0, count( $names ), '%s' ) ) . ')';
+				$params  = array_merge( $params, $names );
+			}
+			if ( $parts ) {
+				$where[] = '(' . implode( ' OR ', $parts ) . ')';
+			}
+		}
 		if ( ! empty( $args['ua'] ) ) {
 			// esc_like, or a needle of "%x" silently becomes a full-table contains-search.
 			$where[]  = 'ua LIKE %s';
@@ -836,6 +875,10 @@ final class Repository {
 			// Same reason: "not looked up" and "looked up, nothing to attribute" are
 			// different facts, and the dash must not blur them.
 			'identifyOn'    => (bool) ( new Settings() )->enabled( 'identify_bots' ),
+			// ⭐ So the screen can say WHICH SITE it is describing. With page views off
+			// the log covers the generated files only, and "no crawler read this
+			// article" would be a conclusion drawn from a question never asked.
+			'pageViewsOn'   => (bool) ( new Settings() )->enabled( 'log_page_views' ),
 		);
 	}
 

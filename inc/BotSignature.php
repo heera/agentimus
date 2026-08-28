@@ -117,21 +117,43 @@ final class BotSignature {
 	/**
 	 * The face a signature verdict shows in the UI: a short display name for WHO
 	 * the signature speaks for. A verified KNOWN agent shows its label ("OpenAI
-	 * agent"); a failed claim shows the host it claimed ("chatgpt.com") — naming
-	 * the victim of the impersonation, exactly what the review card needs.
-	 * '' for everything that earns no face (unsigned, unknown, indeterminate).
+	 * agent"); a verified UNRECOGNISED origin shows its bare host
+	 * ("agents.acme.example"); a failed claim shows the host it claimed
+	 * ("chatgpt.com") — naming the victim of the impersonation, exactly what the
+	 * review card needs. '' for everything that earns no face (unsigned,
+	 * indeterminate).
+	 *
+	 * ⛔⛔ A FACE IS NOT STANDING, and the two must never be collapsed into one
+	 * answer. {@see verified_known_label()} alone decides what a signature is
+	 * WORTH — Guard's allow, the log's verdict 1 — and an origin nobody
+	 * recognises still earns nothing from it. This decides only what is SHOWN.
+	 * Before they were separated, a valid signature from any operator that is
+	 * not Google or OpenAI returned '' here and so was recorded NOWHERE: the
+	 * maths passed and the log said nothing had happened. An absence must name
+	 * itself; a signature that leaves no trace cannot.
 	 *
 	 * @return string
 	 */
 	public static function face() {
 		$verdict = self::current();
 		if ( 'verified' === $verdict['state'] ) {
-			return self::verified_known_label();
+			$known = self::verified_known_label();
+			return '' !== $known ? $known : self::bare_host( $verdict['signer'] );
 		}
-		if ( 'failed' === $verdict['state'] && '' !== $verdict['signer'] ) {
-			return (string) preg_replace( '#^https://#', '', $verdict['signer'] );
+		if ( 'failed' === $verdict['state'] ) {
+			return self::bare_host( $verdict['signer'] );
 		}
 		return '';
+	}
+
+	/**
+	 * A signer origin as the owner reads it — `https://chatgpt.com` → `chatgpt.com`.
+	 *
+	 * @param string $origin Signer origin, or ''.
+	 * @return string
+	 */
+	private static function bare_host( $origin ) {
+		return (string) preg_replace( '#^https://#', '', (string) $origin );
 	}
 
 	/**

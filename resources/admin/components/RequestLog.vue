@@ -20,6 +20,17 @@ import { uaTip } from '../js/uaTip.js';
 import { surfaceName, isRenamed } from '../js/surfaceNames.js';
 import { formatStamp, relTimeShort } from '../js/wpDate.js';
 
+// ⛔ ONE DEFINITION OF "NO FILTERS", because three copies of this literal used to
+// drift: a filter added to the initial state but missed in Clear all is one the
+// owner can set and cannot unset. A fresh object every call — the lists are
+// mutable and must never be shared between the state and a reset.
+const noFilters = () => ({
+  from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [], signer: [],
+});
+// The filters whose control is multi-select, so a single value arriving from a
+// dashboard drill-down gets wrapped into the list shape the picker expects.
+const LIST_FILTERS = ['agent', 'endpoint', 'network', 'verdict', 'signer'];
+
 export default {
   name: 'RequestLog',
   components: { SelectMenu, CardSkeleton },
@@ -35,11 +46,11 @@ export default {
   emits: ['flash'],
   data() {
     return {
-      // ⭐ The four value filters are LISTS — his call, 2026-08-21. `from`/`to`/`ua`
+      // ⭐ The five value filters are LISTS — his call, 2026-08-21. `from`/`to`/`ua`
       // stay single: a date range already IS a range, and `ua` is a prefix match.
-      filters: { from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] },
+      filters: noFilters(),
       // Distinct values seen in the retained window; fetched once, alongside the first page.
-      facets: { agents: [], endpoints: [], networks: [] },
+      facets: { agents: [], endpoints: [], networks: [], signers: [] },
       rows: [],
       total: 0,
       hasMore: false,
@@ -47,6 +58,9 @@ export default {
       retentionDays: 30,
       verifyOn: false,
       identifyOn: false,
+      // Whether the page-view stream is on — the footer says which site it is
+      // describing, so an empty log is never read as "nothing came".
+      pageViewsOn: false,
       autoPrune: true,
       maxRows: 50000,
       // 25, not 50: the edge cards live below this log now, and a 50-row page
@@ -88,8 +102,18 @@ export default {
     agentOptions() {
       return [{ value: '', label: 'Any' }, ...this.facets.agents];
     },
+    // ⛔ THE PICKER SAYS WHAT THE TABLE SAYS. The facets arrive as raw keys, and
+    // spreading them straight in put `markdown` and `rest:discovery` in the
+    // dropdown while the column beside it read "Page markdown (.md)" and
+    // "Discovery (REST API)" — two vocabularies for one thing, on one screen.
+    // Adding `page` made it plainly wrong rather than merely untidy: "page" reads
+    // like a file. The VALUE stays the raw key, because that is what the server
+    // matches on; only the label is translated.
     endpointOptions() {
-      return [{ value: '', label: 'Any' }, ...this.facets.endpoints];
+      return [
+        { value: '', label: 'Any' },
+        ...this.facets.endpoints.map((v) => ({ value: v, label: surfaceName(v) })),
+      ];
     },
     networkOptions() {
       return [{ value: '', label: 'Any' }, ...this.facets.networks];
@@ -101,6 +125,18 @@ export default {
         { value: '2', label: 'Spoofed' },
         { value: '0', label: 'Unchecked' },
         { value: 'refused', label: 'Refused (not served)' },
+      ];
+    },
+    // ⭐ "Signed by anyone" leads the list and is not a facet. Almost nothing signs
+    // its requests yet, so the signer facet is usually empty — and an owner whose
+    // question is "has ANY assistant signed to me?" cannot ask it by picking a name
+    // they have never seen. `*` asks it. An empty result is then a real answer, and
+    // the control stays on screen to give it.
+    signerOptions() {
+      return [
+        { value: '', label: 'Any' },
+        { value: '*', label: 'Signed by anyone' },
+        ...this.facets.signers,
       ];
     },
     // Why a row shows a dash. Two honest reasons, and the wording must not imply
@@ -184,11 +220,11 @@ export default {
       // nothing as ticked while the query is filtered.
       const listed = {};
       Object.keys(keys).forEach((k) => {
-        listed[k] = ['agent', 'endpoint', 'network', 'verdict'].includes(k) && !Array.isArray(keys[k])
+        listed[k] = LIST_FILTERS.includes(k) && !Array.isArray(keys[k])
           ? (keys[k] === '' || keys[k] === null || keys[k] === undefined ? [] : [keys[k]])
           : keys[k];
       });
-      this.filters = { ...{ from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] }, ...listed };
+      this.filters = { ...noFilters(), ...listed };
       this.apply();
     },
   },
@@ -206,11 +242,12 @@ export default {
           agents: f.agents || [],
           endpoints: f.endpoints || [],
           networks: f.networks || [],
+          signers: f.signers || [],
         };
       } catch (e) {
         // Non-fatal: the log still lists and pages. The dropdowns just have nothing to
         // offer, so don't surface an error over a working table.
-        this.facets = { agents: [], endpoints: [], networks: [] };
+        this.facets = { agents: [], endpoints: [], networks: [], signers: [] };
       }
     },
     async load(pos = 0) {
@@ -239,6 +276,7 @@ export default {
         this.retentionDays = res.retentionDays || 30;
         this.verifyOn = !!res.verifyOn;
         this.identifyOn = !!res.identifyOn;
+        this.pageViewsOn = !!res.pageViewsOn;
         this.autoPrune = res.autoPrune !== false;
         this.maxRows = res.maxRows || 50000;
         this.pos = pos;
@@ -276,7 +314,7 @@ export default {
       return 'asc' === this.sort.dir ? 'ascending' : 'descending';
     },
     reset() {
-      this.filters = { from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [] };
+      this.filters = noFilters();
       this.apply();
     },
     older() {
@@ -335,6 +373,17 @@ export default {
           tip: r.signer
             ? `Cryptographically verified — signed by ${r.signer}.`
             : 'Verified — the address really belongs to this operator.',
+        };
+      }
+      // A signature that verified, from an operator this site has no opinion
+      // about. The maths is as sound as any row above; what's missing is anyone
+      // to vouch for the name behind it — so it says so, and does NOT borrow the
+      // verified mark. Calling this "unchecked" would be false: it was checked.
+      if (r.signer) {
+        return {
+          text: 'signed',
+          cls: 'is-none is-signed',
+          tip: `Signed by ${r.signer}, and the signature checks out — but that's an operator this site doesn't recognise, so it earns no extra trust. Identity, not reputation.`,
         };
       }
       // No verdict is still an ANSWER, so it gets a word like every other row —
@@ -398,6 +447,13 @@ export default {
         <div class="ar-log__field">
           <span class="ar-log__label">Verification</span>
           <SelectMenu v-model="filters.verdict" :options="verdictOptions" multiple aria-label="Filter by verification" />
+        </div>
+        <!-- Unlike Network, this one shows even with an empty facet list: "has anything
+             signed to me yet?" is a question the owner is entitled to ask and get no
+             for, and a hidden control cannot answer it. -->
+        <div class="ar-log__field">
+          <span class="ar-log__label">Signature</span>
+          <SelectMenu v-model="filters.signer" :options="signerOptions" multiple aria-label="Filter by signature" />
         </div>
         <div class="ar-log__field ar-log__field--ua">
           <span class="ar-log__label">User-Agent starts with</span>
@@ -575,6 +631,20 @@ export default {
         Old requests are never deleted by age. The log keeps growing until it reaches
         {{ maxRows.toLocaleString() }} rows, after which the oldest are removed to make room — so read a
         full page as a floor, not a total.
+      </span>
+      <!-- ⭐ Each state names its own limit. "No crawler read this article" is a
+           conclusion, and it may be drawn from a question that was never asked
+           (the stream is off) or from one your cache answered before WordPress
+           heard it. Neither is the same as nobody coming. -->
+      <span v-if="pageViewsOn">
+        Visits to your pages are recorded too, but only the ones your server actually handles: if a
+        page is served from a cache — a CDN, or a caching plugin — WordPress never runs, so that visit
+        cannot be counted here.
+      </span>
+      <span v-else>
+        Visits to your pages are <strong>not</strong> being recorded — only the AI files above. Crawlers
+        may well be reading your articles; this log isn’t looking. Turn on “Record crawler visits to your
+        pages” in Settings → Visit Log.
       </span>
     </p>
 

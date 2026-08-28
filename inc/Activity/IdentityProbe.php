@@ -504,6 +504,15 @@ final class IdentityProbe {
 		if ( ! preg_match( '/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/', $host ) || false === strpos( $host, '.' ) ) {
 			return ''; // Malformed, or a single-label host no public crawler uses.
 		}
+		// ⛔⛔ NEVER THIS SITE. A crawler is free to name our own address as its
+		// home page, and following that would let any stranger point this server
+		// at itself — a fetch that proves nothing (of course our own front page
+		// answers) and that, now pages are logged, the request log would record as
+		// a visit from "Agentimus". Caught in the wild: a declared `.test` domain
+		// that resolved back to the same host put the plugin in its own log.
+		if ( self::is_this_site( $host ) ) {
+			return '';
+		}
 
 		$out = $scheme . '://' . $host;
 		if ( isset( $parts['port'] ) ) {
@@ -514,5 +523,31 @@ final class IdentityProbe {
 			$out .= '?' . $parts['query'];
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether a host is one of this site's own.
+	 *
+	 * Both addresses WordPress knows (home and site can differ), with `www.`
+	 * folded away — the question is "is this us", not "is this the same string",
+	 * and a crawler that wrote our domain with or without the prefix means the
+	 * same thing either way.
+	 *
+	 * @param string $host Lowercased host from a declared URL.
+	 * @return bool
+	 */
+	private static function is_this_site( $host ) {
+		$bare = static function ( $value ) {
+			$value = strtolower( (string) $value );
+			return 0 === strpos( $value, 'www.' ) ? substr( $value, 4 ) : $value;
+		};
+
+		$mine = array( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		if ( function_exists( 'site_url' ) ) {
+			$mine[] = (string) wp_parse_url( site_url(), PHP_URL_HOST );
+		}
+		$mine = array_filter( array_map( $bare, $mine ) );
+
+		return in_array( $bare( $host ), $mine, true );
 	}
 }

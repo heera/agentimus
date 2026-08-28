@@ -315,4 +315,65 @@ final class BotSignatureTest extends TestCase {
 		$this->assertArrayHasKey( 'https://custom.example.com', $known, 'filter entries are normalised' );
 		$this->assertArrayNotHasKey( 'http://insecure.example.com', $known, 'non-https entries are dropped' );
 	}
+
+	/* ---------------------- face(): what a verdict SHOWS, never what it is WORTH ---------------------- */
+
+	/** Plant a per-request verdict, run the assertions, always clear the memo. */
+	private function with_verdict( array $verdict, callable $assertions ) {
+		BotSignature::prime_memo( $verdict );
+		try {
+			$assertions();
+		} finally {
+			BotSignature::prime_memo( null );
+		}
+	}
+
+	public function test_a_recognised_operator_shows_the_label_we_know_it_by() {
+		$this->with_verdict(
+			array( 'state' => 'verified', 'signer' => 'https://chatgpt.com', 'reason' => '' ),
+			function () {
+				$this->assertSame( 'OpenAI agent', BotSignature::face() );
+			}
+		);
+	}
+
+	/**
+	 * ⛔ THE REGRESSION THIS LOCKS. face() used to return '' for a verified origin
+	 * that isn't Google or OpenAI, so the Recorder stored no signer and the row
+	 * read "unchecked" — a valid signature recorded NOWHERE. The first operator
+	 * to sign a site would have been invisible, and an owner asking "has anything
+	 * signed to me?" would have been told no by a log that had seen it.
+	 *
+	 * The second assertion is the other half, and it must never start passing a
+	 * label: showing WHO signed is not the same as granting them standing.
+	 */
+	public function test_a_verified_but_unrecognised_origin_leaves_a_face_without_earning_standing() {
+		$this->with_verdict(
+			array( 'state' => 'verified', 'signer' => 'https://agents.acme.example', 'reason' => '' ),
+			function () {
+				$this->assertSame( 'agents.acme.example', BotSignature::face(), 'the maths proved WHO signed' );
+				$this->assertSame( '', BotSignature::verified_known_label(), 'and it still earns nothing for it' );
+			}
+		);
+	}
+
+	public function test_a_failed_signature_names_the_operator_it_claimed_to_be() {
+		$this->with_verdict(
+			array( 'state' => 'failed', 'signer' => 'https://chatgpt.com', 'reason' => 'bad math' ),
+			function () {
+				$this->assertSame( 'chatgpt.com', BotSignature::face(), 'the victim of the impersonation' );
+			}
+		);
+	}
+
+	public function test_nothing_that_did_not_sign_is_given_a_face() {
+		foreach ( array( 'unsigned', 'indeterminate' ) as $state ) {
+			$this->with_verdict(
+				array( 'state' => $state, 'signer' => '', 'reason' => '' ),
+				function () use ( $state ) {
+					$this->assertSame( '', BotSignature::face(), $state . ' speaks for nobody' );
+				}
+			);
+		}
+	}
 }

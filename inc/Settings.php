@@ -56,6 +56,17 @@ final class Settings {
 			'topics_derive_default' => true, // Default for new posts: also derive topics from the page's tags & categories (a manual list still wins).
 			'topics_max'       => 12,    // Hard cap on emitted topics per page, to keep the machine surfaces lean.
 			'enable_activity'  => true,
+			// Record a MACHINE's visit to an ordinary page, not just to the generated
+			// agent files. ON by default: without it the Request Log's own promise
+			// ("every visit a machine made to your site") is false, and Web Bot Auth
+			// signs requests for PAGES — so a signed visit was invisible. Humans are
+			// never recorded here (see Activity\PageViews::is_machine).
+			// ⚠️ This is the log's high-volume stream by far: a crawler fetches one
+			// llms.txt and then five hundred articles. It has its own write budget so
+			// it cannot sample the endpoint stream away (Recorder::flood_bucket), but
+			// on a heavily-crawled site it will reach the row cap sooner. Turn it off
+			// to go back to recording only the generated surfaces.
+			'log_page_views'   => true,
 			// How long agent hits + AI-referral counts are KEPT. The dashboard reports on at
 			// most 30 days of that (Repository::report_days), so keeping more gives the
 			// Request log a deeper history without stretching the summary cards. Flagged IPs

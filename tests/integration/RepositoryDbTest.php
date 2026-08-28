@@ -354,6 +354,95 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 'fake', Repository::log( array( 'verdict' => 2 ) )['rows'][0]['ua'] );
 	}
 
+	/* -- The signature filter: the only way to ask "has ANYTHING signed?" ---- */
+
+	/** One hit that carried a Web Bot Auth signature. */
+	private function signed_hit( $ua, $signer, $verdict = 1 ) {
+		global $wpdb;
+		$wpdb->insert(
+			Table::name(),
+			array(
+				'endpoint' => 'llms.txt',
+				'agent'    => 'Agent',
+				'ua'       => $ua,
+				'verdict'  => $verdict,
+				'signer'   => $signer,
+				'hit_at'   => gmdate( 'Y-m-d H:i:s' ),
+			),
+			array( '%s', '%s', '%s', '%d', '%s', '%s' )
+		);
+	}
+
+	/**
+	 * ⭐ THE WILDCARD IS THE WHOLE POINT. An owner cannot filter for the name of an
+	 * operator they have never seen, so without `*` the question "has any AI signed
+	 * its requests to me?" had no way to be asked at all — of the screen or of an
+	 * agent. The unsigned rows must not leak in with it.
+	 */
+	public function test_log_filters_to_anything_that_carried_a_signature() {
+		$this->hit( 'llms.txt', 'Googlebot', 'unsigned-crawler' );
+		$this->signed_hit( 'openai-agent', 'OpenAI agent' );
+		$this->signed_hit( 'stranger', 'agents.acme.example', 0 );
+
+		$signed = Repository::log( array( 'signer' => '*' ) );
+
+		$this->assertSame( 2, $signed['total'], 'both signatures, regardless of what they were worth' );
+		$this->assertNotContains( 'unsigned-crawler', wp_list_pluck( $signed['rows'], 'ua' ) );
+	}
+
+	/**
+	 * The verdict-0 row is the one that used to be unreachable: it signed, and the
+	 * signature verified, but nobody here recognises the operator — so it earns no
+	 * standing and the verdict stays 0. It is still a signature, and still findable.
+	 */
+	public function test_a_signature_that_earned_no_standing_is_still_found_by_its_signer() {
+		$this->signed_hit( 'stranger', 'agents.acme.example', 0 );
+		$this->signed_hit( 'openai-agent', 'OpenAI agent' );
+
+		$one = Repository::log( array( 'signer' => 'agents.acme.example' ) );
+
+		$this->assertSame( 1, $one['total'] );
+		$this->assertSame( 'stranger', $one['rows'][0]['ua'] );
+		$this->assertSame( 0, $one['rows'][0]['verdict'], 'found without being promoted' );
+	}
+
+	public function test_the_wildcard_and_an_exact_signer_widen_the_control_not_the_query() {
+		$this->hit( 'llms.txt', 'Googlebot', 'unsigned-crawler' );
+		$this->signed_hit( 'openai-agent', 'OpenAI agent' );
+		$this->signed_hit( 'stranger', 'agents.acme.example', 0 );
+
+		// '*' already covers both, so adding a name beside it must not narrow —
+		// nor must the OR group ever escape and widen past the other filters.
+		$mixed = Repository::log( array( 'signer' => array( '*', 'OpenAI agent' ) ) );
+		$this->assertSame( 2, $mixed['total'] );
+
+		$two = Repository::log( array( 'signer' => array( 'OpenAI agent', 'agents.acme.example' ) ) );
+		$this->assertSame( 2, $two['total'], 'a list of names is OR-ed' );
+
+		$narrowed = Repository::log( array( 'signer' => '*', 'ua' => 'stranger' ) );
+		$this->assertSame( 1, $narrowed['total'], 'and it still AND-s with every other filter' );
+	}
+
+	public function test_an_empty_signature_filter_narrows_nothing() {
+		$this->hit( 'llms.txt', 'Googlebot', 'unsigned-crawler' );
+		$this->signed_hit( 'openai-agent', 'OpenAI agent' );
+
+		// ⛔ An empty list is NO filter — never `IN ()`, which is a MySQL syntax
+		// error and would turn "clear the picker" into a 500.
+		$this->assertSame( 2, Repository::log( array( 'signer' => array() ) )['total'] );
+		$this->assertSame( 2, Repository::log( array( 'signer' => '' ) )['total'] );
+	}
+
+	public function test_every_operator_that_has_signed_is_offered_as_a_filter() {
+		$this->hit( 'llms.txt', 'Googlebot', 'unsigned-crawler' );
+		$this->signed_hit( 'openai-agent', 'OpenAI agent' );
+
+		$facets = Repository::log_facets();
+
+		$this->assertContains( 'OpenAI agent', $facets['signers'] );
+		$this->assertNotContains( '', $facets['signers'], 'the unsigned majority is not an option' );
+	}
+
 	/** The date window is half-open [from, to+1day), so `to` includes its own day. */
 	public function test_log_date_range_includes_the_end_day() {
 		$today     = gmdate( 'Y-m-d' );

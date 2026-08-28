@@ -41,7 +41,7 @@ final class RequestLogListFiltersTest extends \WP_UnitTestCase {
 		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
 	}
 
-	private function seed( $agent, $endpoint, $verdict, $refused = 0 ) {
+	private function seed( $agent, $endpoint, $verdict, $refused = 0, $signer = '' ) {
 		global $wpdb;
 		$wpdb->insert(
 			Table::name(),
@@ -51,9 +51,10 @@ final class RequestLogListFiltersTest extends \WP_UnitTestCase {
 				'ua'       => $agent . '/1.0',
 				'verdict'  => $verdict,
 				'refused'  => $refused,
+				'signer'   => $signer,
 				'hit_at'   => gmdate( 'Y-m-d H:i:s' ),
 			),
-			array( '%s', '%s', '%s', '%d', '%d', '%s' )
+			array( '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
 		);
 	}
 
@@ -109,5 +110,55 @@ final class RequestLogListFiltersTest extends \WP_UnitTestCase {
 		$out = $this->call( array( 'verdict' => 99 ) );
 		$this->assertIsArray( $out );
 		$this->assertNotEmpty( $out['rows'], 'A junk verdict is dropped, not turned into an impossible query.' );
+	}
+
+	/* -- The signature filter, through the ability an assistant actually calls -- */
+
+	/**
+	 * ⭐ An agent asked "has any AI signed its requests to this site?" could not ask
+	 * it before: the rows carried a `signer`, nothing could filter on one, and no
+	 * list of exact names can name an operator nobody has seen yet. `*` asks it.
+	 */
+	public function test_the_wildcard_returns_only_the_requests_that_carried_a_signature() {
+		$this->seed( 'Googlebot', 'sitemap', 1 );
+		$this->seed( 'OpenAI agent', 'llms.txt', 1, 0, 'OpenAI agent' );
+		$this->seed( 'Stranger', 'llms.txt', 0, 0, 'agents.acme.example' );
+
+		$signed = $this->call( array( 'signer' => '*' ) );
+
+		$names = array_unique( wp_list_pluck( $signed['rows'], 'agent' ) );
+		sort( $names );
+		$this->assertSame( array( 'OpenAI agent', 'Stranger' ), $names );
+	}
+
+	public function test_a_signer_takes_one_value_or_a_list_like_every_other_filter() {
+		$this->seed( 'OpenAI agent', 'llms.txt', 1, 0, 'OpenAI agent' );
+		$this->seed( 'Stranger', 'llms.txt', 0, 0, 'agents.acme.example' );
+
+		$one = $this->call( array( 'signer' => 'agents.acme.example' ) );
+		$this->assertSame( array( 'Stranger' ), array_unique( wp_list_pluck( $one['rows'], 'agent' ) ) );
+
+		$both = $this->call( array( 'signer' => array( 'OpenAI agent', 'agents.acme.example' ) ) );
+		$this->assertSame( 2, $both['total'] );
+	}
+
+	public function test_an_empty_signer_list_narrows_nothing_and_never_errors() {
+		$this->seed( 'Googlebot', 'sitemap', 1 );
+
+		$out = $this->call( array( 'signer' => array() ) );
+		$this->assertIsArray( $out );
+		$this->assertNotEmpty( $out['rows'], 'A cleared picker is no filter, not `IN ()`.' );
+	}
+
+	/**
+	 * ⛔ The declared contract is what the adapter validates against, and widening
+	 * one without declaring it is how this exact tool broke in 1.30.0 and 1.40.0.
+	 */
+	public function test_the_signer_filter_is_declared_on_the_ability_not_merely_accepted() {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Needs the Abilities API (WP 6.9+).' );
+		}
+		$schema = wp_get_ability( 'agentimus/read-request-log' )->get_input_schema();
+		$this->assertArrayHasKey( 'signer', $schema['properties'] );
 	}
 }

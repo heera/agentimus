@@ -61,6 +61,10 @@ final class Module {
 		self::schedule();
 		// Count human visits referred from AI assistants (the mirror of the bot log).
 		add_action( 'template_redirect', array( Referrals::class, 'maybe_record' ), 30 );
+		// The machine half of the same moment: Referrals counts the humans an AI sent,
+		// this records the machines that read the page themselves. One hook, one
+		// priority, two mutually exclusive tests — see PageViews::is_machine().
+		add_action( 'template_redirect', array( PageViews::class, 'maybe_record' ), 30 );
 		// Opt-in "CDN mode": when on, the server-side recorder above stands down and a tiny
 		// front-end beacon counts instead, so referrals survive a full-page cache. A default
 		// install adds no front-end script at all.
@@ -265,6 +269,10 @@ final class Module {
 					// ⚠️ The handler casts to string and validates per token, so both
 					// shapes land on the same check.
 					'verdict'  => array( 'type' => array( 'string', 'integer' ) ),
+					// Web Bot Auth. A list of exact signers, and/or the wildcard `*`
+					// meaning "carried a signature at all" — the only way to ask the
+					// question an owner asks first. {@see Repository::log()}
+					'signer'   => array( 'type' => 'string' ),
 					// Prefix match only — see Repository::log().
 					'ua'       => array( 'type' => 'string' ),
 					'before'   => array( 'type' => 'integer' ),
@@ -873,7 +881,7 @@ final class Module {
 		// ⛔ `ua` is NOT one of them: it is a prefix match, and a list of prefixes
 		// is a different question ("starts with any of these") that the index
 		// cannot answer the same way. One needle, as before.
-		foreach ( array( 'agent', 'endpoint', 'network' ) as $key ) {
+		foreach ( array( 'agent', 'endpoint', 'network', 'signer' ) as $key ) {
 			$raw = (string) $request->get_param( $key );
 			if ( '' === $raw ) {
 				continue;

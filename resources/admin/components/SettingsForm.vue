@@ -982,6 +982,15 @@ export default {
         </label>
 
         <div :inert="!settings.enable_activity" class="ar-webmcp-tools">
+          <label id="ar-feat-log_page_views" class="ar-toggle ar-toggle--nested">
+            <input v-model="settings.log_page_views" type="checkbox" />
+            <span class="ar-toggle__track" aria-hidden="true"></span>
+            <span class="ar-toggle__text">
+              <strong>Record crawler visits to your pages</strong>
+              <small>Without this, the Request Log only shows the AI files a crawler fetched — never the articles it read. It also matters for signed requests: the crawlers that sign cryptographically (Google’s agent, OpenAI) sign the requests they make for <em>pages</em>, so with this off a signed visit leaves no record at all. Only machines are recorded; readers are never logged here. Turn it off if your site is crawled heavily and you would rather keep a longer history of the files alone.</small>
+            </span>
+          </label>
+
           <label id="ar-feat-log_unknown_referrers" class="ar-toggle ar-toggle--nested">
             <input v-model="settings.log_unknown_referrers" type="checkbox" />
             <span class="ar-toggle__track" aria-hidden="true"></span>

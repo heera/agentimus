@@ -48,6 +48,23 @@ final class ActivityLogRestTest extends RestTestCase {
 		);
 	}
 
+	/** One hit that carried a Web Bot Auth signature. */
+	private function signed_hit( $signer ) {
+		global $wpdb;
+		$wpdb->insert(
+			Table::name(),
+			array(
+				'endpoint' => 'llms.txt',
+				'agent'    => 'Agent',
+				'ua'       => 'Agent/1.0',
+				'verdict'  => 1,
+				'signer'   => $signer,
+				'hit_at'   => gmdate( 'Y-m-d H:i:s' ),
+			),
+			array( '%s', '%s', '%s', '%d', '%s', '%s' )
+		);
+	}
+
 	public function test_admin_gets_the_paging_and_retention_envelope() {
 		$this->hit();
 
@@ -102,7 +119,7 @@ final class ActivityLogRestTest extends RestTestCase {
 	}
 
 	/** The facets endpoint feeds the filter dropdowns; it must be admin-only and well-shaped. */
-	public function test_facets_endpoint_returns_the_three_lists() {
+	public function test_facets_endpoint_returns_the_four_lists() {
 		$this->hit( 'GPTBot', 'GPTBot/1.0' );
 		$this->hit( 'Googlebot', 'Googlebot/2.1' );
 
@@ -111,12 +128,29 @@ final class ActivityLogRestTest extends RestTestCase {
 
 		$this->assertSame( 200, $resp->get_status() );
 		$data = (array) $resp->get_data();
-		foreach ( array( 'agents', 'endpoints', 'networks' ) as $key ) {
+		foreach ( array( 'agents', 'endpoints', 'networks', 'signers' ) as $key ) {
 			$this->assertArrayHasKey( $key, $data );
 			$this->assertIsArray( $data[ $key ] );
 		}
 		$this->assertContains( 'GPTBot', $data['agents'] );
 		$this->assertContains( 'discovery.json', $data['endpoints'] );
+		$this->assertSame( array(), $data['signers'], 'nothing has signed, and the screen is told so rather than left guessing' );
+	}
+
+	/**
+	 * The wildcard travels over the wire — `*` percent-encodes, and a filter the
+	 * screen can set has to survive the round trip to mean anything.
+	 */
+	public function test_the_signature_filter_survives_the_query_string() {
+		$this->hit( 'GPTBot', 'GPTBot/1.0' );
+		$this->signed_hit( 'OpenAI agent' );
+
+		$resp = $this->get( array( 'signer' => '*' ) );
+
+		$this->assertSame( 200, $resp->get_status() );
+		$data = (array) $resp->get_data();
+		$this->assertSame( 1, $data['total'] );
+		$this->assertSame( 'OpenAI agent', $data['rows'][0]['signer'] );
 	}
 
 	/** The cursor walks backwards and the endpoint reports when it has run out. */
