@@ -309,6 +309,7 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: the three small scripts the plugin adds to your pages are compressed when built, cutting them by about two thirds. Their source ships beside them, as it always has.
 * Fixed: the address filter above the Request Log offered internal names — "markdown", "rest:discovery" — while the table beside it showed the plain ones. One screen, one vocabulary now.
 * Fixed: a crawler could name your own site as its home page and have the plugin fetch you on its behalf, then record that as a visit. It never proved anything — of course your own front page answers — and it is refused outright now.
+* Improved: a post's structured data now carries its featured image. Machines reading the page's JSON-LD were told the headline, the author and the dates, but not the one picture the author chose for the piece — the field Google lists as recommended for articles. Emitted only when a featured image is set; nothing is borrowed from the body or the site identity to fill the gap.
 
 = 1.47.0 =
 * Fixed: on a site not written in the Latin alphabet, every page carrying a reported search was told its words answer nothing. The part that pulls the meaningful words out of a search reads Latin letters and numbers, so a search in Cyrillic, Chinese, Japanese, Arabic, Greek or Devanagari yielded nothing to look for — and that came out the far end as "none of it is on the page". The whole site sat on the list permanently and no amount of writing could clear it. A search the check cannot read is now reported as exactly that: not measured, not a failure.
@@ -398,7 +399,7 @@ The most recent releases are listed here, back to 1.40.1. Every earlier one, bac
 == Upgrade Notice ==
 
 = 1.48.0 =
-The Request Log now records what crawlers read on your pages, not only which AI files they fetched — so an AI reading every article on your site is no longer invisible. Only machines are recorded; your readers are never logged there. A conflict between your CDN and your own AI policy now reaches the Findings list, dated, instead of waiting on one screen for you to find it — and that list no longer says "nothing is blocking AI assistants" when all it checked was this plugin's own setup. No breaking changes.
+The Request Log now records what crawlers read on your pages, not only which AI files they fetched — so an AI reading every article on your site is no longer invisible. Only machines are recorded; your readers are never logged there. A conflict between your CDN and your own AI policy now reaches the Findings list, dated, instead of waiting on one screen for you to find it — and that list no longer says "nothing is blocking AI assistants" when all it checked was this plugin's own setup. A post's structured data now carries its featured image. No breaking changes.
 
 = 1.47.0 =
 If your site is not written in the Latin alphabet, Agentimus has been telling you every page answers nothing — a search it could not read came out as a page that failed. That is fixed, and those pages ask nothing of you now. You can also set a search aside instead of the page it landed on, for the times a reported search was never a question your site should answer. Your site re-reads its pages once after updating, so a finding that was true all along may appear. No breaking changes.

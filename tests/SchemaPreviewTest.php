@@ -209,6 +209,29 @@ final class SchemaPreviewTest extends TestCase {
 		$this->assertArrayNotHasKey( 'speakable', $node );
 	}
 
+	/* -- Article image ------------------------------------------------------ */
+
+	public function test_the_articles_image_is_the_featured_image() {
+		$GLOBALS['_af_thumbnails'][11]  = 99;
+		$GLOBALS['_af_attachments'][99] = array( 'https://example.com/featured.png', 1200, 600 );
+
+		// Posts and pages alike: the featured image is the author's own choice of
+		// picture for this content, so every article-shaped node may carry it.
+		$post_node = $this->content_node( $this->schema()->build_document( $this->post(), false ) );
+		$this->assertSame( 'https://example.com/featured.png', $post_node['image'] );
+
+		$page_node = $this->content_node( $this->schema()->build_document( $this->post( array( 'post_type' => 'page' ) ), false ) );
+		$this->assertSame( 'https://example.com/featured.png', $page_node['image'] );
+
+		unset( $GLOBALS['_af_thumbnails'][11], $GLOBALS['_af_attachments'][99] );
+	}
+
+	public function test_no_featured_image_means_no_image_property() {
+		// Absent beats invented — no borrowing the site icon or a body image.
+		$node = $this->content_node( $this->schema()->build_document( $this->post(), false ) );
+		$this->assertArrayNotHasKey( 'image', $node );
+	}
+
 	/* -- VideoObject ------------------------------------------------------- */
 
 	/** Every VideoObject node in a built document. */

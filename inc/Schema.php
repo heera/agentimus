@@ -668,6 +668,15 @@ final class Schema {
 			'mainEntityOfPage' => $url,
 		);
 
+		// The featured image, when the author set one. Google lists `image` as a
+		// recommended Article property, and the featured image is the one picture
+		// the author chose to represent this post — absent otherwise, never a
+		// stand-in pulled from the body or the site identity.
+		$image = get_the_post_thumbnail_url( $post, 'full' );
+		if ( $image ) {
+			$node['image'] = $image;
+		}
+
 		// Per-page AI topics → schema.org `keywords` (flat terms) plus `about`
 		// DefinedTerm entities. Each `about` node can carry `sameAs` links (Wikidata,
 		// Wikipedia, an official site) that disambiguate the exact entity for an
