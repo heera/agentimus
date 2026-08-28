@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.47.0
+Stable tag: 1.48.0-dev3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -250,7 +250,7 @@ Not by default. The agent-activity log records who fetched your endpoints with n
 
 = Is the admin interface built from source I can inspect? =
 
-Yes — there is no minified-only code. The admin interface is built from Vue 3 source in `resources/` with Vite; the source and `vite.config.js` ship in this package and also live in the public repository at https://github.com/heera/agentimus . Run `npm install && npm run build` to regenerate `assets/admin/` from source.
+Yes — there is no minified-only code. Everything in `assets/` is built from source shipped beside it in `resources/`: the admin interface from Vue 3 source with Vite, and the three small front-end scripts from `resources/public/` with esbuild. `vite.config.js` and `package.json` ship too, and all of it also lives in the public repository at https://github.com/heera/agentimus . Run `npm install && npm run build` to regenerate the whole of `assets/` from source.
 
 == Screenshots ==
 
@@ -297,6 +297,18 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.48.0 =
+* New: the Request Log records what crawlers read on your pages, not only which AI files they fetched. Until now an AI crawler could read every article on the site and the log showed nothing but its llms.txt fetch. Only machines are recorded — your readers are never logged here, they are counted separately and without a User-Agent — and a switch in Settings turns the whole stream off if you would rather keep a longer history of the files alone. A page served from a CDN or a caching plugin never reaches WordPress, so on a cached site these are a floor rather than a total, and the screen says so.
+* New: a request that arrives cryptographically signed is recorded as signed even when the signature belongs to an operator this plugin does not recognise. The check was already running, and a valid signature from anyone other than Google or OpenAI proved who sent it and then left no trace at all — so the first company to sign your site would have been invisible. It is written down now, without granting anyone standing they have not earned: proof of identity is not a reason to trust someone.
+* New: a Signature filter on the Request Log, including "signed by anyone" — the question an owner asks first, and one no list of names can express, because you cannot pick the name of a company you have never seen. A connected assistant can ask the same question.
+* New: a conflict between your CDN and your own AI policy now appears on the Findings list, dated. A CDN in front of your site can turn an assistant away before the request reaches WordPress, and Agentimus could already see that happening — but only said so on the Request Log, so an owner found out by going and looking. One had been running for weeks unseen. It is a finding now, urgent when the edge is refusing an assistant your policy welcomes, and it carries the date it started rather than only the window it was measured over.
+* Improved: a CDN conflict says when it actually began, worked out from the hourly figures already kept rather than from the moment Agentimus first looked. Installing this feature today would otherwise date a problem that started last week to today. Where the figures cannot answer, the wording changes rather than the date being guessed at: "Started the 26th" when it was derived, "Running since at least the 30th" when it has held for as long as anything was kept, and "First seen today" when there is no history to read.
+* Fixed: the Findings list said "Nothing is blocking AI assistants" whenever every setup check passed. That is a promise it could not keep: the checks measure this plugin's own configuration, and an assistant can be turned away by a CDN sitting in front of the site with every one of them green. It now says what it actually checked — "All N setup checks pass" — and the conflict above it carries the rest.
+* Improved: the weekly email names any live conflict at your CDN, so the one channel that reaches you when you are not in wp-admin says it too.
+* Improved: the three small scripts the plugin adds to your pages are compressed when built, cutting them by about two thirds. Their source ships beside them, as it always has.
+* Fixed: the address filter above the Request Log offered internal names — "markdown", "rest:discovery" — while the table beside it showed the plain ones. One screen, one vocabulary now.
+* Fixed: a crawler could name your own site as its home page and have the plugin fetch you on its behalf, then record that as a visit. It never proved anything — of course your own front page answers — and it is refused outright now.
 
 = 1.47.0 =
 * Fixed: on a site not written in the Latin alphabet, every page carrying a reported search was told its words answer nothing. The part that pulls the meaningful words out of a search reads Latin letters and numbers, so a search in Cyrillic, Chinese, Japanese, Arabic, Greek or Devanagari yielded nothing to look for — and that came out the far end as "none of it is on the page". The whole site sat on the list permanently and no amount of writing could clear it. A search the check cannot read is now reported as exactly that: not measured, not a failure.
@@ -381,36 +393,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 = 1.40.1 =
 * Fixed: a bug regarding the request log as a connected assistant reads it. 1.40.0 taught that screen to sort, and its answer grew two new fields — which order the rows are in, and how far down the list this page starts. The assistant-facing tool had not been told to expect them, so it refused its own reply and an assistant asking about your crawlers got an error instead of your log. Your own screens were never affected, which is why it went unnoticed. If you use Claude, ChatGPT or another MCP client with this site, it reads again.
 
-= 1.40.0 =
-* Fixed: bugs regarding the impostor count — your dashboard could report "0 caught faking an identity" while your site was catching crawlers forging an identity and turning them away. That figure counted the review queue, which is a list you can dismiss from, rather than the log that records what actually happened, so it fell back to zero as soon as a report was cleared. It reads the log now, over the same days the card counts.
-* Fixed: bugs regarding the dashboard's drill-downs — clicking a number opened the Request Log with the filters shown but not applied, so "4 caught faking an identity" arrived as all 165 requests. It affected the first visit to that screen in a session, which is why it was easy to miss. Those rows now open exactly what they counted, over the same window.
-* Fixed: on WordPress's Light admin colour scheme, Agentimus coloured its links, tab underlines, numbers and chart bars with that scheme's orange highlight — and on WordPress before 7.1, with a grey so pale nothing could be read against the page. It keeps its own colour there now.
-* Fixed: on the Light scheme, hovering a line on the readiness card turned it white on an almost-white card and it disappeared. The lift was drawn for the dark card and had never been mirrored for the light one.
-* New: the Request Log's Client, Endpoint, Network and Verification filters each take more than one value — two crawlers at once, or everything spoofed or refused — and every column sorts the whole filtered set rather than the page on screen. The Visitors report's "Sent by" takes several assistants too, so two can be read side by side.
-* Improved: every number on the dashboard's Humans and Machines cards is now a link, and each one lands where it is answered. "Clicks from Google + Bing" opens what people actually searched for; "referred by AI answers" opens which assistants sent them and where they landed.
-* Improved: Agentimus wears one colour per admin colour scheme, whichever WordPress you run. Blue, Ocean and Sunrise each kept a second set of colours for the palette WordPress shipped before 7.1; each is now a single colour taken from that scheme's own bar, in light and dark alike.
-* Improved: buttons and cards answer the pointer the same way across the plugin — the surface lifts, nothing casts a shadow, and the Request Log's header holds still instead of resizing the table under your cursor as you sort.
-* Fixed: your content summary no longer says "the most common is X" when there is only one kind of issue to name.
-* Improved: "This site represents" and "Entity type" read as plain English — "A person", "An organization", "Blog Posting" — instead of the raw values written into your structured data.
-
-= 1.39.0 =
-* Fixed: the score card's “N to fix” chip said a number nobody could reconcile with the screen. It added up the issue groups, so a page carrying three issues counted three times — 119 on a site where 82 pages needed work. It counts pages now, the same number the Optimize card names.
-* New: your content gets read even when your host never runs WordPress's scheduled jobs. WordPress asks itself for a background run on each page view, and on many hosts that ask never arrives — a blocked internal request, or a cached page that never runs PHP — so the reading never happened and nothing on any screen said so. Agentimus now notices when its own jobs are overdue and runs them from the screen you are already on. Nothing else on the page slows down, a site whose jobs run normally loads nothing at all, and a run stands down the moment WordPress starts one of its own.
-* Improved: working through one issue at a time now leads somewhere. "Featured image not described · 60 Posts" used to show six of those sixty pages and stop. It hands the whole set to Your Content instead, ranked, twenty at a time, with the search each page is found for — and a connected assistant can ask for one check's pages the same way.
-* Fixed: fix the thing a filtered list was opened for, and the page says so instead of sitting there as though nothing had happened. Come back from the editor and the row keeps its place — a row that vanishes the moment you fix it is a fix you never got to see — but it is marked as done, and the heading admits its count was taken before you started.
-* Fixed: a page WordPress builds for you — your blog index, a cart, a form page — is no longer told it is too short. Those pages take their words from whatever fills them, so "not enough substance yet" was the one piece of advice their owner could not act on. They are still read, and still listed for anything else they need.
-* Fixed: a page is no longer told to climb a search it is losing to another of your own pages. One row could say "one push from page one" while the row below it said to point that page at the sibling beating it — and following the first made the second worse.
-* Fixed: the Optimize card counted the wrong thing. "Up to 65 of your 103 graded pieces have something worth fixing" named the biggest single issue, which is the smallest that number can be, not the largest. On a site where 84 pages carried something, it said 65. It counts pages now.
-* Fixed: one click no longer breaks the three counts above your content list. Setting a page aside made them count only the twenty rows on screen instead of your whole site — "94 · 18 · 18" became "19 · 0 · 1". They stay site-wide, and the page you set aside moves from one count to the other.
-* Fixed: opening Your Content no longer leaves the finding above it out of date. That screen reads a few pages before it counts, so its numbers were newer than the sentence above them — 69 in one place, 68 in the other, on the same screen.
-* Fixed: setting a page aside no longer leaves the count above it stale. The list and the sentence that summarises it share one screen, and both move together now.
-* Improved: the front door says when its numbers are moving. It already said how many pages had never been read; it now also says how many are being read again after a change.
-* Improved: Agentimus sits more comfortably in whichever WordPress admin colour scheme you use, in light and in dark.
-* Fixed: blocks inside a card no longer sit flush against one another, so three separate things stop reading as one.
-
-The five most recent releases are listed here. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.40.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.48.0 =
+The Request Log now records what crawlers read on your pages, not only which AI files they fetched — so an AI reading every article on your site is no longer invisible. Only machines are recorded; your readers are never logged there. A conflict between your CDN and your own AI policy now reaches the Findings list, dated, instead of waiting on one screen for you to find it — and that list no longer says "nothing is blocking AI assistants" when all it checked was this plugin's own setup. No breaking changes.
 
 = 1.47.0 =
 If your site is not written in the Latin alphabet, Agentimus has been telling you every page answers nothing — a search it could not read came out as a page that failed. That is fixed, and those pages ask nothing of you now. You can also set a search aside instead of the page it landed on, for the times a reported search was never a question your site should answer. Your site re-reads its pages once after updating, so a finding that was true all along may appear. No breaking changes.

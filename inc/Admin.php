@@ -989,23 +989,23 @@ final class Admin {
 				// never had a word for — the changelog carries it.
 				array(
 					'icon'  => 'page',
-					'title' => 'Set a Search Aside, Not the Page',
-					'text'  => 'When a page does not answer the search it is found for, sometimes the page is lacking — and sometimes that was never a question your site should answer. Until now the only way to quiet it was to set the page aside, which takes good writing off your list. You can set the search aside instead, and put it back whenever you like.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Searches That Were Never Questions',
-					'text'  => 'Search engines report every string that showed your site, including web addresses somebody pasted into a search box and whole prompts pasted in. Those were being held against your pages, and no amount of writing could ever answer them. They are left out now, so your list is shorter and everything on it is something you can actually do.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'An Assistant Sees the Whole Page Now',
-					'text'  => 'Ask a connected assistant to check a page and it was told only how readable that page is. So a page whose single problem was that its words never answer the search it is found for came back with full marks — and an assistant reading that would tell you there was nothing to do. It gets both halves now, and the exact words the page never uses.',
+					'title' => 'Crawler Visits to Your Pages',
+					'text'  => 'The Request Log showed which AI files a crawler fetched, and never which of your articles it read — so it was missing most of what actually happens. It shows both now. Only machines are recorded; your readers are never logged here. If your site is crawled heavily and you would rather keep a longer history of the files alone, you can turn it off in Settings.',
 				),
 				array(
 					'icon'  => 'shield',
+					'title' => 'Proof of Who Was Really Here',
+					'text'  => 'A few AI crawlers now sign their requests, so a site can check the sender rather than take their word for it. Agentimus was doing that check but only kept a record when it already knew the company — a signature from anyone else was proved genuine and then left no trace. Every one is kept now, and there is a Signature filter in the Request Log to find them.',
+				),
+				array(
+					'icon'  => 'clock',
+					'title' => 'Trouble at Your CDN Now Reaches You',
+					'text'  => 'If a CDN like Cloudflare sits in front of your site, it can turn an AI assistant away before the request ever reaches WordPress. Agentimus could already see that happening, but only said so on one screen — so you found out by going and looking. It is on the Findings list now, with the date it started. One correction comes with it: that list used to say "nothing is blocking AI assistants" whenever your setup checks passed, which was a promise it could not keep. It now says what it actually checked.',
+				),
+				array(
+					'icon'  => 'search',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'If your site is not written in the Latin alphabet, every page was being told its words answer nothing — a search Agentimus could not read came out as a page that failed. That is fixed. Your site reads its pages once after this update, so something that was true all along may appear on your list. The changelog has the full list.',
+					'text'  => 'The filter above the log offered our internal names for your pages while the table beside it used plain ones. A crawler could get the plugin to visit your own site and count it as a visitor. And the three small scripts the plugin adds to your pages are now compressed, so they download faster. The changelog has the full list.',
 				),
 			),
 		);
