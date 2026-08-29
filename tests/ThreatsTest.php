@@ -291,6 +291,66 @@ final class ThreatsTest extends TestCase {
 		$this->assertSame( '', $r['sources'][0]['verdict'], 'No verification data → no verdict string.' );
 	}
 
+	/* -- The population split behind a shared name --------------------------
+	 *
+	 * One UA string can carry TWO populations: the real engine (verdict 1 hits)
+	 * and an impersonator borrowing the exact same name (verdict 2 hits).
+	 * MAX(verdict) rightly brands the ROW spoofed, but the row's hits/lastSeen
+	 * span both — so the row must carry the split, or every surface quoting it
+	 * paints the real engine's volume and recency with the impostor's verdict
+	 * (caught live 2026-08-29: "Failed verification · 95 requests · 5h ago"
+	 * where the 5h-ago request was the REAL Googlebot's verified fetch). */
+
+	public function test_a_spoofed_row_carries_the_split_between_impostor_and_real_engine() {
+		$src = $this->sourceV( self::GOOGLEBOT, 'Googlebot', 120, 20 * DAY_IN_SECONDS, 2 ) + array(
+			'spoof_hits'      => 15,
+			'spoof_last_seen' => $this->gmt( 6 * DAY_IN_SECONDS ),
+			'verified_hits'   => 105,
+		);
+		$r = $this->analyze( array( $src ) );
+		$this->assertCount( 1, $r['sources'] );
+		$s = $r['sources'][0];
+		$this->assertSame( 120, $s['hits'], 'The aggregate stays the aggregate.' );
+		$this->assertSame( 15, $s['spoofHits'], 'The failing requests are counted apart from the real engine’s.' );
+		$this->assertSame( 105, $s['verifiedHits'] );
+		$this->assertSame(
+			gmdate( 'c', self::NOW - 6 * DAY_IN_SECONDS ),
+			$s['spoofLastSeen'],
+			'The spoofed verdict is dated by its last FAILING request, not by whoever visited most recently.'
+		);
+	}
+
+	public function test_split_fields_default_to_empty_when_the_aggregates_lack_them() {
+		// A caller predating the split (or a re-check-driven verdict with no logged
+		// failures) must yield honest zeros, never a notice or an invented count.
+		$r = $this->analyze( array( $this->sourceV( self::GOOGLEBOT, 'Googlebot', 40, HOUR_IN_SECONDS, 2 ) ) );
+		$s = $r['sources'][0];
+		$this->assertSame( 0, $s['spoofHits'] );
+		$this->assertSame( 0, $s['verifiedHits'] );
+		$this->assertSame( '', $s['spoofLastSeen'] );
+	}
+
+	public function test_the_split_folds_across_merged_ua_variants() {
+		// Two variants of one blockable client, each with its own split: counts sum,
+		// and the NEWEST failure dates the merged verdict.
+		$a = $this->sourceV( self::SEMRUSH, 'SemrushBot', 5, HOUR_IN_SECONDS, 2 ) + array(
+			'spoof_hits'      => 2,
+			'spoof_last_seen' => $this->gmt( 2 * DAY_IN_SECONDS ),
+			'verified_hits'   => 1,
+		);
+		$b = $this->sourceV( str_replace( '7~bl', '8~bl', self::SEMRUSH ), 'SemrushBot', 3, HOUR_IN_SECONDS, 2 ) + array(
+			'spoof_hits'      => 3,
+			'spoof_last_seen' => $this->gmt( HOUR_IN_SECONDS ),
+			'verified_hits'   => 0,
+		);
+		$r = $this->analyze( array( $a, $b ) );
+		$this->assertCount( 1, $r['sources'], 'The two variants share a block token, so they are one row.' );
+		$s = $r['sources'][0];
+		$this->assertSame( 5, $s['spoofHits'], 'Failing counts sum across variants.' );
+		$this->assertSame( 1, $s['verifiedHits'] );
+		$this->assertSame( gmdate( 'c', self::NOW - HOUR_IN_SECONDS ), $s['spoofLastSeen'], 'The newest failure wins.' );
+	}
+
 	/* -- Attribution: the owning network on a review row ------------------- */
 
 	public function test_a_review_row_carries_the_owning_network() {

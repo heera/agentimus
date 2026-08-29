@@ -79,9 +79,16 @@ final class ReviewQueue {
 		// MAX(verdict) folds the per-hit reverse-DNS results to the WORST seen for this UA
 		// (2 spoofed > 1 verified > 0 unchecked): if any hit under this UA conclusively
 		// failed verification, the client is an impersonator and must surface as one.
+		// The CASE aggregates carry the split behind that fold: one UA string can serve
+		// TWO populations — the real engine (verdict 1) and an impersonator borrowing its
+		// exact name (verdict 2) — and a row branded "spoofed" whose hits/last_seen span
+		// both would let the impostor's verdict wear the real engine's volume and recency.
+		// Caught live 2026-08-29: "Failed verification · 95 requests · 5h ago" where the
+		// 5h-ago request was the REAL Googlebot's verified sitemap fetch and the last
+		// actual forgery was six days old.
 		$sources = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, MAX(network) AS network, MAX(signer) AS signer, MAX(refused) AS refused, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
+				"SELECT ua, MAX(agent) AS agent, COUNT(*) AS hits, MAX(verdict) AS verdict, SUM(CASE WHEN verdict = 2 THEN 1 ELSE 0 END) AS spoof_hits, MAX(CASE WHEN verdict = 2 THEN hit_at END) AS spoof_last_seen, SUM(CASE WHEN verdict = 1 THEN 1 ELSE 0 END) AS verified_hits, MAX(network) AS network, MAX(signer) AS signer, MAX(refused) AS refused, MIN(hit_at) AS first_seen, MAX(hit_at) AS last_seen FROM $table WHERE hit_at >= %s GROUP BY ua ORDER BY hits DESC LIMIT 200",
 				$since
 			),
 			ARRAY_A
@@ -221,6 +228,14 @@ final class ReviewQueue {
 			$last  = isset( $s['last_seen'] ) ? strtotime( $s['last_seen'] . ' UTC' ) : 0;
 			$rec   = isset( $recent[ $ua ] ) ? (int) $recent[ $ua ] : 0;
 
+			// The population split behind a shared name (see the query note in threats()):
+			// how many of this UA's requests FAILED the identity check, when the last
+			// failure was, and how many forward-confirmed as the genuine engine. Zero /
+			// empty when the caller predates the split or verification never ran.
+			$spoof_hits    = isset( $s['spoof_hits'] ) ? (int) $s['spoof_hits'] : 0;
+			$spoof_last    = empty( $s['spoof_last_seen'] ) ? 0 : strtotime( $s['spoof_last_seen'] . ' UTC' );
+			$verified_hits = isset( $s['verified_hits'] ) ? (int) $s['verified_hits'] : 0;
+
 			$is_new      = $first > 0 && ( $now - $first ) <= $new_secs;
 			$is_heavy    = $rec >= $burst_min || $hits >= $heavy_min;
 			$is_spoof    = Classifier::is_spoof( $ua );
@@ -323,6 +338,14 @@ final class ReviewQueue {
 				// This client was turned away at the door — the card says so, so the
 				// owner never wonders whether it got through.
 				'refused'    => ! empty( $s['refused'] ),
+				// The split behind a spoofed verdict: a verdict must count and date the
+				// requests that EARNED it. `hits`/`lastSeen` above span every request
+				// under this name — on a row where the real engine shares the UA with
+				// its impersonator, they are mostly the real engine's, so a "failed
+				// verification" surface must quote these instead.
+				'spoofHits'     => $spoof_hits,
+				'spoofLastSeen' => $spoof_last ? gmdate( 'c', $spoof_last ) : '',
+				'verifiedHits'  => $verified_hits,
 			);
 		}
 
@@ -433,6 +456,13 @@ final class ReviewQueue {
 		$keep['hits']    += $add['hits'];
 		$keep['recent']  += $add['recent'];
 		$keep['severity'] = max( $keep['severity'], $add['severity'] );
+		// The population split folds like the totals it splits: counts sum, and the
+		// newest failure dates the merged verdict (ISO-8601 +00:00 sorts lexically).
+		$keep['spoofHits']    += $add['spoofHits'];
+		$keep['verifiedHits'] += $add['verifiedHits'];
+		if ( '' !== $add['spoofLastSeen'] && ( '' === $keep['spoofLastSeen'] || $add['spoofLastSeen'] > $keep['spoofLastSeen'] ) ) {
+			$keep['spoofLastSeen'] = $add['spoofLastSeen'];
+		}
 		// Worst verdict wins (spoofed > verified > unchecked): a client that impersonated
 		// its claimed engine in ANY variant is an impersonator.
 		if ( 'spoofed' === $add['verdict'] || ( 'verified' === $add['verdict'] && '' === $keep['verdict'] ) ) {

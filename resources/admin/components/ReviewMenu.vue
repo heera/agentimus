@@ -229,6 +229,14 @@ export default {
         const failed = 'ranges' === m
           ? `its address isn’t in ${label}’s published IP ranges`
           : ('rdns' === m ? 'it failed reverse-DNS verification when it visited' : 'its address failed verification when it visited');
+        // The genuine engine can share this exact User-Agent string with its
+        // impersonator — they land on ONE row. Without this sentence the card
+        // brands the real crawler's traffic with the impostor's verdict (caught
+        // live: real Googlebot's fresh, verified crawl read as "failed, 5h ago").
+        const okN = Number(s.verifiedHits) || 0;
+        const split = okN
+          ? ` The real ${label} also crawls this site — ${okN} request${1 === okN ? '' : 's'} under this name verified as genuine and ${1 === okN ? 'was' : 'were'} served normally.`
+          : '';
         // With blocking + the spoofed-class block both on, the Guard already refuses
         // this proven impostor at the AI endpoints — say so, and scope the remaining
         // advice honestly: an IP block at the host/CDN is what stops it SITE-WIDE.
@@ -240,7 +248,7 @@ export default {
           tone: 'danger',
           icon: 'x',
           state: 'Failed verification',
-          why: `Claims to be ${label}, but ${failed}.`,
+          why: `Claims to be ${label}, but ${failed}.${split}`,
           recommend: enforced
             ? `Already refused at this site’s AI endpoints. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
             : `Can’t be blocked by name — ${ipAdvice}.`,
@@ -472,6 +480,21 @@ export default {
     kindLabel(kind) {
       return { ai: 'AI crawler', seo: 'SEO crawler', search: 'Search engine', social: 'Social preview' }[kind] || 'Crawler';
     },
+    // The volume/recency line under the hero. A verdict must count and date the
+    // requests that EARNED it: on a "Failed verification" card the aggregate
+    // hits/lastSeen can belong mostly to the REAL engine sharing the same name,
+    // so quote the failing requests there. spoofHits of 0 on a spoofed row means
+    // the verdict came from an admin re-check, not logged requests — the
+    // aggregate is all there is, so it falls through honestly.
+    metaLine(s) {
+      const failedN = Number(s.spoofHits) || 0;
+      if ('spoofed' === s.verdict && failedN > 0) {
+        const when = s.spoofLastSeen ? ` · last ${this.ago(s.spoofLastSeen)}` : '';
+        return `${failedN} failed request${1 === failedN ? '' : 's'}${when}`;
+      }
+      const when = s.lastSeen ? ` · ${this.ago(s.lastSeen)}` : '';
+      return `${s.hits} request${1 === s.hits ? '' : 's'}${when}`;
+    },
     ago(iso) {
       return relTimeShort(new Date(iso).getTime());
     },
@@ -572,7 +595,7 @@ export default {
               <p v-if="c.why" class="ar-rev-why">{{ c.why }}</p>
 
               <div class="ar-rev-meta">
-                {{ s.hits }} request{{ 1 === s.hits ? '' : 's' }}<template v-if="s.lastSeen"> · {{ ago(s.lastSeen) }}</template>
+                {{ metaLine(s) }}
               </div>
 
               <div v-if="c.recommend" class="ar-rev-rec" :class="'is-' + c.tone">

@@ -1388,15 +1388,19 @@ final class Registrar {
 			__( 'List the clients waiting on a decision', 'agentimus' ),
 			'Returns who has been fetching this site and what the owner has already decided about them — the '
 				. 'review queue first. A queue row is a client the site wants a verdict on: brand new, unusually '
-				. 'heavy, or caught claiming an identity that is not its own. `flags` says which of those it is '
-				. 'and `severity` how loud, `hits` is the volume behind the row, and `suggestedRule` is the exact '
-				. 'user-agent fragment a block or allow would match on — pass it nothing, pass review-client the '
-				. '`ua`. Then the standing decisions: `blocked` (turned away at the door), `allowed` (never '
-				. 'blocked, never queued again) and `ignored` (a not-now, no policy either way, which returns if '
-				. 'the client changes materially). `verifiers` is the separate list of crawlers whose identity '
-				. 'CAN be proved by reverse DNS or published IP ranges — recheck-client only works on those. '
-				. 'Empty queue plus enabled=true means nothing needs a verdict; enabled=false means the site is '
-				. 'not recording visits at all, which is not the same as nobody visiting.',
+				. 'heavy, or caught claiming an identity that is not its own. A client the owner already blocked '
+				. 'is handled and never listed here, so `reviewTotal` is the same count the owner’s own bell '
+				. 'shows. `flags` says why a row is queued and `severity` how loud; `hits` is every request under '
+				. 'the row’s name — on a row whose verdict is spoofed, read `spoofHits`/`spoofLastSeen` for the '
+				. 'impostor’s own volume and recency, because the genuine engine can share the exact same '
+				. 'user-agent string and `verifiedHits` of those requests proved to be really it. `suggestedRule` '
+				. 'is the exact user-agent fragment a block or allow would match on — pass it nothing, pass '
+				. 'review-client the `ua`. Then the standing decisions: `blocked` (turned away at the door), '
+				. '`allowed` (never blocked, never queued again) and `ignored` (a not-now, no policy either way, '
+				. 'which returns if the client changes materially). `verifiers` is the separate list of crawlers '
+				. 'whose identity CAN be proved by reverse DNS or published IP ranges — recheck-client only works '
+				. 'on those. Empty queue plus enabled=true means nothing needs a verdict; enabled=false means the '
+				. 'site is not recording visits at all, which is not the same as nobody visiting.',
 			self::no_input(),
 			self::obj(
 				array(
@@ -1407,10 +1411,10 @@ final class Registrar {
 							'ua'            => self::s( 'The client’s user-agent, as sent. Pass this to review-client and recheck-client.' ),
 							'name'          => self::s( 'What it is, when this site recognises it; empty when nothing does.' ),
 							'operator'      => self::s( 'Who runs it, when recognised.' ),
-							'hits'          => self::i( 'Requests behind this row.' ),
+							'hits'          => self::i( 'Every request under this row’s name, verified and failing alike — on a spoofed row, `spoofHits` is the impostor’s own share.' ),
 							'recentHits'    => self::i( 'How many of those are recent — the burst that raised it.' ),
 							'firstSeen'     => self::s( 'ISO 8601.' ),
-							'lastSeen'      => self::s( 'ISO 8601.' ),
+							'lastSeen'      => self::s( 'ISO 8601 — the newest request under this name, whoever sent it. On a spoofed row the impostor’s own recency is `spoofLastSeen`.' ),
 							'severity'      => self::i( 'How loud the row is; higher wants attention sooner.' ),
 							'isNew'         => self::b( 'First seen recently. Leaves the queue on its own if nothing else is wrong.' ),
 							'isHeavy'       => self::b( 'Fetching far more than the rest.' ),
@@ -1418,11 +1422,24 @@ final class Registrar {
 							'verdict'       => self::s( 'What the identity check makes of it: unchecked, verified or spoofed.' ),
 							'verifiable'    => self::b( 'Whether its claimed identity CAN be proved — recheck-client only works on these.' ),
 							'refused'       => self::b( 'Whether requests from it are already being turned away at the door.' ),
-							'blocked'       => self::b( 'Already on the block list.' ),
 							'suggestedRule' => self::s( 'The user-agent fragment a block or allow would match on. Empty means no safe rule can be derived, and review-client will refuse block and allow for this row.' ),
+							'spoofHits'     => self::i( 'Requests that FAILED the identity check — the impostor’s own volume. Never read `hits` as the impostor’s: the genuine engine can share this exact name.' ),
+							'spoofLastSeen' => self::s( 'ISO 8601 — when the last FAILING request was seen: the date the spoofed verdict rests on. Can be far older than `lastSeen`. Empty when the verdict came from an admin re-check rather than logged requests.' ),
+							'verifiedHits'  => self::i( 'Requests under this same name that forward-confirmed as the genuine engine. Non-zero on a spoofed row means the real engine also visits — only the failing requests are the impostor.' ),
+							'ips'           => array(
+								'type'        => 'array',
+								'items'       => self::obj(
+									array(
+										'ip'       => self::s( 'The captured source address.' ),
+										'hits'     => self::i( 'Requests seen from it.' ),
+										'lastSeen' => self::s( 'ISO 8601.' ),
+									)
+								),
+								'description' => 'The captured source addresses behind this row — what a host/CDN block would target; the owner’s Details drawer shows the same list. Filled only when the owner stores IPs for flagged clients: empty means "not captured", never "no address".',
+							),
 						)
 					),
-					'reviewTotal' => self::i( 'Rows in the queue.' ),
+					'reviewTotal' => self::i( 'Rows in the queue — the same count the owner’s bell shows (already-blocked clients are handled, not queued).' ),
 					'blocked'     => self::arr(
 						array(
 							'rule'      => self::s( 'The user-agent fragment being matched.' ),
@@ -1472,8 +1489,26 @@ final class Registrar {
 
 				$review = array();
 				foreach ( $threats as $row ) {
-					$known    = isset( $row['known'] ) && is_array( $row['known'] ) ? $row['known'] : array();
-					$flags    = isset( $row['flags'] ) && is_array( $row['flags'] ) ? $row['flags'] : array();
+					// An already-blocked client is handled — the owner's bell and popup both
+					// exclude it (ReviewBadge: "one number, one meaning"), so the tool must
+					// too, or an agent reports a queue the owner's screen contradicts.
+					if ( ! empty( $row['blocked'] ) ) {
+						continue;
+					}
+					$known = isset( $row['known'] ) && is_array( $row['known'] ) ? $row['known'] : array();
+					$flags = isset( $row['flags'] ) && is_array( $row['flags'] ) ? $row['flags'] : array();
+
+					// The captured addresses (opt-in store; absent key = capture off). Re-keyed
+					// to the declared shape only — the ability's own schema is the whitelist.
+					$ips = array();
+					foreach ( ( isset( $row['ips'] ) && is_array( $row['ips'] ) ) ? $row['ips'] : array() as $ip ) {
+						$ips[] = array(
+							'ip'       => (string) ( isset( $ip['ip'] ) ? $ip['ip'] : '' ),
+							'hits'     => (int) ( isset( $ip['hits'] ) ? $ip['hits'] : 0 ),
+							'lastSeen' => (string) ( isset( $ip['lastSeen'] ) ? $ip['lastSeen'] : '' ),
+						);
+					}
+
 					$review[] = array(
 						'ua'            => (string) ( isset( $row['ua'] ) ? $row['ua'] : '' ),
 						'name'          => (string) ( isset( $known['name'] ) ? $known['name'] : ( isset( $row['agent'] ) ? $row['agent'] : '' ) ),
@@ -1489,8 +1524,11 @@ final class Registrar {
 						'verdict'       => (string) ( isset( $row['verdict'] ) ? $row['verdict'] : '' ),
 						'verifiable'    => ! empty( $row['verifiable'] ),
 						'refused'       => ! empty( $row['refused'] ),
-						'blocked'       => ! empty( $row['blocked'] ),
 						'suggestedRule' => (string) ( isset( $row['token'] ) ? $row['token'] : '' ),
+						'spoofHits'     => (int) ( isset( $row['spoofHits'] ) ? $row['spoofHits'] : 0 ),
+						'spoofLastSeen' => (string) ( isset( $row['spoofLastSeen'] ) ? $row['spoofLastSeen'] : '' ),
+						'verifiedHits'  => (int) ( isset( $row['verifiedHits'] ) ? $row['verifiedHits'] : 0 ),
+						'ips'           => $ips,
 					);
 				}
 
