@@ -591,7 +591,7 @@ final class Registrar {
 					'conflicts'   => self::arr(
 						array(
 							'id'     => self::s(),
-							'level'  => self::s( 'warn = the edge contradicts the declared policy; info = a declared preference is not enforced.' ),
+							'level'  => self::s( 'warn = the edge contradicts the declared policy; info = a declared preference is not enforced, or (see `checked`) the blocked traffic proved to be impostors and the warning stood down.' ),
 							'title'  => self::s(),
 							'body'   => self::s(),
 							'url'    => self::s( 'Cloudflare dashboard deep link where the owner can act.' ),
@@ -604,6 +604,18 @@ final class Registrar {
 									'requests' => self::i( 'warn only: requests that operator made in the window.' ),
 									'passed'   => self::i( 'info only: training-crawler requests the edge let through.' ),
 								)
+							),
+							'checked' => array_merge(
+								self::obj(
+									array(
+										'at'       => self::i( 'Unix time of the check.' ),
+										'sampled'  => self::i( 'Blocked requests in the last-day sample.' ),
+										'verified' => self::i( 'Of those, requests from the operator\'s own published addresses — the operator really being blocked.' ),
+										'spoofed'  => self::i( 'Requests from addresses the operator does not use — something else wearing the name.' ),
+										'unknown'  => self::i( 'Requests whose source could not be determined. Never read these as either verdict.' ),
+									)
+								),
+								array( 'description' => 'Present when the blocked traffic behind this conflict was verified against the operator\'s published addresses. Cloudflare counts crawlers by User-Agent string, which anyone can wear — when verified is 0 and nearly everything proved spoofed, the conflict is demoted to an info note: the edge is stopping an impersonation campaign, not the operator.' )
 							),
 						)
 					),
@@ -622,6 +634,15 @@ final class Registrar {
 									'blocked'  => self::i(),
 									'requests' => self::i(),
 									'passed'   => self::i(),
+								)
+							),
+							'checked'    => self::obj(
+								array(
+									'at'       => self::i(),
+									'sampled'  => self::i(),
+									'verified' => self::i(),
+									'spoofed'  => self::i(),
+									'unknown'  => self::i(),
 								)
 							),
 						),

@@ -124,7 +124,7 @@ final class Conflicts {
 
 			foreach ( $per_operator as $op => $sums ) {
 				$out[] = array(
-					'id'    => 'edge-blocks-' . trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $op ) ), '-' ),
+					'id'    => 'edge-blocks-' . self::operator_slug( $op ),
 					'level' => 'warn',
 					'title' => sprintf(
 						/* translators: %s: AI company name (e.g. OpenAI). */
@@ -189,6 +189,19 @@ final class Conflicts {
 	}
 
 	/**
+	 * The slug an operator's warn conflict carries in its id
+	 * ("edge-blocks-<slug>"). One transform, shared with every reader that has
+	 * to recover the operator from the id — drifted copies would silently stop
+	 * matching and the readers would fail open.
+	 *
+	 * @param string $operator Operator display name (e.g. "OpenAI").
+	 * @return string
+	 */
+	public static function operator_slug( $operator ) {
+		return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $operator ) ), '-' );
+	}
+
+	/**
 	 * When a conflict actually began — the first day of the unbroken run of days
 	 * on which its own condition held.
 	 *
@@ -244,7 +257,7 @@ final class Conflicts {
 			$sums = array( 'blocked' => 0, 'requests' => 0 );
 			foreach ( $rows as $ua => $t ) {
 				$op = isset( $operators[ $ua ] ) ? (string) $operators[ $ua ] : '';
-				if ( '' === $op || trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $op ) ), '-' ) !== $want ) {
+				if ( '' === $op || self::operator_slug( $op ) !== $want ) {
 					continue;
 				}
 				$sums['blocked']  += (int) $t['blocked'];

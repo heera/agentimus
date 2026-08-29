@@ -101,6 +101,17 @@ final class Summary {
 			$operators[ (string) $c['ua'] ] = (string) $c['operator'];
 		}
 
+		// The poll's spoof-check verdicts, keyed back to conflicts by the same
+		// slug detect() built the ids from ({@see SpoofCheck}).
+		$spoof_checks = $cloudflare->spoof_checks();
+		$op_by_slug   = array();
+		foreach ( $operators as $op ) {
+			if ( '' !== $op ) {
+				$op_by_slug[ Conflicts::operator_slug( $op ) ] = $op;
+			}
+		}
+		$now = time();
+
 		// Resolve each conflict's dashboard destination to a real deep link here,
 		// so no consumer ever builds URLs.
 		$visible = array();
@@ -109,6 +120,48 @@ final class Summary {
 			$conflict['url'] = self::dash_url( $conflict['link'], (string) $view['zoneName'] );
 			unset( $conflict['link'] );
 			$id = (string) $conflict['id'];
+
+			// ⭐⭐ A USER-AGENT IS NOT AN OPERATOR. Cloudflare's per-crawler numbers
+			// are keyed by UA string, so a scanner probing /.env files while
+			// wearing "OAI-SearchBot" is blocked AS OpenAI — and this card then
+			// accused the edge of blocking a company that never visited (found
+			// live, 2026-08-29). The poll verifies the blocked traffic's source
+			// addresses against what the operator publishes; when every checked
+			// request proved to be someone else and none proved genuine, the
+			// warning stands down to a note that the edge is doing its job. Any
+			// verified request, or a mostly-undetermined sample, keeps the warn:
+			// "could not say" is not "not them". The id survives the demotion, so
+			// the owner's fold, the first-seen stamp and the onset date carry over
+			// — same situation, better-understood evidence.
+			if ( 'warn' === (string) $conflict['level'] && 0 === strpos( $id, 'edge-blocks-' ) ) {
+				$op    = isset( $op_by_slug[ substr( $id, strlen( 'edge-blocks-' ) ) ] ) ? $op_by_slug[ substr( $id, strlen( 'edge-blocks-' ) ) ] : '';
+				$check = '' !== $op && isset( $spoof_checks[ $op ] ) ? (array) $spoof_checks[ $op ] : null;
+				if ( $check && ( $now - (int) $check['at'] ) <= SpoofCheck::FRESH_SECONDS ) {
+					$conflict['checked'] = array(
+						'at'       => (int) $check['at'],
+						'sampled'  => (int) $check['sampled'],
+						'verified' => (int) $check['verified'],
+						'spoofed'  => (int) $check['spoofed'],
+						'unknown'  => (int) $check['unknown'],
+					);
+					if ( SpoofCheck::stands_down( $check, $now ) ) {
+						$conflict['level'] = 'info';
+						$conflict['title'] = sprintf(
+							/* translators: %s: AI company name (e.g. OpenAI). */
+							__( 'Cloudflare is blocking impostors using %s’s name', 'agentimus' ),
+							$op
+						);
+						$conflict['body'] = sprintf(
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days. */
+							__( 'Cloudflare turned away %1$s of %2$s requests carrying %3$s’s crawler names in the last %4$d days — but none of the blocked traffic it checked came from %3$s’s own published addresses. Something else is wearing the name, and your edge is stopping it. The real %3$s is not being kept out, so nothing needs allowing. If verified %3$s traffic starts being refused, this becomes a warning again by itself.', 'agentimus' ),
+							number_format_i18n( (int) $conflict['counts']['blocked'] ),
+							number_format_i18n( (int) $conflict['counts']['requests'] ),
+							$op,
+							$days
+						);
+					}
+				}
+			}
 
 			// ⭐⭐ WHEN IT BEGAN, PREFERRED OVER WHEN WE NOTICED. The recorded stamp
 			// can only date a conflict from the moment this plugin first looked at

@@ -155,6 +155,65 @@ final class Client {
 	}
 
 	/**
+	 * The source addresses of edge-refused requests in a window, busiest
+	 * first — one row per (client IP, user agent). The filter is the same
+	 * test {@see Module::aggregate()} calls "blocked" (the edge answered
+	 * 403/429 without contacting the origin), expressed server-side so the
+	 * split costs one bounded call instead of re-reading the whole window.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @param int    $since   Window start, Unix UTC.
+	 * @param int    $until   Window end, Unix UTC.
+	 * @return array { rows?: array<int,array{ip:string,ua:string,requests:int}>, error?: string }
+	 */
+	public function blocked_sources( $token, $zone_id, $since, $until ) {
+		$query = 'query ($zone: String!, $since: Time!, $until: Time!) {
+			viewer {
+				zones(filter: { zoneTag: $zone }) {
+					httpRequestsAdaptiveGroups(
+						limit: 200,
+						filter: { datetime_geq: $since, datetime_lt: $until, requestSource: "eyeball", edgeResponseStatus_in: [403, 429], originResponseStatus: 0 },
+						orderBy: [count_DESC]
+					) {
+						count
+						dimensions { clientIP userAgent }
+					}
+				}
+			}
+		}';
+
+		$out = $this->graphql( $token, $query, array(
+			'zone'  => (string) $zone_id,
+			'since' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $since ),
+			'until' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $until ),
+		) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+
+		// The expected container, or it's an error — never "real empty data".
+		if ( ! isset( $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] ) ) {
+			return array( 'error' => __( 'Cloudflare returned an unexpected response shape.', 'agentimus' ) );
+		}
+
+		$rows = array();
+		foreach ( (array) $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] as $g ) {
+			if ( ! isset( $g['dimensions'] ) ) {
+				continue;
+			}
+			$d      = (array) $g['dimensions'];
+			$rows[] = array(
+				'ip'       => (string) ( isset( $d['clientIP'] ) ? $d['clientIP'] : '' ),
+				'ua'       => (string) ( isset( $d['userAgent'] ) ? $d['userAgent'] : '' ),
+				'requests' => (int) ( isset( $g['count'] ) ? $g['count'] : 0 ),
+			);
+		}
+
+		return array( 'rows' => $rows );
+	}
+
+	/**
 	 * Ask Cloudflare to drop specific URLs from its cache, in batches of
 	 * {@see PURGE_BATCH} — the API's own per-call ceiling. Stops at the first
 	 * failure (the remaining batches would fail the same way) and reports it,

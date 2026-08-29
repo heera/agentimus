@@ -12,6 +12,7 @@ use Agentimus\Cloudflare\Conflicts;
 use Agentimus\Cloudflare\Module;
 use Agentimus\Cloudflare\Purge;
 use Agentimus\Cloudflare\Settings;
+use Agentimus\Cloudflare\SpoofCheck;
 use Agentimus\Visibility\Crypto;
 use PHPUnit\Framework\TestCase;
 
@@ -763,5 +764,140 @@ final class CloudflareTest extends TestCase {
 
 		$this->assertSame( '2026-08-26', $onset['at'] );
 		$this->assertFalse( $onset['bounded'] );
+	}
+
+	// ── SpoofCheck: a User-Agent is not an operator ─────────────────────────
+
+	private function blocked_row( $ip, $ua, $op, $n ) {
+		return array( 'ip' => $ip, 'ua' => $ua, 'operator' => $op, 'requests' => $n );
+	}
+
+	/**
+	 * The live 2026-08-29 case: every blocked "OAI-SearchBot" request came from
+	 * a rented cloud box outside OpenAI's published ranges — a scanner probing
+	 * /.env paths wearing the name. The tally must call that spoofed, per
+	 * operator, without ever asking twice about one address.
+	 */
+	public function test_classify_tallies_requests_by_the_source_addresses_verdict() {
+		$asked   = array();
+		$verdict = function ( $ua, $ip ) use ( &$asked ) {
+			$asked[] = $ip;
+			$map     = array( '18.209.9.61' => 2, '34.138.50.25' => 2, '172.182.193.225' => 1 );
+			return isset( $map[ $ip ] ) ? $map[ $ip ] : 0;
+		};
+
+		$out = SpoofCheck::classify( array(
+			$this->blocked_row( '18.209.9.61', 'OAI-SearchBot/1.0', 'OpenAI', 500 ),
+			$this->blocked_row( '18.209.9.61', 'OAI-SearchBot/1.1', 'OpenAI', 100 ), // same box, second UA
+			$this->blocked_row( '34.138.50.25', 'OAI-SearchBot/1.0', 'OpenAI', 400 ),
+			$this->blocked_row( '172.182.193.225', 'GPTBot/1.2', 'OpenAI', 25 ),
+			$this->blocked_row( '9.9.9.9', 'PerplexityBot/1.0', 'Perplexity', 30 ),
+		), $verdict );
+
+		$this->assertSame( 1025, $out['OpenAI']['sampled'] );
+		$this->assertSame( 1000, $out['OpenAI']['spoofed'] );
+		$this->assertSame( 25, $out['OpenAI']['verified'] );
+		$this->assertSame( 0, $out['OpenAI']['unknown'] );
+		$this->assertSame( 30, $out['Perplexity']['unknown'] ); // 9.9.9.9 answered 0.
+		// One question per address: 18.209.9.61 appears twice, is asked once.
+		$this->assertSame( array( '18.209.9.61', '34.138.50.25', '172.182.193.225', '9.9.9.9' ), $asked );
+	}
+
+	/**
+	 * ⭐ THE CAP TRIMS THE TAIL, NOT THE STORY. Addresses past the lookup budget
+	 * count as undetermined — never as either verdict — so a capped run can
+	 * only ever weaken the case for standing the warning down.
+	 */
+	public function test_classify_counts_addresses_past_the_cap_as_unknown() {
+		$rows = array(
+			$this->blocked_row( '1.1.1.1', 'GPTBot', 'OpenAI', 10 ),
+			$this->blocked_row( '2.2.2.2', 'GPTBot', 'OpenAI', 9 ),
+			$this->blocked_row( '3.3.3.3', 'GPTBot', 'OpenAI', 8 ),
+		);
+		$out  = SpoofCheck::classify( $rows, function () {
+			return 2;
+		}, 2 );
+
+		$this->assertSame( 27, $out['OpenAI']['sampled'] );
+		$this->assertSame( 19, $out['OpenAI']['spoofed'] );
+		$this->assertSame( 8, $out['OpenAI']['unknown'] );
+	}
+
+	public function test_a_fresh_all_spoofed_sample_stands_the_warning_down() {
+		$now = 1788000000;
+		$this->assertTrue( SpoofCheck::stands_down(
+			array( 'at' => $now - HOUR_IN_SECONDS, 'sampled' => 1000, 'verified' => 0, 'spoofed' => 1000, 'unknown' => 0 ),
+			$now
+		) );
+	}
+
+	/** Any verified request keeps the warn: real blocking is the actionable fact. */
+	public function test_one_verified_request_keeps_the_warning() {
+		$now = 1788000000;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 1000, 'verified' => 1, 'spoofed' => 999, 'unknown' => 0 ),
+			$now
+		) );
+	}
+
+	/** "Could not say" is not "not them" — an undetermined sample keeps the warn. */
+	public function test_a_mostly_undetermined_sample_keeps_the_warning() {
+		$now = 1788000000;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 1000, 'verified' => 0, 'spoofed' => 300, 'unknown' => 700 ),
+			$now
+		) );
+	}
+
+	/** ⭐ A VERDICT AGES: last week's sample must not explain away today's blocking. */
+	public function test_a_stale_verdict_no_longer_stands_anything_down() {
+		$now = 1788000000;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now - 3 * DAY_IN_SECONDS, 'sampled' => 1000, 'verified' => 0, 'spoofed' => 1000, 'unknown' => 0 ),
+			$now
+		) );
+	}
+
+	/** A handful of proven fakes is a blip, not a campaign — same bar as the conflict's own. */
+	public function test_low_spoofed_volume_keeps_the_warning() {
+		$now = 1788000000;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 9, 'verified' => 0, 'spoofed' => 9, 'unknown' => 0 ),
+			$now
+		) );
+	}
+
+	public function test_blocked_sources_normalizes_the_graphql_shape() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => json_encode( array(
+				'data' => array( 'viewer' => array( 'zones' => array( array(
+					'httpRequestsAdaptiveGroups' => array(
+						array(
+							'count'      => 500,
+							'dimensions' => array( 'clientIP' => '18.209.9.61', 'userAgent' => 'OAI-SearchBot/1.0' ),
+						),
+					),
+				) ) ) ),
+			) ),
+		);
+
+		$out = ( new Client() )->blocked_sources( 'tok', 'zone1', 0, 3600 );
+
+		$this->assertArrayNotHasKey( 'error', $out );
+		$this->assertSame( array( array( 'ip' => '18.209.9.61', 'ua' => 'OAI-SearchBot/1.0', 'requests' => 500 ) ), $out['rows'] );
+	}
+
+	public function test_blocked_sources_missing_container_is_an_error() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => json_encode( array( 'data' => array( 'viewer' => array( 'zones' => array() ) ) ) ),
+		);
+
+		$out = ( new Client() )->blocked_sources( 'tok', 'zone1', 0, 3600 );
+
+		$this->assertArrayHasKey( 'error', $out );
 	}
 }

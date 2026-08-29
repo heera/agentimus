@@ -166,6 +166,11 @@ final class Module {
 
 		$this->settings->record_poll( '' );
 		Table::prune();
+
+		// With fresh hours stored, ask whether the blocked traffic behind any
+		// firing conflict is really its operator — the one moment this can run,
+		// because reading the summary must stay a read of stored rows.
+		SpoofCheck::run( $this->settings, new \Agentimus\Settings(), $this->client );
 	}
 
 	/**

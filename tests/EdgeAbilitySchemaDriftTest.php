@@ -131,6 +131,9 @@ namespace Agentimus\Tests {
 			$conflict = $out[0];
 			unset( $conflict['link'] );
 			$conflict['url'] = 'https://example.test';
+			// Summary::build() also decorates a warn with the spoof check's
+			// verdict when one is stored — the same shape, declared or rejected.
+			$conflict['checked'] = array( 'at' => 1, 'sampled' => 1, 'verified' => 0, 'spoofed' => 1, 'unknown' => 0 );
 
 			$declared = $schema['properties']['conflicts']['items']['properties'];
 			foreach ( array_keys( $conflict ) as $key ) {

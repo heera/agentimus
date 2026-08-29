@@ -62,6 +62,14 @@ final class Settings {
 			// drops the record once the conflict stops firing, so a later
 			// recurrence shows again instead of staying silenced forever.
 			'dismissed'    => array(),
+			// The poll-time spoof check's verdicts: { operator => { at, sampled,
+			// verified, spoofed, unknown } } — whether the blocked traffic behind
+			// a warn conflict actually came from the operator's own published
+			// addresses ({@see SpoofCheck}). Replaced wholesale each successful
+			// run, so a verdict dies with its conflict; a failed run keeps the
+			// old map, which then ages out ({@see SpoofCheck::FRESH_SECONDS})
+			// rather than vanishing.
+			'spoof_checks' => array(),
 			// When each currently-firing conflict was FIRST seen: { id => unix }.
 			// ⭐⭐ WHY THIS EXISTS. The conflicts are recomputed from observed
 			// behaviour on every read and stored nowhere, so a card could say "in
@@ -107,6 +115,31 @@ final class Settings {
 			return;
 		}
 		unset( $all['dismissed'][ $id ] );
+		$this->persist( $all );
+	}
+
+	/**
+	 * The stored spoof-check verdicts, operator => tally ({@see SpoofCheck}).
+	 *
+	 * @return array<string,array>
+	 */
+	public function spoof_checks() {
+		return (array) $this->get( 'spoof_checks', array() );
+	}
+
+	/**
+	 * Store the spoof check's verdicts — the whole map at once, replacing the
+	 * previous run's, so operators no longer in conflict drop out with it.
+	 *
+	 * @param array<string,array> $map Operator => tally.
+	 * @return void
+	 */
+	public function note_spoof_checks( array $map ) {
+		$all = $this->all();
+		if ( (array) $all['spoof_checks'] === $map ) {
+			return; // The common hourly case: nothing changed, write nothing.
+		}
+		$all['spoof_checks'] = $map;
 		$this->persist( $all );
 	}
 
