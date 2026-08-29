@@ -419,4 +419,31 @@ final class FindingsTest extends TestCase {
 		$this->assertStringContainsString( 'c.sinceText', $app, 'the card prints the server phrase' );
 		$this->assertStringNotContainsString( 'conflictSince(', $app, 'and formats no date of its own' );
 	}
+
+	/**
+	 * ⛔ AN INFO CONFLICT IS NOT ALWAYS THE TRAINING NOTICE. The day the spoof
+	 * check first demoted a blocking warn on the live site, the impostor row
+	 * came out reading "you asked AI companies not to train on your content" —
+	 * the training notice's copy under an impersonation title. The kind is in
+	 * the conflict's id, not its level, and each of the three kinds carries its
+	 * own words.
+	 */
+	public function test_an_impostor_conflict_gets_its_own_copy_not_the_training_notices() {
+		$src  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Findings.php' );
+		$from = strpos( $src, 'private function edge_conflicts()' );
+		$this->assertNotFalse( $from, 'the source exists' );
+		$edge = substr( $src, $from, strpos( $src, 'private function clear_lines()' ) - $from );
+
+		$this->assertStringContainsString( "'edge_impostors'", $edge, 'the demoted conflict has its own finding id' );
+		$this->assertStringContainsString( "'edge-blocks-'", $edge, 'told apart by the id prefix, never by level alone' );
+		$this->assertStringContainsString( 'confirmed impostors', $edge, 'its chip counts the proven fakes, not trainer passes' );
+		$this->assertStringContainsString( 'Nothing needs allowing', $edge, 'its copy asks nothing of the owner' );
+	}
+
+	/** The impostor note asks nothing of the owner — it ranks below even the training notice. */
+	public function test_the_impostor_note_ranks_below_the_training_notice() {
+		$weights = \Agentimus\Findings::WEIGHTS;
+		$this->assertLessThan( $weights['edge_unenforced'], $weights['edge_impostors'] );
+		$this->assertGreaterThan( $weights['near_page_one_waiting'], $weights['edge_impostors'] );
+	}
 }

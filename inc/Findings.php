@@ -93,6 +93,11 @@ final class Findings {
 		'seen_not_chosen' => 50,
 		'never_measured' => 20,
 		'edge_unenforced' => 18,
+		// A demoted blocking warn: the edge is stopping an impersonation
+		// campaign, not the operator ({@see Cloudflare\SpoofCheck}). Below the
+		// training notice — that one at least has a lever to pull; this one
+		// asks nothing of the owner at all.
+		'edge_impostors'  => 16,
 		// The waiting pair sort last among themselves; the tier, not the weight,
 		// is what puts them in their own band at the foot of the screen.
 		'near_page_one_waiting'   => 15,
@@ -1302,6 +1307,13 @@ final class Findings {
 			}
 			$warn   = 'warn' === (string) ( isset( $c['level'] ) ? $c['level'] : '' );
 			$counts = (array) ( isset( $c['counts'] ) ? $c['counts'] : array() );
+			// ⛔ AN INFO CONFLICT IS NOT ALWAYS THE TRAINING NOTICE. This branch
+			// was written when it was, and the day the spoof check first demoted a
+			// blocking warn ({@see Cloudflare\SpoofCheck}), the impostor row came
+			// out wearing "you asked AI companies not to train" — the training
+			// notice's copy under an impersonation title, on his live site. The
+			// kind is in the id, not the level.
+			$impostor = ! $warn && 0 === strpos( (string) ( isset( $c['id'] ) ? $c['id'] : '' ), 'edge-blocks-' );
 
 			// ⭐ The evidence chip carries the two things the card's prose spends a
 			// paragraph on: how much, and since when.
@@ -1313,7 +1325,13 @@ final class Findings {
 					number_format_i18n( (int) $counts['blocked'] ),
 					number_format_i18n( (int) $counts['requests'] )
 				);
-			} elseif ( ! empty( $counts['passed'] ) ) {
+			} elseif ( $impostor && ! empty( $c['checked']['spoofed'] ) ) {
+				$evidence[] = sprintf(
+					/* translators: %s: request count. */
+					__( '%s confirmed impostors', 'agentimus' ),
+					number_format_i18n( (int) $c['checked']['spoofed'] )
+				);
+			} elseif ( ! $impostor && ! empty( $counts['passed'] ) ) {
 				$evidence[] = sprintf(
 					/* translators: %s: requests let through. */
 					__( '%s let through', 'agentimus' ),
@@ -1329,24 +1347,37 @@ final class Findings {
 				$evidence[] = $since_text;
 			}
 
+			$action = $this->go( __( 'See what the edge did', 'agentimus' ), 'log', '', 'ar-edge-pins' );
+			if ( $warn ) {
+				$id     = 'edge_conflict';
+				$why    = __( 'Your site welcomes AI reading, but your CDN is turning it away before the request reaches you.', 'agentimus' );
+				$points = array(
+					__( 'Only you can settle this, and only at Cloudflare.', 'agentimus' ),
+					__( 'Allowing it there, or accepting that they cannot read the site, both end it.', 'agentimus' ),
+				);
+			} elseif ( $impostor ) {
+				$id     = 'edge_impostors';
+				$why    = __( 'What the edge is blocking only wears that company’s name — none of the checked traffic came from the company’s own addresses.', 'agentimus' );
+				$points = array(
+					__( 'Nothing needs allowing — the real crawler is not being kept out.', 'agentimus' ),
+					__( 'If verified traffic starts being refused, this becomes a warning again by itself.', 'agentimus' ),
+				);
+			} else {
+				$id     = 'edge_unenforced';
+				$why    = __( 'You asked AI companies not to train on your content. Your CDN is the only thing that can enforce it, and it is not.', 'agentimus' );
+				$points = array(
+					__( 'Nothing is broken — a wish you expressed is simply not being enforced.', 'agentimus' ),
+					__( 'Polite crawlers obey the request; the rest ignore it.', 'agentimus' ),
+				);
+			}
 			$rows[] = $this->row(
-				$warn ? 'edge_conflict' : 'edge_unenforced',
+				$id,
 				$warn ? self::URGENT : self::LATER,
 				(string) $c['title'],
-				$warn
-					? __( 'Your site welcomes AI reading, but your CDN is turning it away before the request reaches you.', 'agentimus' )
-					: __( 'You asked AI companies not to train on your content. Your CDN is the only thing that can enforce it, and it is not.', 'agentimus' ),
+				$why,
 				$evidence,
-				$this->go( __( 'See what the edge did', 'agentimus' ), 'log', '', 'ar-edge-pins' ),
-				$warn
-					? array(
-						__( 'Only you can settle this, and only at Cloudflare.', 'agentimus' ),
-						__( 'Allowing it there, or accepting that they cannot read the site, both end it.', 'agentimus' ),
-					)
-					: array(
-						__( 'Nothing is broken — a wish you expressed is simply not being enforced.', 'agentimus' ),
-						__( 'Polite crawlers obey the request; the rest ignore it.', 'agentimus' ),
-					)
+				$action,
+				$points
 			);
 		}
 		return $rows;
