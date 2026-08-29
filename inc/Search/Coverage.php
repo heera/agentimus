@@ -276,7 +276,16 @@ final class Coverage {
 	 * @return array<int,array{word:string,stem:string}>
 	 */
 	public static function terms( $text ) {
-		$text = strtolower( html_entity_decode( (string) $text, ENT_QUOTES, 'UTF-8' ) );
+		// ASCII-only lowercasing, deliberately. strtolower() asks the C library
+		// byte by byte, and on BSD-family hosts a UTF-8 locale maps bytes inside
+		// multi-byte letters — leaving invalid UTF-8 that the /u split below
+		// refuses, with a PHP warning per call. Nothing beyond a-z survives the
+		// split anyway, so ASCII case is the only case there is.
+		$text = strtr(
+			html_entity_decode( (string) $text, ENT_QUOTES, 'UTF-8' ),
+			'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+			'abcdefghijklmnopqrstuvwxyz'
+		);
 
 		/**
 		 * Words treated as carrying no meaning of their own.

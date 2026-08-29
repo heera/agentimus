@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.48.0-dev5
+Stable tag: 1.48.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -306,9 +306,13 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: a CDN conflict says when it actually began, worked out from the hourly figures already kept rather than from the moment Agentimus first looked. Installing this feature today would otherwise date a problem that started last week to today. Where the figures cannot answer, the wording changes rather than the date being guessed at: "Started the 26th" when it was derived, "Running since at least the 30th" when it has held for as long as anything was kept, and "First seen today" when there is no history to read.
 * Fixed: the Findings list said "Nothing is blocking AI assistants" whenever every setup check passed. That is a promise it could not keep: the checks measure this plugin's own configuration, and an assistant can be turned away by a CDN sitting in front of the site with every one of them green. It now says what it actually checked — "All N setup checks pass" — and the conflict above it carries the rest.
 * Improved: the weekly email names any live conflict at your CDN, so the one channel that reaches you when you are not in wp-admin says it too.
+* Improved: the conflict notice on the Request Log folds now instead of hiding. Only your CDN changing its behaviour, or your own policy changing, actually ends a conflict — so the notice collapses to one line you can reopen, and the Findings list and the weekly email keep counting it while it lasts. A notice you had hidden before comes back collapsed, not gone.
 * Improved: the three small scripts the plugin adds to your pages are compressed when built, cutting them by about two thirds. Their source ships beside them, as it always has.
 * Fixed: the address filter above the Request Log offered internal names — "markdown", "rest:discovery" — while the table beside it showed the plain ones. One screen, one vocabulary now.
 * Fixed: a crawler could name your own site as its home page and have the plugin fetch you on its behalf, then record that as a visit. It never proved anything — of course your own front page answers — and it is refused outright now.
+* Fixed: where a fake crawler borrows a real engine's name, the review card blended their numbers — it could say the forgeries were seen five hours ago when that request was the real engine's verified visit and the last actual forgery was days old. The failing requests now carry their own count and dates, and the real engine's verified traffic is noted separately.
+* Fixed: a connected assistant's count of clients awaiting review included ones you had already blocked, so it could disagree with the bell in your admin bar; they read one count now. Each client it lists also carries the recorded IP addresses the review advice tells you to block.
+* Fixed: on some hosts — macOS, mainly — text in Cyrillic, Arabic, Greek or Devanagari was corrupted on its way into the search-coverage check, logging PHP warnings and letting a page that contains such text be marked as not answering a search it answers.
 * Improved: a post's structured data now carries its featured image. Machines reading the page's JSON-LD were told the headline, the author and the dates, but not the one picture the author chose for the piece — the field Google lists as recommended for articles. Emitted only when a featured image is set; nothing is borrowed from the body or the site identity to fill the gap.
 
 = 1.47.0 =

@@ -1000,12 +1000,12 @@ final class Admin {
 				array(
 					'icon'  => 'clock',
 					'title' => 'Trouble at Your CDN Now Reaches You',
-					'text'  => 'If a CDN like Cloudflare sits in front of your site, it can turn an AI assistant away before the request ever reaches WordPress. Agentimus could already see that happening, but only said so on one screen — so you found out by going and looking. It is on the Findings list now, with the date it started. One correction comes with it: that list used to say "nothing is blocking AI assistants" whenever your setup checks passed, which was a promise it could not keep. It now says what it actually checked.',
+					'text'  => 'If a CDN like Cloudflare sits in front of your site, it can turn an AI assistant away before the request ever reaches WordPress. Agentimus could already see that happening, but only said so on one screen — so you found out by going and looking. It is on the Findings list now, with the date it started, and the notice itself folds instead of disappearing: a conflict stays on your list until it actually ends. One correction comes with it: that list used to say "nothing is blocking AI assistants" whenever your setup checks passed, which was a promise it could not keep. It now says what it actually checked.',
 				),
 				array(
 					'icon'  => 'search',
 					'title' => 'And a Round of Fixes',
-					'text'  => 'The filter above the log offered our internal names for your pages while the table beside it used plain ones. A crawler could get the plugin to visit your own site and count it as a visitor. And the three small scripts the plugin adds to your pages are now compressed, so they download faster. The changelog has the full list.',
+					'text'  => 'Your posts\' structured data now carries the featured image — a field Google recommends for articles. Where a fake crawler borrows a real engine\'s name, the warning about it now counts the fakes\' visits alone instead of blending in the real engine\'s. A crawler could get the plugin to visit your own site and count it as a visitor — refused now. And the three small scripts the plugin adds to your pages are compressed, so they download faster. The changelog has the full list.',
 				),
 			),
 		);
