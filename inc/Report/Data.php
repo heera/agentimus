@@ -358,6 +358,7 @@ final class Data {
 				'runs'      => 0,
 				'summary'   => null,
 				'lastRunAt' => '',
+				'scheduled' => false,
 			);
 		}
 
@@ -375,7 +376,8 @@ final class Data {
 			}
 		}
 
-		$dashboard = VisibilityStore::dashboard( new VisibilitySettings() );
+		$vsettings = new VisibilitySettings();
+		$dashboard = VisibilityStore::dashboard( $vsettings );
 
 		return array(
 			'freshness' => self::LAGGING,
@@ -386,6 +388,9 @@ final class Data {
 			// the last one found.
 			'summary'   => isset( $dashboard['summary'] ) ? $dashboard['summary'] : null,
 			'lastRunAt' => $last ? gmdate( 'Y-m-d H:i:s', $last ) : '',
+			// Whether the schedule is actually ON — the card must not say
+			// "checks run on a schedule" to an owner whose schedule is off.
+			'scheduled' => (bool) $vsettings->get( 'active', false ),
 		);
 	}
 

@@ -987,19 +987,33 @@ final class Admin {
 				// ⛔ The internal-names fix is NOT in the fixes row either. "We stopped
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
-				// ⭐ A SMALL RELEASE GETS A SMALL CARD. 1.49.0 ships one arc and no
-				// user-facing fixes (the one fix of the cycle never left a dev
-				// build), so there is no fixes row — padding the card to four
-				// items would teach people to stop reading it.
 				array(
-					'icon'  => 'shield',
-					'title' => 'A Warning Now Checks Who Was Really Blocked',
-					'text'  => 'Your CDN counts crawlers by the name they wear, and anyone can wear one. Before Agentimus tells you Cloudflare is blocking an AI company, it now checks whether the blocked traffic actually came from that company\'s own addresses. When it turns out to be impostors being stopped, the warning says that instead — your edge is doing its job, and nothing needs allowing.',
+					'icon'  => 'page',
+					'title' => 'Your Own robots.txt Rules',
+					'text'  => 'Write extra robots.txt rules right in the Crawler Policy card — added to the end of the generated file, never replacing it, so nothing the plugin writes can break. A button shows the live file exactly as crawlers see it, and clearing the box is the whole reset.',
 				),
 				array(
+					'icon'  => 'search',
+					'title' => 'Review Cards That Say Why',
+					'text'  => 'A card in the review bell no longer just says a visitor is unchecked — it says why: checking is turned off, this bot can never be checked, no visit gave a clear answer yet, or it is signed by an operator this site does not know. The small info icon carries the full reason.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Advice That Names Who Acts',
+					'text'  => 'Each recommendation is now a small chip naming the kind of action it asks for — nothing left to do, one plugin setting, or a rule at your host. You can tell the three apart before reading a word, and the cards are several lines shorter.',
+				),
+				array(
+					'icon'  => 'link',
+					'title' => 'Decisions That Know Their Reach',
+					'text'  => 'The Client Decisions dialog now says what a block really reaches — this plugin’s machine files, not your whole site, and not robots.txt — and warns you when blocking is switched off. Tidier rows too, with plain words on the buttons: Stop trusting, Stop ignoring.',
+				),
+				// ⭐ The fixes row: LAST and SINGLE — and this release it is a full
+				// CARD of its own (his call, 2026-08-30): a round of fixes deserves
+				// its own seat, not a clause at the end of a feature's sentence.
+				array(
 					'icon'  => 'clock',
-					'title' => 'And It Corrects Itself Both Ways',
-					'text'  => 'The note keeps the date the blocking started and any fold you made, and it turns back into a warning by itself the moment the real company starts being refused. An inconclusive check never downgrades a warning — "could not say" is not "not them".',
+					'title' => 'A Round of Bug Fixes',
+					'text'  => 'The plugin no longer suggests turning on a setting that is already on. A real signature from an operator it does not recognise no longer shows as a full pass. And a stray cursor no longer makes plain text look clickable.',
 				),
 			),
 		);

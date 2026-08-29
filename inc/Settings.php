@@ -151,6 +151,7 @@ final class Settings {
 			'enable_tdmrep'       => true,  // serve /.well-known/tdmrep.json (only when training is blocked).
 			'ai_noai_header'      => false, // also send the non-standard X-Robots-Tag: noai (best-effort).
 			'tdm_policy_url'      => '',     // optional URL to the owner's TDM / AI-usage policy.
+			'robots_extra'        => '',     // Owner-written extra robots.txt rules, APPENDED verbatim to the generated file (never replacing it — clearing the box is the whole reset). Applies only while WP generates robots.txt: a real file on disk or an SEO suite that owns robots wins whole.
 			// Optional HARD enforcement (opt-in). robots.txt above is advisory; this
 			// actually refuses the request with a 403. Off by default so a fresh
 			// install never silently blocks anyone.
@@ -979,6 +980,14 @@ final class Settings {
 		// AI-usage signal channels: the header/tdmrep toggles are handled by the boolean
 		// loop above; only the optional policy URL needs sanitising here.
 		$clean['tdm_policy_url'] = isset( $input['tdm_policy_url'] ) ? esc_url_raw( (string) $input['tdm_policy_url'] ) : '';
+
+		// Extra robots.txt rules: plain line-based text served as text/plain, so
+		// sanitising means normalising newlines, dropping control characters (keep
+		// newline + tab) and bounding the size — never rewriting the owner's rules.
+		$extra = isset( $input['robots_extra'] ) ? (string) $input['robots_extra'] : '';
+		$extra = str_replace( array( "\r\n", "\r" ), "\n", $extra );
+		$extra = preg_replace( '/[^\P{C}\n\t]/u', '', $extra );
+		$clean['robots_extra'] = substr( trim( is_string( $extra ) ? $extra : '' ), 0, 4000 );
 
 		// (enable_webmcp is handled by the boolean loop above.)
 		// Owner's per-tool hide list (deny-list of WebMCP tool names). Keep only

@@ -653,7 +653,7 @@ export default {
                 <span v-else class="ar-rev-state__dot"></span>
                 <span class="ar-rev-state__label">{{ c.state }}</span>
                 <span v-if="c.by" class="ar-rev-state__by">· {{ c.by }}</span>
-                <span v-if="c.unverified" class="ar-rev-state__note" v-tip="unverifiedNote(s).tip" tabindex="0">{{ unverifiedNote(s).text }}<svg v-if="unverifiedNote(s).tip" class="ar-rev-vwhy" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg></span>
+                <span v-if="c.unverified" class="ar-rev-state__note">{{ unverifiedNote(s).text }}<svg v-if="unverifiedNote(s).tip" class="ar-rev-vwhy" v-tip="unverifiedNote(s).tip" tabindex="0" role="img" aria-label="Why" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg></span>
               </div>
 
               <p v-if="c.why" class="ar-rev-why">{{ c.why }}</p>
@@ -684,8 +684,8 @@ export default {
                   <svg v-else viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.9l4.7 1.7v3.7c0 2.9-1.9 5.2-4.7 6.4-2.8-1.2-4.7-3.5-4.7-6.4V3.6z" /></svg>
                   {{ recCat(c.recommend.cat) }}
                 </span>
-                <span v-if="noActionNote(s) && !c.recommend" class="ar-rev-noact" v-tip="noActionNote(s).tip" tabindex="0">
-                  <svg class="ar-rev-noact__ic" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>
+                <span v-if="noActionNote(s) && !c.recommend" class="ar-rev-noact">
+                  <svg class="ar-rev-noact__ic" v-tip="noActionNote(s).tip" tabindex="0" role="img" aria-label="Why" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>
                   {{ noActionNote(s).label }}
                 </span>
 

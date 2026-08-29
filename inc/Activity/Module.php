@@ -631,15 +631,24 @@ final class Module {
 	 */
 	public function clients() {
 		$decisions = Settings::decisions();
-		$describe  = static function ( $tokens, $dates ) {
+		// The robots.txt trainer-block names, lowercased once. A TRUSTED client
+		// whose name is also on that list is a contradiction the owner may well
+		// mean — public "stay away", private "never refused" — but the two
+		// surfaces may only disagree OUT LOUD, so the Allowed row must say it.
+		// Exact name match (case-insensitive): the robots.txt line is per exact
+		// User-agent name, and a looser match would claim a line that isn't there.
+		$trainers = array_map( 'strtolower', array_map( 'trim', array_map( 'strval', (array) $this->settings->get( 'blocked_trainers', array() ) ) ) );
+		$describe = static function ( $tokens, $dates, array $robots_blocked = array() ) {
 			$rows = array();
 			foreach ( (array) $tokens as $token ) {
 				$token = (string) $token;
 				$known = Catalog::identify( $token );
 				$rows[] = array(
-					'token' => $token,
-					'at'    => isset( $dates[ strtolower( $token ) ] ) ? (int) $dates[ strtolower( $token ) ] : 0,
-					'known' => $known,
+					'token'  => $token,
+					'at'     => isset( $dates[ strtolower( $token ) ] ) ? (int) $dates[ strtolower( $token ) ] : 0,
+					'known'  => $known,
+					// True when this same name is on the robots.txt trainer list.
+					'robots' => in_array( strtolower( $token ), $robots_blocked, true ),
 				);
 			}
 			return $rows;
@@ -648,7 +657,7 @@ final class Module {
 		return rest_ensure_response(
 			array(
 				'blocked'  => $describe( $this->settings->get( 'blocked_agents', array() ), $decisions['block'] ),
-				'allowed'  => $describe( $this->settings->get( 'allowed_agents', array() ), $decisions['allow'] ),
+				'allowed'  => $describe( $this->settings->get( 'allowed_agents', array() ), $decisions['allow'], $trainers ),
 				'ignored'  => Repository::dismissals(),
 				// Settings-shaped mirror of the two lists, so the app can hand it to
 				// the same syncBlockSettings() the review queue's Allow/Block use —

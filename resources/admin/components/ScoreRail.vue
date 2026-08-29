@@ -252,7 +252,12 @@ export default {
               <circle cx="8" cy="8" r="6.5" />
               <path d="M5.2 8.3l2 2 3.6-4.2" />
             </svg>
-            Everything looks good.
+            <!-- ⛔ Not "Everything looks good": this line appears when the ADVISOR
+                 has no setup step left to suggest, which is all it knows — the
+                 Cited pillar above can read 38% while every setup box is ticked,
+                 and a verdict on the whole card would overpromise (the same false
+                 all-clear the Findings list shed in 1.48.0). Say what was measured. -->
+            Nothing left to set up.
           </p>
         </div>
 

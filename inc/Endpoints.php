@@ -645,6 +645,17 @@ final class Endpoints {
 			$output = rtrim( $output ) . "\n\n" . implode( "\n", $new ) . "\nDisallow: /\n";
 		}
 
+		// 2b. The owner's own rules (Settings → Crawler Policy), appended exactly
+		// as written. APPEND-ONLY by design: the box can add to the generated file
+		// but never rewrite it, so an edit cannot break the Content-Signal or the
+		// trainer blocks above — and clearing the box is the whole reset. Placed
+		// before the sitemap guard so an owner writing their own Sitemap: line
+		// suppresses ours instead of duplicating it.
+		$extra = trim( (string) $this->settings->get( 'robots_extra', '' ) );
+		if ( '' !== $extra ) {
+			$output = rtrim( $output ) . "\n\n" . $extra . "\n";
+		}
+
 		// 3. Advertise a sitemap only if nobody else has — and never on an SEO
 		// suite's behalf: an active suite owns its own robots advertising (Yoast
 		// hooks this same filter at 99,999, far after us, so the stripos guard

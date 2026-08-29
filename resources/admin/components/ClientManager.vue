@@ -223,9 +223,13 @@ export default {
                     <span class="ar-cm__who">
                       <code class="ar-cm__token">{{ row.token }}</code>
                       <span v-if="identity(row)" class="ar-cm__known">{{ identity(row) }}</span>
+                      <!-- Trusted here, told to stay away in robots.txt — maybe
+                           deliberate, but the two surfaces may only disagree
+                           out loud. -->
+                      <span v-if="row.robots" class="ar-cm__robots">robots.txt asks it to stay away<svg class="ar-rev-vwhy" v-tip="'Your robots.txt tells this bot to stay away from the whole site (the AI-training block list in Settings). Trusting it here does not remove that line — an honest bot obeys robots.txt and will stay away anyway.'" tabindex="0" role="img" aria-label="Why" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg></span>
                     </span>
                     <span class="ar-cm__meta">{{ row.at ? dateLabel(row.at) : '' }}</span>
-                    <button type="button" class="ar-cm__undo" :disabled="busy === row.token" @click="removeToken(row, 'allowed_agents')">
+                    <button type="button" class="ar-cm__undo ar-cm__undo--danger" :disabled="busy === row.token" @click="removeToken(row, 'allowed_agents')">
                       {{ busy === row.token ? 'Removing…' : 'Stop trusting' }}
                     </button>
                   </li>

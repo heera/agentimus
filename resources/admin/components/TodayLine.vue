@@ -63,15 +63,25 @@ export default {
     },
     // The busiest crawler and the busiest source, named — a number says how
     // much, a name says who, and the name is what makes the line worth reading.
-    who() {
+    // The client's name is CAPPED: one scanner with a novel-length User-Agent
+    // must not make the day's summary three lines tall. A cut name carries the
+    // full one on the ⓘ beside it (icon-only bubbles, the standing rule).
+    whoClient() {
       const client = ((this.data && this.data.reads.byClient) || [])[0];
+      if (!client || !client.label) return null;
+      const full = String(client.label);
+      if (full.length <= 40) return { text: full, full: '' };
+      return { text: full.slice(0, 40) + '…', full };
+    },
+    whoRest() {
       const source = ((this.data && this.data.visits.bySource) || [])[0];
       const parts = [];
-      if (client && client.label) parts.push(`${client.label} read you most`);
       if (source && source.label) parts.push(`${source.label} sent the visits`);
-      if (this.impostors) parts.push(`${this.impostors} caught pretending to be an engine`);
-      if (!parts.length) return '';
-      return `${parts.join(' · ')}.`;
+      if (this.impostors) parts.push(`${this.nf(this.impostors)} caught pretending to be an engine`);
+      return parts;
+    },
+    who() {
+      return !!(this.whoClient || this.whoRest.length);
     },
   },
   watch: {
@@ -117,14 +127,19 @@ export default {
         this.loading = false;
       }
     },
+    // The house number format (AiTrafficPanel's): grouped thousands, pinned
+    // locale so the browser's own cannot restyle the site's figures.
+    nf(v) {
+      return (Number(v) || 0).toLocaleString('en-US');
+    },
     move(block) {
       if (!this.data || !block) return null;
       const prev = block.prev;
       if (prev === null || prev === undefined) return null;
       const now = Number(block.total) || 0;
       const was = Number(prev) || 0;
-      if (now > was) return { tone: 'up', arrow: '↑', text: `${now - was} more than yesterday` };
-      if (now < was) return { tone: 'down', arrow: '↓', text: `${was - now} fewer than yesterday` };
+      if (now > was) return { tone: 'up', arrow: '↑', text: `${this.nf(now - was)} more than yesterday` };
+      if (now < was) return { tone: 'down', arrow: '↓', text: `${this.nf(was - now)} fewer than yesterday` };
       // ⭐ HIS CALL, 2026-08-25: nothing at all when the figure did not move.
       // An arrow earns its place by saying which WAY — a sideways one says only
       // "there was a comparison", which is not news, and it put a mark on the
@@ -173,17 +188,17 @@ export default {
            the tooltip and to a screen reader, so the day's direction still says
            how far it moved to anyone who asks. -->
       <div class="ar-today-line__fig">
-        <span class="ar-today-line__val">{{ reads }}</span>
+        <span class="ar-today-line__val">{{ nf(reads) }}</span>
         <span class="ar-today-line__label">{{ reads === 1 ? 'AI read' : 'AI reads'
           }}<span v-if="move(data.reads)" class="ar-today-line__move" :class="'is-' + move(data.reads).tone" v-tip="move(data.reads).text"><span aria-hidden="true">{{ move(data.reads).arrow }}</span><span class="screen-reader-text">{{ move(data.reads).text }}</span></span></span>
       </div>
       <div class="ar-today-line__fig">
-        <span class="ar-today-line__val">{{ visits }}</span>
+        <span class="ar-today-line__val">{{ nf(visits) }}</span>
         <span class="ar-today-line__label">{{ visits === 1 ? 'visit AI sent you' : 'visits AI sent you'
           }}<span v-if="move(data.visits)" class="ar-today-line__move" :class="'is-' + move(data.visits).tone" v-tip="move(data.visits).text"><span aria-hidden="true">{{ move(data.visits).arrow }}</span><span class="screen-reader-text">{{ move(data.visits).text }}</span></span></span>
       </div>
       <div class="ar-today-line__fig">
-        <span class="ar-today-line__val">{{ actions }}</span>
+        <span class="ar-today-line__val">{{ nf(actions) }}</span>
         <span class="ar-today-line__label">{{ actions === 1 ? 'assistant action' : 'assistant actions' }}</span>
       </div>
 
@@ -191,7 +206,7 @@ export default {
            it: it is what fills the width a card this wide otherwise leaves
            empty, and it reads as the answer to the numbers beside it. His
            catch, 2026-08-25. -->
-      <p v-if="who" class="ar-today-line__note">{{ who }}</p>
+      <p v-if="who" class="ar-today-line__note"><template v-if="whoClient">{{ whoClient.text }}<svg v-if="whoClient.full" class="ar-rev-vwhy" v-tip="whoClient.full" tabindex="0" role="img" aria-label="Full name" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>{{ ' read you most' }}</template><template v-for="(p, i) in whoRest" :key="p">{{ (whoClient || i > 0) ? ' · ' : '' }}{{ p }}</template>.</p>
     </div>
 
     <p v-if="quiet" class="ar-today-line__quiet">

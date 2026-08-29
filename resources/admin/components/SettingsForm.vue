@@ -73,6 +73,11 @@ export default {
       verAddBusy: false, // Probing the ranges URL server-side before accepting it.
       verAddError: '', // The probe's verdict when the URL didn't check out.
       digestTestSending: false, // The weekly-email "send a test" button's in-flight lock.
+      // The live robots.txt preview: fetched from the site (never a
+      // reconstruction — a disk file or an SEO suite owning robots must show).
+      // `status` keeps the HTTP code so a non-200 wrapping a good body is
+      // reported instead of hidden. Loaded lazily when the group first shows.
+      robotsPreview: { loaded: false, text: '', status: 0, basis: '' },
       typeQuery: '',
       catQuery: '',
       nsQuery: '',
@@ -99,8 +104,35 @@ export default {
       if (this._unEscReset) this._unEscReset();
       this._unEscReset = open ? bindDocEsc(() => this.closeReset()) : null;
     },
+    // The live robots.txt preview loads the first time its group is shown —
+    // one same-origin request, and only for owners who actually open AI Access.
+    group(v) {
+      if ('access' === v && !this.robotsPreview.loaded) this.fetchRobotsPreview();
+    },
+    // A finished save makes the live file current again — re-fetch so the
+    // preview never keeps showing yesterday's file over today's settings.
+    busy(now, before) {
+      if (before && !now && 'access' === this.group && this.robotsPreview.loaded) {
+        this.fetchRobotsPreview();
+      }
+    },
   },
   computed: {
+    // Fingerprint of every form field that shapes robots.txt. Taken when the
+    // live preview is fetched; when the form drifts from it, the preview and
+    // the toggles above are reading TWO different clocks (unsaved form vs
+    // saved site) — and that difference must be said, not left to confuse.
+    robotsBasis() {
+      return JSON.stringify( [
+        this.settings.content_signal,
+        this.settings.blocked_trainers,
+        this.settings.robots_extra,
+        this.settings.enable_robots,
+      ] );
+    },
+    robotsDrift() {
+      return this.robotsPreview.loaded && '' !== this.robotsPreview.basis && this.robotsPreview.basis !== this.robotsBasis;
+    },
     // The Verified-bots registry as one list: built-ins (toggleable) then the owner's
     // custom entries (removable). Mirrors VerifierRegistry::entries() server-side.
     verifierRows() {
@@ -822,6 +854,32 @@ export default {
     },
     resetTrainers() {
       this.settings.blocked_trainers = [...this.knownTrainers];
+    },
+    // The live robots.txt, fetched fresh (cache-busted, no-store): the only
+    // honest preview is what a crawler actually receives right now. A non-200
+    // response with a plain-text body is still SHOWN — some servers (Valet/
+    // Herd's nginx among them) wrap the correct virtual file in their own 404
+    // status, and hiding the body would report the file as missing when the
+    // real story is "content fine, status wrong", which gets its own warning.
+    async fetchRobotsPreview() {
+      this.robotsPreview = { loaded: true, text: 'Loading…', status: 0 };
+      try {
+        const res = await fetch(`${window.location.origin}/robots.txt?cb=${Date.now()}`, { cache: 'no-store' });
+        const body = await res.text();
+        this.robotsPreview.status = res.status;
+        const textish = (res.headers.get('content-type') || '').includes('text/plain');
+        if ('' !== body.trim() && (res.ok || textish)) {
+          this.robotsPreview.text = body;
+        } else if (res.ok) {
+          this.robotsPreview.text = '(the file is empty)';
+        } else {
+          this.robotsPreview.text = `Couldn’t read it — the request came back ${res.status} with no usable content.`;
+        }
+      } catch (e) {
+        this.robotsPreview.text = 'Couldn’t read it — the request failed.';
+      }
+      // What the form said at fetch time — the drift note compares against this.
+      this.robotsPreview.basis = this.robotsBasis;
     },
     addScanner(name) {
       if (!Array.isArray(this.settings.blocked_agents)) this.settings.blocked_agents = [];
@@ -1723,6 +1781,53 @@ export default {
           </div>
         </div>
 
+        <!-- The live robots.txt, VISIBLE — not behind a click (his call). Always
+             the real fetched file, never a reconstruction: a disk file, an SEO
+             suite owning the job, or a server quirk (a 404 status wrapping a
+             perfectly good body — Valet/Herd's nginx does this) must all show
+             as the truth, with the status said out loud when it isn't 200. -->
+        <div class="ar-field">
+          <div class="ar-robots-head">
+            <label>robots.txt — what crawlers receive <span class="ar-field__tag">live</span></label>
+            <small class="ar-field__hint ar-robots-head__meta">
+              Fetched from your site just now — exactly what a crawler receives.
+              <button type="button" class="ar-linkbtn" @click="fetchRobotsPreview">Refresh</button>
+            </small>
+          </div>
+          <small v-if="robotsDrift" class="ar-field__hint ar-robots-status">
+            You changed crawler settings after this was fetched. The file below shows your site as it is
+            saved right now — press Save, and this refreshes by itself.
+          </small>
+          <pre class="ar-robots-preview" :class="{ 'is-stale': robotsDrift }">{{ robotsPreview.text || 'Loading…' }}</pre>
+          <small
+            v-if="robotsPreview.status && 200 !== robotsPreview.status"
+            class="ar-field__hint ar-robots-status"
+          ><svg class="ar-rev-vwhy" v-tip="`The content is fine, the wrapper is wrong: the file arrived with code ${robotsPreview.status} instead of 200. This usually comes from the web server in front of WordPress, not from these settings.`" tabindex="0" role="img" aria-label="Why" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>Served with error code {{ robotsPreview.status }} — a strict crawler may ignore it.</small>
+        </div>
+
+        <!-- Owner-written robots.txt rules — append-only, so an edit can never
+             break the generated lines above, and clearing the box is the whole
+             reset. -->
+        <div class="ar-field">
+          <label for="ar-robots-extra">Extra robots.txt rules <span class="ar-field__tag">optional · advanced</span></label>
+          <textarea
+            id="ar-robots-extra"
+            v-model="settings.robots_extra"
+            class="ar-input ar-robots-extra"
+            rows="4"
+            spellcheck="false"
+            placeholder="User-agent: FooBot&#10;Disallow: /private/"
+          ></textarea>
+          <small class="ar-field__hint">
+            Added to the end of the file above, exactly as written. The rules above always stay — this
+            box can only add, and clearing it removes your rules again. It works only while WordPress
+            generates robots.txt: a real robots.txt file on your server, or an SEO plugin that owns the
+            file, takes over completely. That is also the door for full control: upload your own
+            robots.txt file to the site root and it replaces everything here — WordPress, every plugin
+            and this one all step aside, and the preview above will show your file.
+          </small>
+        </div>
+
         <!-- Opt-out channels — only relevant when reserving (training blocked) -->
         <div class="ar-field">
           <div v-if="reservedSignal" class="ar-channels-panel">
@@ -1796,8 +1901,9 @@ export default {
       <section id="ar-sec-blocking" class="ar-card">
         <h2 class="ar-card__title">Block Scanners &amp; Scrapers <span class="ar-field__tag">optional</span></h2>
         <p class="ar-card__lead">
-          The crawler rules above are a polite request — well-behaved crawlers honour them. This is the
-          hard stop: the crawlers below are turned away from your AI files instead of being served. Off by default.
+          The Crawler Policy rules above are a polite request, written into robots.txt — well-behaved
+          crawlers honour them. This is the hard stop: the crawlers below are turned away from your AI
+          files instead of being served. Off by default.
         </p>
 
         <label class="ar-toggle">
@@ -1864,6 +1970,7 @@ export default {
             <strong>Safe by design.</strong>
             This only affects the AI files this plugin makes (like <code>llms.txt</code> and <code>discovery.json</code>).
             Your normal pages, your real files on disk, and anything your SSL certificate needs keep working as usual.
+            Nothing on these two lists changes robots.txt — that file is written by the Crawler Policy card above.
           </p>
 
           <p v-if="!settings.verify_bots" class="ar-card__note ar-warn">

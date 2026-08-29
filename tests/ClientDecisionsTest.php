@@ -12,6 +12,7 @@
 namespace Agentimus\Tests;
 
 use Agentimus\Settings;
+use Agentimus\Activity\Module;
 use Agentimus\Activity\Repository;
 use PHPUnit\Framework\TestCase;
 
@@ -52,6 +53,29 @@ final class ClientDecisionsTest extends TestCase {
 		$list = $s->get( 'allowed_agents', array() );
 		$this->assertContains( 'KeepMe', $list );
 		$this->assertNotContains( 'DropMe', $list );
+	}
+
+	/* -- The manager payload's robots.txt contradiction flag ---------------- */
+
+	public function test_a_trusted_client_on_the_robots_trainer_list_is_flagged() {
+		// Trusted at the door AND told "Disallow: /" in robots.txt — maybe
+		// deliberate, but the Allowed row must say it. Exact name match,
+		// case-insensitive: the robots.txt line is per exact User-agent name.
+		$s = new Settings();
+		$s->allow_agent( 'bytespider' );
+		$s->allow_agent( 'ChatGPT-User' );
+		$s->block_agent( 'BadBot' );
+		$all                     = $s->stored();
+		$all['blocked_trainers'] = array( 'Bytespider' );
+		$s->update( $all );
+
+		$out     = ( new Module( new Settings() ) )->clients();
+		$allowed = array_column( $out['allowed'], 'robots', 'token' );
+		$this->assertTrue( $allowed['bytespider'], 'Same name on the trainer list → flagged, case-insensitively.' );
+		$this->assertFalse( $allowed['ChatGPT-User'], 'A name robots.txt never mentions is not flagged.' );
+		foreach ( $out['blocked'] as $row ) {
+			$this->assertFalse( $row['robots'], 'Blocked rows never carry the flag — the note is about TRUST contradicting robots.txt.' );
+		}
 	}
 
 	public function test_unblocking_one_token_does_not_disarm_blocking() {

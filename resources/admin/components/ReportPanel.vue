@@ -201,14 +201,20 @@ export default {
       if (block.freshness === 'lagging') return extra || 'reported behind';
       return this.range && this.range.open ? 'live · to this minute' : 'complete';
     },
+    // The house number format (AiTrafficPanel's, and the Today line's since
+    // 1.50.0): grouped thousands, pinned locale so the browser's own cannot
+    // restyle the site's figures.
+    nf(v) {
+      return (Number(v) || 0).toLocaleString('en-US');
+    },
     // "up from 26" / "down from 40" / "same as before" — an arrow, a tone and
     // words, never colour alone.
     move(now, prev) {
       if (prev === null || prev === undefined) return null;
       const n = Number(now) || 0;
       const p = Number(prev) || 0;
-      if (n > p) return { tone: 'up', arrow: '↑', text: `up from ${p}` };
-      if (n < p) return { tone: 'down', arrow: '↓', text: `down from ${p}` };
+      if (n > p) return { tone: 'up', arrow: '↑', text: `up from ${this.nf(p)}` };
+      if (n < p) return { tone: 'down', arrow: '↓', text: `down from ${this.nf(p)}` };
       return { tone: 'flat', arrow: '·', text: `same as the window before` };
     },
     engineName(id) {
@@ -277,7 +283,7 @@ export default {
             <span class="arep__fresh">{{ freshLine(data.reads) }}</span>
           </header>
           <p class="arep__hero">
-            <span class="arep__num">{{ data.reads.total }}</span>
+            <span class="arep__num">{{ nf(data.reads.total) }}</span>
             <span class="arep__unit">{{ data.reads.total === 1 ? 'read by an AI crawler' : 'reads by AI crawlers' }}</span>
           </p>
           <p v-if="move(data.reads.total, data.reads.prev)" class="arep__move" :class="'is-' + move(data.reads.total, data.reads.prev).tone">
@@ -286,7 +292,7 @@ export default {
           <ul v-if="data.reads.byClient && data.reads.byClient.length" class="arep__rows">
             <li v-for="(row, i) in data.reads.byClient" :key="i">
               <span class="arep__who">{{ row.label || 'Unnamed' }}</span>
-              <span class="arep__count">{{ row.hits }}</span>
+              <span class="arep__count">{{ nf(row.hits) }}</span>
             </li>
           </ul>
           <p v-else class="arep__empty">No crawler fetched anything in these days.</p>
@@ -300,7 +306,7 @@ export default {
             <span class="arep__fresh">{{ freshLine(data.visits) }}</span>
           </header>
           <p class="arep__hero">
-            <span class="arep__num">{{ data.visits.total }}</span>
+            <span class="arep__num">{{ nf(data.visits.total) }}</span>
             <span class="arep__unit">{{ data.visits.total === 1 ? 'visit an AI assistant sent you' : 'visits AI assistants sent you' }}</span>
           </p>
           <p v-if="move(data.visits.total, data.visits.prev)" class="arep__move" :class="'is-' + move(data.visits.total, data.visits.prev).tone">
@@ -309,7 +315,7 @@ export default {
           <ul v-if="data.visits.bySource && data.visits.bySource.length" class="arep__rows">
             <li v-for="(row, i) in data.visits.bySource" :key="i">
               <span class="arep__who">{{ row.label || 'Unnamed' }}</span>
-              <span class="arep__count">{{ row.hits }}</span>
+              <span class="arep__count">{{ nf(row.hits) }}</span>
             </li>
           </ul>
           <p v-else class="arep__empty">Nobody arrived from an AI answer in these days.</p>
@@ -323,7 +329,7 @@ export default {
             <span class="arep__fresh">{{ freshLine(data.access) }}</span>
           </header>
           <p class="arep__hero">
-            <span class="arep__num">{{ data.access.events }}</span>
+            <span class="arep__num">{{ nf(data.access.events) }}</span>
             <span class="arep__unit">{{ data.access.events === 1 ? 'assistant action' : 'assistant actions' }}</span>
           </p>
           <p v-if="data.impostors.total" class="arep__flag">
@@ -343,7 +349,7 @@ export default {
           <div v-for="e in data.search.engines" :key="e.source" class="arep__engine">
             <template v-if="e.covered">
               <p class="arep__hero">
-                <span class="arep__num">{{ e.shown }}</span>
+                <span class="arep__num">{{ nf(e.shown) }}</span>
                 <span class="arep__unit">times shown on {{ engineName(e.source) }}, {{ e.clicks }} {{ e.clicks === 1 ? 'visit' : 'visits' }}</span>
               </p>
               <p class="arep__note">{{ e.covered }} of these days {{ e.covered === 1 ? 'has' : 'have' }} been published.</p>
@@ -378,7 +384,10 @@ export default {
                does. -->
           <p v-if="citationsAnswered" class="arep__hero">
             <span class="arep__num">{{ data.citations.summary.mentions }}<small>/{{ data.citations.summary.checks }}</small></span>
-            <span class="arep__unit">answers named something you track — in the last run</span>
+            <!-- Both numbers explained, or the fraction is a riddle: the 8 is
+                 "questions the AI answered", the 3 is "answers that named you".
+                 His catch, 2026-08-30 — "3/8" with neither number defined. -->
+            <span class="arep__unit">answers named something you track — the last run asked the AI {{ data.citations.summary.checks }} questions</span>
           </p>
           <p v-else-if="data.citations.summary && data.citations.summary.errors" class="arep__flag">
             Every check in the last run failed, so nothing was measured.
@@ -388,11 +397,14 @@ export default {
               {{ data.citations.runs }} {{ data.citations.runs === 1 ? 'run' : 'runs' }} in these days.
             </template>
             <template v-else-if="data.citations.lastRunAt">
-              Checks run on a schedule — none in these days. The last was {{ formatDay(data.citations.lastRunAt.slice(0, 10)) }}.
+              <!-- Say the schedule's REAL state: "checks run on a schedule" told
+                   an owner whose schedule was off that something was running. -->
+              <template v-if="data.citations.scheduled">Checks run on a schedule — none in these days. The last was {{ formatDay(data.citations.lastRunAt.slice(0, 10)) }}.</template>
+              <template v-else>The schedule is off — a check runs only when you start one. The last was {{ formatDay(data.citations.lastRunAt.slice(0, 10)) }}.</template>
             </template>
             <template v-else>No check has run yet.</template>
           </p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('visibility')">Open Citations →</button>
+          <button type="button" class="ar-linkbtn arep__go" @click="go('visibility', 'results')">Open Citations →</button>
         </section>
 
         <!-- Readiness score ------------------------------------------------ -->
@@ -489,7 +501,21 @@ export default {
    column and across a row without anything drifting. His catch, 2026-08-24:
    auto heights plus a title that wrapped on one card put every number in that
    row at a different height. */
-.arep__blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+/* At most THREE columns (his call, 2026-08-30): auto-fit alone stretched to
+   five slivers on an ultra-wide window — titles wrapping, near-empty cards
+   adrift — which is what made the screen read as unorganised. Three readable
+   columns beat five thin ones; below ~950px the min() falls back to auto-fit
+   behaviour and the mobile rules below still collapse to one. */
+.arep__blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+@media (min-width: 1240px) {
+  .arep__blocks { grid-template-columns: repeat(3, 1fr); }
+  /* No holes in the last row (the What's New rule, applied here): a lone
+     trailing card takes the whole row, the tail of a pair takes the two
+     columns left. Cards are v-if'd per site, so the count varies — these
+     cover every remainder. */
+  .arep__block:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
+  .arep__block:last-child:nth-child(3n + 2) { grid-column: span 2; }
+}
 .arep__block { display: flex; flex-direction: column; gap: 8px; }
 /* The one card that asks for an action rather than reporting one. */
 .arep__block--wide { grid-column: 1 / -1; }
@@ -514,7 +540,10 @@ export default {
 .arep__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .arep__rows li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; font-size: 13px; padding-bottom: 6px; border-bottom: 1px dotted var(--ar-line); }
 .arep__rows li:last-child { border-bottom: 0; padding-bottom: 0; }
-.arep__who { color: var(--ar-ink); overflow-wrap: anywhere; }
+/* One line per client, ellipsised — a scanner with a novel-length User-Agent
+   used to wrap mid-word and break the whole column's rhythm. The Request Log,
+   one click away, carries the full string. */
+.arep__who { color: var(--ar-ink); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arep__count { font-family: var(--ar-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ar-ink-soft); }
 
 .arep__note, .arep__flag { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }

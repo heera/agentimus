@@ -2064,6 +2064,11 @@ body { --ar-bar: var(--ar-accent); }
   display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 10px; margin-top: 14px;
 }
+/* An odd item count must never leave a hole in the last row (his rule,
+   2026-08-30): the last card of an odd set — a lone fifth, a third, or a
+   single-item release — takes the full row. In the one-column layout the
+   span is a no-op, so narrow screens are unaffected. */
+.ar-whatsnew__item:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .ar-whatsnew__item {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start;
   padding: 14px 16px 15px; border-radius: 11px;
@@ -3653,6 +3658,26 @@ a.ar-opp__title:hover { text-decoration: underline; }
 
 /* Crawler hard-block editor body (shown when training is Allowed, or on Customize). */
 .ar-enforce-body { margin-top: 10px; margin-left: 22px; }
+/* Extra robots.txt rules: protocol lines, so the box and the live-file preview
+   both read in mono; the preview scrolls instead of growing the card. */
+.ar-robots-extra { font-family: var(--ar-mono); font-size: 12px; line-height: 1.6; }
+/* Non-200 status on a served robots body: a tip-toned warning, not error red —
+   the content is fine, the wrapper is wrong, and it's usually the server's doing. */
+/* Label row: name on the left, the fetched-just-now caption + Refresh on the
+   right, one line; wraps below on narrow screens. */
+.ar-robots-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+.ar-robots-head__meta { text-align: right; margin-left: auto; }
+.ar-robots-status { display: inline-flex; align-items: center; gap: 5px; color: var(--ar-warn); }
+.ar-robots-status .ar-rev-vwhy { margin-left: 0; flex: none; }
+/* Drifted preview: the form above has unsaved crawler changes, so the fetched
+   file is one save behind — dim it slightly so the note reads as its caption. */
+.ar-robots-preview.is-stale { opacity: 0.6; }
+.ar-robots-preview {
+  margin: 8px 0 0; padding: 9px 12px; max-height: 260px; overflow: auto;
+  border-radius: 7px; background: var(--ar-surface-2); border: 1px solid var(--ar-line);
+  font-family: var(--ar-mono); font-size: 11.5px; line-height: 1.6; color: var(--ar-ink-soft);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 
 /* Small inline tag in a field label, e.g. "Content-Signal" / "optional". */
 .ar-field__tag {
@@ -6029,6 +6054,9 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 .ar-cm__known { color: var(--ar-ink-soft); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ar-cm__name { font-weight: 600; }
 .ar-cm__name--anon { color: var(--ar-ink-soft); font-style: italic; font-weight: 400; }
+/* A trusted client that robots.txt tells to stay away — a tip-toned amber note
+   (never the error red: it may be deliberate), full story in the bubble. */
+.ar-cm__robots { font-size: 11px; color: var(--ar-warn); white-space: nowrap; }
 .ar-cm__meta { font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-faint); text-align: right; white-space: nowrap; }
 /* THE DIALOG ROW-BUTTON RECIPE (his rule, 2026-08-30): a button sitting in a
    dialog's scrolling content ROWS reads as a button through its BACKGROUND —
@@ -6053,6 +6081,12 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 }
 .ar-cm__undo:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-cm__undo:disabled { opacity: 0.55; cursor: default; }
+/* --danger: hover warns instead (his call, 2026-08-30) — of the three undos,
+   only Stop trusting withdraws a standing protection, so its hover says so. */
+.ar-cm__undo--danger:hover:not(:disabled) {
+  color: var(--ar-bad); border-color: var(--ar-bad);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ar-ink) 7%, transparent), 0 1px 3px color-mix(in srgb, var(--ar-bad) 22%, transparent);
+}
 .ar-cm__none { margin: 8px 0 0; color: var(--ar-ink-faint); font-size: 12.5px; }
 .ar-cm__note { margin: 10px 0 0; color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5; }
 /* Phones: two rows per client — identity above, date below, with the undo
