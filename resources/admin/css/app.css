@@ -6004,32 +6004,64 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 }
 
 .ar-cm__section { padding-top: 6px; }
-.ar-cm__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
-.ar-cm__row { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 13px; }
-.ar-cm__who { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 0 1 auto; }
+/* The scope notice LEADS each list — a real notice (the house left-accent box),
+   not a footnote below the fold. Amber accent when the blocked list is INERT
+   (blocking off): a state the owner must see before reading any row. */
+.ar-cm__notice {
+  margin: 8px 0 4px; padding: 8px 12px;
+  border-left: 2px solid var(--ar-line-strong); border-radius: 0 var(--ar-radius) var(--ar-radius) 0;
+  background: var(--ar-surface-2); color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5;
+}
+.ar-cm__notice strong { color: var(--ar-ink-soft); font-weight: 600; }
+.ar-cm__notice.is-off { border-left-color: var(--ar-warn-mid); color: var(--ar-ink-soft); }
+.ar-cm__list { list-style: none; margin: 4px 0 0; padding: 0; }
+/* Real columns (identity | date | undo) so every row's date and button land on
+   the same vertical lines — the organised look comes from alignment, not boxes.
+   Hairlines separate rows; the first needs none. */
+.ar-cm__row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 2px 12px; min-width: 0; font-size: 13px; padding: 8px 0; border-top: 1px solid var(--ar-line); }
+.ar-cm__row:first-child { border-top: 0; }
+.ar-cm__who { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .ar-cm__token {
   font-family: var(--ar-mono); font-size: 12.5px; padding: 1px 6px; border-radius: 3px;
   background: var(--ar-surface-2); border: 1px solid var(--ar-line);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
 }
-.ar-cm__known { color: var(--ar-ink-soft); font-size: 12px; white-space: nowrap; }
+.ar-cm__known { color: var(--ar-ink-soft); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ar-cm__name { font-weight: 600; }
 .ar-cm__name--anon { color: var(--ar-ink-soft); font-style: italic; font-weight: 400; }
-.ar-cm__meta { margin-left: auto; flex: 0 0 auto; font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-faint); }
+.ar-cm__meta { font-family: var(--ar-mono); font-size: 11.5px; color: var(--ar-ink-faint); text-align: right; white-space: nowrap; }
+/* THE DIALOG ROW-BUTTON RECIPE (his rule, 2026-08-30): a button sitting in a
+   dialog's scrolling content ROWS reads as a button through its BACKGROUND —
+   a soft raised look (gradient + inner top highlight + faint drop) — with
+   quiet ink, never high-contrast text at rest. Hover lifts it with the accent,
+   never red (undo is routine). Scope: row buttons in dialog content areas
+   ONLY — a dialog's footer buttons (Close) and text links keep their own
+   styles. Reuse this recipe for any future dialog row button. */
 .ar-cm__undo {
-  appearance: none; cursor: pointer; flex: 0 0 auto;
-  font-family: var(--ar-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 3px; background: transparent;
-  color: var(--ar-ink-soft); border: 1px solid var(--ar-line-strong);
-  transition: color 0.12s, border-color 0.12s;
+  appearance: none; cursor: pointer; flex: 0 0 auto; white-space: nowrap;
+  font-family: var(--ar-sans); font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 7px;
+  color: var(--ar-ink-soft);
+  background: linear-gradient(180deg, var(--ar-surface-2), var(--ar-surface));
+  border: 1px solid var(--ar-line-strong);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ar-ink) 5%, transparent), 0 1px 2px rgba(0, 0, 0, 0.12);
+  transition: color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.ar-cm__undo:hover:not(:disabled) { color: var(--ar-bad); border-color: var(--ar-bad); }
+.ar-cm__undo:hover:not(:disabled) {
+  color: var(--ar-ink); border-color: var(--ar-accent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ar-ink) 7%, transparent), 0 1px 3px color-mix(in srgb, var(--ar-accent) 22%, transparent);
+}
+.ar-cm__undo:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; }
 .ar-cm__undo:disabled { opacity: 0.55; cursor: default; }
 .ar-cm__none { margin: 8px 0 0; color: var(--ar-ink-faint); font-size: 12.5px; }
 .ar-cm__note { margin: 10px 0 0; color: var(--ar-ink-faint); font-size: 12px; line-height: 1.5; }
+/* Phones: two rows per client — identity above, date below, with the undo
+   button on the right spanning both (a taller, real tap target). */
 @media (max-width: 600px) {
-  .ar-cm__row { flex-wrap: wrap; }
-  .ar-cm__meta { margin-left: 0; width: 100%; order: 3; }
+  .ar-cm__row { grid-template-columns: minmax(0, 1fr) auto; }
+  .ar-cm__who { flex-wrap: wrap; row-gap: 2px; }
+  .ar-cm__meta { grid-column: 1; grid-row: 2; text-align: left; }
+  .ar-cm__undo { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: 7px 11px; }
 }
 @media (max-width: 600px) {
   .ar-daybreak { grid-template-columns: 1fr; gap: 14px; }
@@ -6444,22 +6476,32 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-rev-state__by { font-weight: 400; color: var(--ar-ink-soft); }
 .ar-rev-state__note { font-weight: 400; font-style: italic; font-size: 11px; color: var(--ar-ink-faint); }
 
-.ar-rev-why { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ar-ink-soft); }
+/* Secondary explanation — deliberately dimmed and small: the hero line above it
+   carries the verdict; this only says why, so it must not compete for the eye. */
+.ar-rev-why { margin: 0; font-size: 12px; line-height: 1.5; color: var(--ar-ink-faint); }
 .ar-rev-meta { font-family: var(--ar-mono); font-size: 11px; color: var(--ar-ink-faint); }
 
-.ar-rev-rec { margin-top: 2px; padding: 7px 10px; border-radius: 7px; font-size: 12px; line-height: 1.45; color: var(--ar-ink-soft); }
-.ar-rev-rec strong { font-weight: 600; }
-.ar-rev-rec.is-danger { background: var(--ar-bad-wash); color: var(--ar-bad-deep); }
-.ar-rev-rec.is-danger strong { color: var(--ar-bad); }
+/* Compact recommendation chip in the button row (replaces the old Recommended
+   box — advice must never grow the card): its icon + category word wear the
+   category's colour, so each KIND of advice reads as its kind at a glance —
+   green check = nothing left to do, accent sliders = one plugin setting, amber
+   shield = an action at the host/CDN. The WORD carries the meaning; the colour
+   only repeats it. The full advice rides the styled hover bubble (v-tip). */
+.ar-rev-recc { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
+.ar-rev-recc:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-rev-recc svg { flex: none; cursor: help; }
+.ar-rev-recc.is-done { background: var(--ar-good-wash); color: var(--ar-good); border: 1px solid color-mix(in srgb, var(--ar-good) 32%, transparent); }
+.ar-rev-recc.is-setting { background: color-mix(in srgb, var(--ar-accent) 10%, var(--ar-surface)); color: var(--ar-accent); border: 1px solid color-mix(in srgb, var(--ar-accent) 36%, transparent); }
+.ar-rev-recc.is-host { background: var(--ar-warn-wash); color: var(--ar-warn-deep); border: 1px solid var(--ar-warn-tint); }
 
 /* Actions — real decisions as buttons, utilities as quiet links. */
 .ar-rev-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; }
-/* Why a card has NO Allow/Block: the server's reason said out loud in the button
-   row — missing buttons must read as a decision, not an oversight. Soft ink with
-   a leading info glyph for noticeability: it stands in for two buttons, so it
-   must be read, not skimmed past. */
+/* Why a card has NO Allow/Block: a short label in the button row — missing
+   buttons must read as a decision, not an oversight — with the full reason in
+   the styled hover bubble (v-tip), so the row stays one line tall. */
 .ar-rev-noact { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ar-ink-soft); }
-.ar-rev-noact__ic { flex: none; }
+.ar-rev-noact:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; border-radius: 4px; }
+.ar-rev-noact__ic { flex: none; cursor: help; }
 .ar-rev-btn {
   appearance: none; cursor: pointer; white-space: nowrap;
   font-family: var(--ar-sans); font-size: 12px; font-weight: 600;
@@ -6492,6 +6534,10 @@ button.ar-act-more:hover { color: var(--ar-ink); }
 .ar-rev-kv { display: grid; grid-template-columns: 82px 1fr; gap: 10px; align-items: start; font-size: 12px; }
 .ar-rev-kv__k { color: var(--ar-ink-faint); font-size: 11px; padding-top: 1px; }
 .ar-rev-kv__v { color: var(--ar-ink); min-width: 0; }
+/* The "why" info glyph after a verdict label — the cause lives in its hover
+   bubble (v-tip), keeping the Verification row one line tall. */
+.ar-rev-vwhy { vertical-align: -2px; margin-left: 5px; color: var(--ar-ink-soft); cursor: help; }
+.ar-rev-vwhy:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 2px; border-radius: 4px; }
 .ar-rev-kv__v.is-danger { color: var(--ar-bad); font-weight: 600; }
 .ar-rev-kv__v.is-ok { color: var(--ar-good); font-weight: 600; }
 .ar-rev-kv__v.is-muted { color: var(--ar-ink-soft); }

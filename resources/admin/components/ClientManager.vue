@@ -8,8 +8,11 @@
  * managing old decisions.
  *
  * Actions are instant (each returns the refreshed payload, so the dialog
- * always re-renders from one server truth): Un-ignore forgets a dismissal,
- * Unblock / Un-trust take a token off the corresponding list. The parent is
+ * always re-renders from one server truth): Stop ignoring forgets a dismissal,
+ * Unblock / Stop trusting take a token off the corresponding list. ("Untrust"
+ * and "un-ignore" are not real words — the coined hyphens read as dashes in
+ * the uppercase mono buttons, so the labels use plain verbs instead.) The
+ * parent is
  * handed the settings-shaped lists after every mutation so the open Settings
  * form (and its saved snapshot) stay in step.
  *
@@ -30,6 +33,9 @@ export default {
       error: '',
       data: { blocked: [], allowed: [], ignored: [] },
       busy: '', // key/token of the row whose action is in flight
+      // Whether the blocking master switch is on — the Blocked tab's note must
+      // say honestly whether this list is enforced right now or waiting.
+      blockOn: false,
       scrollMore: false,
       // One section at a time, switched by tabs — three stacked sections made
       // users scroll to find the one they came for (Heera, 2026-07-13).
@@ -85,7 +91,10 @@ export default {
         allowed: res.allowed || [],
         ignored: res.ignored || [],
       };
-      if (res.settings) this.$emit('changed', res.settings);
+      if (res.settings) {
+        this.blockOn = !!res.settings.block_agents;
+        this.$emit('changed', res.settings);
+      }
       this.$nextTick(() => this.updateScrollHint());
     },
     updateScrollHint() {
@@ -102,8 +111,17 @@ export default {
       if (!at) return '';
       return formatDate(new Date(at * 1000));
     },
+    // What the chip can't already say. The token chip shows the name, so
+    // repeating it here ("ChatGPT-User  ChatGPT-User · OpenAI") was noise —
+    // show the catalog name only when it differs from the token beyond case,
+    // and always the operator (the part a token never carries).
     identity(row) {
-      return row.known ? `${row.known.name} · ${row.known.operator}` : '';
+      if (!row.known) return '';
+      const name = String(row.known.name || '');
+      const op = String(row.known.operator || '');
+      const repeatsToken = name.toLowerCase() === String(row.token || '').toLowerCase();
+      if (repeatsToken) return op;
+      return op ? `${name} · ${op}` : name;
     },
     async unignore(row) {
       if (this.busy) return;
@@ -111,7 +129,7 @@ export default {
       try {
         this.apply(await this.api.undismissClient(row.key));
       } catch (e) {
-        this.error = (e && e.message) || 'Could not un-ignore.';
+        this.error = (e && e.message) || 'Could not bring it back.';
       } finally {
         this.busy = '';
       }
@@ -146,8 +164,8 @@ export default {
         <div class="ar-modal__head">
           <h2 id="ar-cm-title" class="ar-modal__title">Client Decisions</h2>
           <p class="ar-modal__lead">
-            Everything you've decided about visiting crawlers and AI assistants — blocked, trusted,
-            or ignored — and when. Undoing here applies immediately.
+            Everything you've decided about visiting crawlers and AI assistants — and when you
+            decided it. Undoing here applies immediately.
           </p>
           <div class="ar-rev-tabs" role="tablist" aria-label="Decision type">
             <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'blocked' }" role="tab" :aria-selected="view === 'blocked'" @click="show('blocked')">
@@ -168,13 +186,23 @@ export default {
               <p v-if="error" class="ar-act-log__state is-error">{{ error }}</p>
 
               <div v-if="view === 'blocked'" class="ar-cm__section">
+                <!-- The scope notice leads the list — a footnote under 11 rows was
+                     below the fold, and what a block reaches (and whether it is
+                     enforced RIGHT NOW) must be read before the rows. -->
+                <p v-if="data.blocked.length" class="ar-cm__notice" :class="{ 'is-off': !blockOn }">
+                  <template v-if="blockOn">These clients are refused at this plugin’s machine files (llms.txt, markdown pages, discovery).</template>
+                  <template v-else><strong>Blocking is turned off in Settings right now</strong>, so this list waits — nothing is refused until you turn it on.</template>
+                  A block here does not cover your normal pages — that needs your host or CDN. It is
+                  also separate from robots.txt, which is only a request to bots.
+                </p>
                 <ul v-if="data.blocked.length" class="ar-cm__list">
                   <li v-for="row in data.blocked" :key="'b:' + row.token" class="ar-cm__row">
                     <span class="ar-cm__who">
                       <code class="ar-cm__token">{{ row.token }}</code>
                       <span v-if="identity(row)" class="ar-cm__known">{{ identity(row) }}</span>
                     </span>
-                    <span class="ar-cm__meta">{{ row.at ? 'blocked ' + dateLabel(row.at) : '' }}</span>
+                    <!-- The tab already says "Blocked" — the verb would repeat it on every row. -->
+                    <span class="ar-cm__meta">{{ row.at ? dateLabel(row.at) : '' }}</span>
                     <button type="button" class="ar-cm__undo" :disabled="busy === row.token" @click="removeToken(row, 'blocked_agents')">
                       {{ busy === row.token ? 'Removing…' : 'Unblock' }}
                     </button>
@@ -184,15 +212,21 @@ export default {
               </div>
 
               <div v-else-if="view === 'allowed'" class="ar-cm__section">
+                <!-- "Trusted" grants nothing — it must not read like a robots.txt
+                     permission or an invitation. Leads the list, like Blocked's. -->
+                <p v-if="data.allowed.length" class="ar-cm__notice">
+                  Trusted only means: this site never blocks these clients and never asks you about
+                  them again. It sends nothing to the bot and changes nothing in robots.txt.
+                </p>
                 <ul v-if="data.allowed.length" class="ar-cm__list">
                   <li v-for="row in data.allowed" :key="'a:' + row.token" class="ar-cm__row">
                     <span class="ar-cm__who">
                       <code class="ar-cm__token">{{ row.token }}</code>
                       <span v-if="identity(row)" class="ar-cm__known">{{ identity(row) }}</span>
                     </span>
-                    <span class="ar-cm__meta">{{ row.at ? 'allowed ' + dateLabel(row.at) : '' }}</span>
+                    <span class="ar-cm__meta">{{ row.at ? dateLabel(row.at) : '' }}</span>
                     <button type="button" class="ar-cm__undo" :disabled="busy === row.token" @click="removeToken(row, 'allowed_agents')">
-                      {{ busy === row.token ? 'Removing…' : 'Un-trust' }}
+                      {{ busy === row.token ? 'Removing…' : 'Stop trusting' }}
                     </button>
                   </li>
                 </ul>
@@ -207,10 +241,10 @@ export default {
                       <em v-else class="ar-cm__name ar-cm__name--anon">Unnamed client</em>
                     </span>
                     <span class="ar-cm__meta">
-                      {{ row.at ? 'ignored ' + dateLabel(row.at) : '' }}{{ row.hits ? ` · ${row.hits} hits then` : '' }}
+                      {{ row.at ? dateLabel(row.at) : '' }}{{ row.hits ? ` · ${row.hits} hits then` : '' }}
                     </span>
                     <button type="button" class="ar-cm__undo" :disabled="busy === row.key" @click="unignore(row)">
-                      {{ busy === row.key ? 'Removing…' : 'Un-ignore' }}
+                      {{ busy === row.key ? 'Removing…' : 'Stop ignoring' }}
                     </button>
                   </li>
                 </ul>

@@ -111,6 +111,10 @@ final class ReviewQueue {
 			array(
 				'blockingOn'   => (bool) $settings->enabled( 'block_agents' ),
 				'blockSpoofed' => (bool) $settings->enabled( 'block_spoofed' ),
+				// Whether "Verify bot identities" is on (filter included, like the request
+				// log's verifyOn) — the panel needs it to say WHY a row is unchecked:
+				// "checking is off" and "checked, no clear answer" are different advice.
+				'verifyOn'     => Guard::verification_on(),
 				'newSecs'      => (int) apply_filters( 'agentimus_new_agent_seconds', self::NEW_AGENT_HOURS * HOUR_IN_SECONDS ),
 				'burstMin'   => (int) apply_filters( 'agentimus_burst_min_hits', self::BURST_MIN_HITS ),
 				'heavyMin'   => (int) apply_filters( 'agentimus_heavy_min_hits', self::HEAVY_MIN_HITS ),
@@ -404,6 +408,9 @@ final class ReviewQueue {
 			// means a PROVEN impostor is refused at the AI endpoints automatically, and
 			// the panel's advice can say so instead of implying the owner must act.
 			'blockSpoofed' => ! empty( $opts['blockSpoofed'] ),
+			// Whether identity verification is on, so an unchecked row can say why it is
+			// unchecked — and the panel never advises turning on a setting already on.
+			'verifyOn'   => ! empty( $opts['verifyOn'] ),
 			// How long the "new" flag lasts. The queue is rebuilt from the log on every
 			// read, so a novelty-only row leaves ON ITS OWN when this window lapses —
 			// the UI needs the number to say so up front ("leaves in 31h") instead of

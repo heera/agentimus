@@ -62,6 +62,11 @@ export default {
     };
   },
   computed: {
+    // Whether "Verify bot identities" is on — from the queue payload, so unchecked
+    // wording (and the Verify nudge) never advise turning on a setting that already is.
+    verifyOn() {
+      return !!this.threats.verifyOn;
+    },
     // Pending = still needs a decision. A blocked client is handled (and managed in
     // Settings), so it's neither listed, counted, nor surfaced here at all.
     pending() {
@@ -198,6 +203,10 @@ export default {
     },
     // ---- The compact row view-model — one calm, honest summary per client ------
     card(s) {
+      // Whether the Guard already refuses proven deception (blocking + the
+      // spoofed-crawlers rule): decides which KIND of advice each card gives —
+      // never "turn on" a setting that is already on.
+      const enforced = this.threats.blockingOn && this.threats.blockSpoofed;
       // Caught by CRYPTOGRAPHY: it signed its request and the maths didn't check
       // out. Strongest signal on this screen — no inference, no IP, no doubt — so
       // it gets its own card ahead of the address-based verdicts below.
@@ -206,10 +215,12 @@ export default {
           tone: 'danger',
           icon: 'x',
           state: s.refused ? 'Forged signature — turned away' : 'Forged signature',
-          why: `It signed its request as ${s.signer} — but the signature didn’t match ${s.signer}’s published key. Only the real operator can produce a valid one.`,
+          why: `Its signature names ${s.signer}, but doesn’t match ${s.signer}’s published key.`,
           recommend: s.refused
-            ? 'It got nothing: every attempt was refused before your content was served. Listed here so you know it happened — no action needed.'
-            : 'Turn on blocking (with the spoofed-crawlers rule) and this is refused automatically.',
+            ? { cat: 'done', tip: 'It got nothing: every attempt was refused before your content was served. It is listed here so you know it happened.' }
+            : ( enforced
+              ? { cat: 'done', tip: 'These requests came before blocking covered this client. Blocking and the spoofed-crawlers rule are on, so a forged signature is now refused automatically.' }
+              : { cat: 'setting', tip: 'Turn on blocking (with the spoofed-crawlers rule) in Settings, and this forged signature is refused automatically.' } ),
         };
       }
       // Proven genuine by signature — the other side of the same coin.
@@ -229,29 +240,24 @@ export default {
         const failed = 'ranges' === m
           ? `its address isn’t in ${label}’s published IP ranges`
           : ('rdns' === m ? 'it failed reverse-DNS verification when it visited' : 'its address failed verification when it visited');
-        // The genuine engine can share this exact User-Agent string with its
-        // impersonator — they land on ONE row. Without this sentence the card
-        // brands the real crawler's traffic with the impostor's verdict (caught
-        // live: real Googlebot's fresh, verified crawl read as "failed, 5h ago").
-        const okN = Number(s.verifiedHits) || 0;
-        const split = okN
-          ? ` The real ${label} also crawls this site — ${okN} request${1 === okN ? '' : 's'} under this name verified as genuine and ${1 === okN ? 'was' : 'were'} served normally.`
-          : '';
         // With blocking + the spoofed-class block both on, the Guard already refuses
         // this proven impostor at the AI endpoints — say so, and scope the remaining
         // advice honestly: an IP block at the host/CDN is what stops it SITE-WIDE.
-        const enforced = this.threats.blockingOn && this.threats.blockSpoofed;
+        const many = s.ips && s.ips.length > 1;
         const ipAdvice = (s.ips && s.ips.length)
-          ? `block its ${s.ips.length} IP${1 === s.ips.length ? '' : 's'} (shown in Details) at your host or CDN`
+          ? `block its ${s.ips.length} IP${many ? 's' : ''} (shown in Details) at your host or CDN`
           : `block its IP at your host or CDN (Details shows how to find it)`;
         return {
           tone: 'danger',
           icon: 'x',
           state: 'Failed verification',
-          why: `Claims to be ${label}, but ${failed}.${split}`,
-          recommend: enforced
-            ? `Already refused at this site’s AI endpoints. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
-            : `Can’t be blocked by name — ${ipAdvice}.`,
+          why: `Claims to be ${label}, but ${failed}.`,
+          recommend: {
+            cat: 'host',
+            tip: enforced
+              ? `Already refused at this site’s AI endpoints. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
+              : `It can’t be blocked by name — ${ipAdvice}.`,
+          },
         };
       }
       // Forward-confirmed — a genuine crawler (rare here; a verified engine is trusted and
@@ -266,7 +272,7 @@ export default {
           icon: 'x',
           state: 'Likely scanner',
           why: 'Claims a long-dead device that no real visitor runs.',
-          recommend: '',
+          recommend: null,
         };
       }
       // A recognised crawler we can name but not network-verify.
@@ -282,15 +288,49 @@ export default {
     rowOperator(s) {
       return (s.known && s.known.operator) || '';
     },
+    // The Self-declared row's note, split by CAUSE (the kind must be visible
+    // without opening Details): "can't be checked" is permanent, "not checked
+    // yet" is pending, "not confirmed" is a real signature from a stranger.
+    // Derived from verifyLine() so the row and Details can never disagree.
+    unverifiedNote(s) {
+      const v = this.verifyLine(s);
+      const short = {
+        'Not possible to check': 'can’t be checked',
+        'Not checked': 'not checked',
+        'Not checked yet': 'not checked yet',
+        'Not confirmed': 'not confirmed',
+      }[v.text];
+      return { text: short || 'not verified', tip: v.tip || '' };
+    },
+    // The recommendation's KIND, worn on its sleeve: each chip word answers "who
+    // acts, and where?" so two different recommendations can never read as the
+    // same advice at a glance. Kept short — the whole row must hold one line.
+    recCat(cat) {
+      return {
+        done: 'No action needed',
+        setting: 'Plugin setting',
+        host: 'Host / CDN',
+      }[cat] || '';
+    },
+    // The chip's bubble. When the row also has a no-buttons reason, the chip
+    // ABSORBS it (one seat in the row — the two are one story: "can't block by
+    // name → act at your host"), so the reason leads and the advice follows.
+    recTip(s, c) {
+      const why = this.noActionNote(s);
+      return why ? `${why.tip} ${c.recommend.tip}` : c.recommend.tip;
+    },
     // Why a row has NO one-click Allow/Block — the server's `reason`, said out
     // loud where the buttons would sit, so their absence reads as a decision
     // (next to a sibling card that HAS them), not a rendering fault. '' hides it.
+    // Short label in the button row; the WHY rides the styled hover bubble on it
+    // (his 08-30 rule, both halves: the label states the fact, the tooltip adds
+    // the consequence — full sentences there were making the cards too tall).
     noActionNote(s) {
-      if (s.action || s.blocked) return '';
-      if ('fake-engine' === s.reason) return 'No Allow/Block — a real search engine’s name.';
-      if ('no-ua' === s.reason) return 'No Allow/Block — it sends no name.';
-      if ('no-token' === s.reason) return 'No Allow/Block — its name is too generic.';
-      return '';
+      if (s.action || s.blocked) return null;
+      if ('fake-engine' === s.reason) return { label: 'No Allow/Block', tip: 'This visitor uses a real search engine’s name. A rule on that name would also block the real crawler.' };
+      if ('no-ua' === s.reason) return { label: 'No Allow/Block', tip: 'This visitor sends no name, so there is no name to write a rule for.' };
+      if ('no-token' === s.reason) return { label: 'No Allow/Block', tip: 'This name is too common. A rule on it would also catch other visitors.' };
+      return null;
     },
     // ---- Details panel (collapsed by default — no UA/verdict noise in the row) --
     // Which verification method applies to this row's claim: 'rdns', 'ranges', 'both',
@@ -305,23 +345,39 @@ export default {
     claimLabel(s) {
       return (s.claim && s.claim.label) || this.engineName(s);
     },
+    // Short verdict label; the reason rides the info icon's hover bubble beside it
+    // (one-line kv row again — the full sentences were stretching open cards). A
+    // signer on an UNCHECKED row is the third pair (see Recorder::signature_face):
+    // valid math, unrecognised operator — not "Passed" like the vouched-for case,
+    // not nothing like the plain unchecked case.
     verifyLine(s) {
       const m = this.claimMethod(s);
-      // A signature verdict names the method that actually decided it.
       if (s.signer) {
-        return 'spoofed' === s.verdict
-          ? { text: `Failed — signature didn’t match ${s.signer}’s key`, tone: 'danger' }
-          : { text: `Passed — cryptographic signature (${s.signer})`, tone: 'ok' };
+        if ('spoofed' === s.verdict) return { text: 'Failed', tone: 'danger', tip: `Its signature didn’t match ${s.signer}’s published key.` };
+        if ('verified' === s.verdict) return { text: 'Passed', tone: 'ok', tip: `Proven by a cryptographic signature from ${s.signer}.` };
+        return { text: 'Not confirmed', tone: 'muted', tip: `Its signature is real, but this site doesn’t know the signer (${s.signer}).` };
       }
       if ('spoofed' === s.verdict) {
-        const how = 'ranges' === m ? 'outside the published IP ranges' : ('rdns' === m ? 'reverse-DNS mismatch' : 'identity check failed');
-        return { text: `Failed — ${how}`, tone: 'danger' };
+        const how = 'ranges' === m ? 'Its address is outside the IP ranges its operator publishes.' : ('rdns' === m ? 'Its address does not lead back to the operator’s own domain.' : 'The check proved it is not who it claims to be.');
+        return { text: 'Failed', tone: 'danger', tip: how };
       }
       if ('verified' === s.verdict) {
-        const how = 'ranges' === m ? 'inside the published IP ranges' : ('rdns' === m ? 'forward-confirmed' : 'identity confirmed');
-        return { text: `Passed — ${how}`, tone: 'ok' };
+        const how = 'ranges' === m ? 'Its address is inside the IP ranges its operator publishes.' : ('rdns' === m ? 'Its address leads back to the operator’s own domain.' : 'The check confirmed it is who it claims to be.');
+        return { text: 'Passed', tone: 'ok', tip: how };
       }
-      return { text: 'Not checked', tone: 'muted' };
+      // Unchecked — one stored value, several causes. The label says whether checking
+      // is even possible; the tip names the exact cause this row can know (see
+      // ReviewQueue: `verifiable` + payload `verifyOn`).
+      if (!s.ua) {
+        return { text: 'Not possible to check', tone: 'muted', tip: 'It sends no name, so there is no claim to test.' };
+      }
+      if (!s.verifiable) {
+        return { text: 'Not possible to check', tone: 'muted', tip: 'This bot’s operator publishes no way to verify it. No setting changes this.' };
+      }
+      if (!this.verifyOn) {
+        return { text: 'Not checked', tone: 'muted', tip: '“Verify bot identities” is turned off. Turn it on to check this bot on its next visit.' };
+      }
+      return { text: 'Not checked yet', tone: 'muted', tip: 'Its visits gave no clear answer so far.' };
     },
     // How to read the attributed network — kept terse so the line never wraps. The red
     // "Failed verification" hero already conveys the judgment; the note just says what the
@@ -451,13 +507,14 @@ export default {
         { label: 'DuckDuckGo', url: (s.guide && s.guide.lookup) || `https://duckduckgo.com/?q=${encodeURIComponent(q + ' crawler bot')}` },
       ];
     },
-    // The "turn on Verify bot identities" nudge. Shown ONLY when the client claims one of
-    // the reverse-DNS-verifiable engines but hasn't been checked (verification off) — the
-    // one case where enabling Verify actually does something. A crawler that claims no
-    // verifiable engine (e.g. Bytespider) can never be verified by that feature, so the
-    // nudge would be dead-end advice and is suppressed.
+    // The "turn on Verify bot identities" nudge. Shown ONLY when the client claims a
+    // verifiable bot, hasn't been checked, AND verification is off — the one case where
+    // enabling Verify actually does something. A crawler that claims no verifiable bot
+    // (e.g. Bytespider) can never be verified by that feature, so the nudge would be
+    // dead-end advice; and with Verify already ON, "turn it on" would be worse — advice
+    // the owner has already followed (the storeIps prop plays by the same rule).
     showVerifyNote(s) {
-      return '' === (s.verdict || '') && !!s.verifiable;
+      return '' === (s.verdict || '') && !!s.verifiable && !this.verifyOn;
     },
     rowTitle(s) {
       return (s.known && s.known.name) || (s.guide && s.guide.name) || s.agent;
@@ -490,7 +547,14 @@ export default {
       const failedN = Number(s.spoofHits) || 0;
       if ('spoofed' === s.verdict && failedN > 0) {
         const when = s.spoofLastSeen ? ` · last ${this.ago(s.spoofLastSeen)}` : '';
-        return `${failedN} failed request${1 === failedN ? '' : 's'}${when}`;
+        // The population split, compact: the genuine engine can share this exact
+        // UA with its impersonator (one row), and without this the impostor
+        // wears the real crawler's absence — while the real engine's verified,
+        // normally-served traffic must not wear the FAILED brand (caught live:
+        // real Googlebot's fresh crawl read as "failed, 5h ago").
+        const okN = Number(s.verifiedHits) || 0;
+        const ok = okN ? ` · ${okN} genuine served` : '';
+        return `${failedN} failed request${1 === failedN ? '' : 's'}${when}${ok}`;
       }
       const when = s.lastSeen ? ` · ${this.ago(s.lastSeen)}` : '';
       return `${s.hits} request${1 === s.hits ? '' : 's'}${when}`;
@@ -589,7 +653,7 @@ export default {
                 <span v-else class="ar-rev-state__dot"></span>
                 <span class="ar-rev-state__label">{{ c.state }}</span>
                 <span v-if="c.by" class="ar-rev-state__by">· {{ c.by }}</span>
-                <span v-if="c.unverified" class="ar-rev-state__note">not verified</span>
+                <span v-if="c.unverified" class="ar-rev-state__note" v-tip="unverifiedNote(s).tip" tabindex="0">{{ unverifiedNote(s).text }}<svg v-if="unverifiedNote(s).tip" class="ar-rev-vwhy" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg></span>
               </div>
 
               <p v-if="c.why" class="ar-rev-why">{{ c.why }}</p>
@@ -598,11 +662,10 @@ export default {
                 {{ metaLine(s) }}
               </div>
 
-              <div v-if="c.recommend" class="ar-rev-rec" :class="'is-' + c.tone">
-                <strong>Recommended:</strong> {{ c.recommend }}
-              </div>
-
-              <!-- Actions: the real decisions as buttons; utilities as quiet links. -->
+              <!-- Actions: the real decisions as buttons; utilities as quiet links.
+                   The recommendation lives HERE as a compact category chip (icon +
+                   word in the category's colour), full advice in its hover bubble —
+                   the row must never grow a second line for advice. -->
               <div class="ar-rev-actions">
                 <template v-if="'agent' === s.action">
                   <button type="button" class="ar-rev-btn ar-rev-btn--allow" :disabled="isBlocking(s) || isAllowing(s)" @click="doAllow(s)">
@@ -615,9 +678,15 @@ export default {
                 <button v-else-if="'spoofed' === s.action" type="button" class="ar-rev-btn ar-rev-btn--block" :disabled="isBlocking(s)" @click="doBlock(s)">
                   {{ isBlocking(s) ? 'Blocking…' : 'Block scanners' }}
                 </button>
-                <span v-else-if="noActionNote(s)" class="ar-rev-noact">
+                <span v-if="c.recommend" class="ar-rev-recc" :class="'is-' + c.recommend.cat" v-tip="recTip(s, c)" tabindex="0">
+                  <svg v-if="'done' === c.recommend.cat" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M5.4 8.2l1.8 1.8 3.4-3.6" /></svg>
+                  <svg v-else-if="'setting' === c.recommend.cat" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M2.5 5.2h11M2.5 10.8h11" /><circle cx="6.2" cy="5.2" r="1.9" /><circle cx="9.8" cy="10.8" r="1.9" /></svg>
+                  <svg v-else viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.9l4.7 1.7v3.7c0 2.9-1.9 5.2-4.7 6.4-2.8-1.2-4.7-3.5-4.7-6.4V3.6z" /></svg>
+                  {{ recCat(c.recommend.cat) }}
+                </span>
+                <span v-if="noActionNote(s) && !c.recommend" class="ar-rev-noact" v-tip="noActionNote(s).tip" tabindex="0">
                   <svg class="ar-rev-noact__ic" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg>
-                  {{ noActionNote(s) }}
+                  {{ noActionNote(s).label }}
                 </span>
 
                 <button type="button" class="ar-rev-link ar-rev-link--details" :class="{ 'is-on': isOpen(s) }" :aria-expanded="isOpen(s)" @click="toggleDetails(s)">
@@ -635,7 +704,7 @@ export default {
           <div v-if="isOpen(s)" class="ar-rev-details">
             <div class="ar-rev-kv">
               <span class="ar-rev-kv__k">Verification</span>
-              <span class="ar-rev-kv__v" :class="'is-' + verifyLine(s).tone">{{ verifyLine(s).text }}</span>
+              <span class="ar-rev-kv__v" :class="'is-' + verifyLine(s).tone">{{ verifyLine(s).text }}<svg v-if="verifyLine(s).tip" class="ar-rev-vwhy" v-tip="verifyLine(s).tip" tabindex="0" role="img" aria-label="Why" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.4" /><path d="M8 7.4v3.2" /><path d="M8 5.1v.1" /></svg></span>
             </div>
 
             <!-- Owning network (opt-in "Identify every bot") — the reverse-DNS attribution: what
@@ -721,9 +790,9 @@ export default {
             </div>
 
             <p v-if="showVerifyNote(s)" class="ar-rev-details__note">
-              This client wasn’t auto-verified when it visited, and no address was captured to
-              re-check. Turn on <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify bot identities</button>
-              to confirm crawlers automatically, as they arrive.
+              This bot can be checked, but checking is turned off. Turn on
+              <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'settings' }); close()">Verify bot identities</button>
+              and the plugin will check each crawler when it visits.
             </p>
           </div>
         </li>

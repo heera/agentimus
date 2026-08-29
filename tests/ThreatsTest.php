@@ -121,6 +121,20 @@ final class ThreatsTest extends TestCase {
 		$this->assertTrue( $r['blockingOn'] );
 	}
 
+	public function test_the_payload_carries_the_verify_setting_for_unchecked_wording() {
+		// The panel words an unchecked row by this flag ("checking is off" vs "no clear
+		// answer yet") and gates the Verify nudge on it — advice to turn on a setting
+		// that is already on would be the storeIps mistake all over again.
+		$r = $this->analyze( array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) ) );
+		$this->assertFalse( $r['verifyOn'] );
+		$r = $this->analyze(
+			array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS ) ),
+			array(),
+			array( 'verifyOn' => true )
+		);
+		$this->assertTrue( $r['verifyOn'] );
+	}
+
 	/* -- Ranking & non-actionable cases ---------------------------------- */
 
 	public function test_spoof_outranks_a_new_only_source() {
