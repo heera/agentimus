@@ -987,25 +987,19 @@ final class Admin {
 				// ⛔ The internal-names fix is NOT in the fixes row either. "We stopped
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
-				array(
-					'icon'  => 'page',
-					'title' => 'Crawler Visits to Your Pages',
-					'text'  => 'The Request Log showed which AI files a crawler fetched, and never which of your articles it read — so it was missing most of what actually happens. It shows both now. Only machines are recorded; your readers are never logged here. If your site is crawled heavily and you would rather keep a longer history of the files alone, you can turn it off in Settings.',
-				),
+				// ⭐ A SMALL RELEASE GETS A SMALL CARD. 1.49.0 ships one arc and no
+				// user-facing fixes (the one fix of the cycle never left a dev
+				// build), so there is no fixes row — padding the card to four
+				// items would teach people to stop reading it.
 				array(
 					'icon'  => 'shield',
-					'title' => 'Proof of Who Was Really Here',
-					'text'  => 'A few AI crawlers now sign their requests, so a site can check the sender rather than take their word for it. Agentimus was doing that check but only kept a record when it already knew the company — a signature from anyone else was proved genuine and then left no trace. Every one is kept now, and there is a Signature filter in the Request Log to find them.',
+					'title' => 'A Warning Now Checks Who Was Really Blocked',
+					'text'  => 'Your CDN counts crawlers by the name they wear, and anyone can wear one. Before Agentimus tells you Cloudflare is blocking an AI company, it now checks whether the blocked traffic actually came from that company\'s own addresses. When it turns out to be impostors being stopped, the warning says that instead — your edge is doing its job, and nothing needs allowing.',
 				),
 				array(
 					'icon'  => 'clock',
-					'title' => 'Trouble at Your CDN Now Reaches You',
-					'text'  => 'If a CDN like Cloudflare sits in front of your site, it can turn an AI assistant away before the request ever reaches WordPress. Agentimus could already see that happening, but only said so on one screen — so you found out by going and looking. It is on the Findings list now, with the date it started, and the notice itself folds instead of disappearing: a conflict stays on your list until it actually ends. One correction comes with it: that list used to say "nothing is blocking AI assistants" whenever your setup checks passed, which was a promise it could not keep. It now says what it actually checked.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'And a Round of Fixes',
-					'text'  => 'Your posts\' structured data now carries the featured image — a field Google recommends for articles. Where a fake crawler borrows a real engine\'s name, the warning about it now counts the fakes\' visits alone instead of blending in the real engine\'s. A crawler could get the plugin to visit your own site and count it as a visitor — refused now. And the three small scripts the plugin adds to your pages are compressed, so they download faster. The changelog has the full list.',
+					'title' => 'And It Corrects Itself Both Ways',
+					'text'  => 'The note keeps the date the blocking started and any fold you made, and it turns back into a warning by itself the moment the real company starts being refused. An inconclusive check never downgrades a warning — "could not say" is not "not them".',
 				),
 			),
 		);

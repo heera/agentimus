@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.49.0-dev2
+Stable tag: 1.49.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,11 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.49.0 =
+* New: a warning that your CDN is blocking an AI company is now verified before it may keep saying so. Cloudflare counts crawlers by their User-Agent string, and anyone can wear one — on the site this was built for, a vulnerability scanner wore OpenAI's crawler name through a thousand blocked requests a day, and the warning read "Cloudflare is blocking OpenAI" about a company that never visited. While such a warning is live, the blocked traffic's source addresses are now checked hourly against what the company publishes. When everything checked proves to be an impostor, the warning stands down to a note that your edge is doing its job — nothing needs allowing. One verified request keeps the warning, and so does an inconclusive check: "could not say" is never read as "not them".
+* Improved: the demoted notice keeps everything the warning had — the date the blocking started, and your fold if you had made one — and it becomes a warning again by itself the moment verified traffic starts being refused.
+* Improved: a connected assistant reading the edge summary sees the same verdict: how many of the blocked requests proved to be the company, how many proved to be impostors, and how many could not be determined.
+
 = 1.48.0 =
 * New: the Request Log records what crawlers read on your pages, not only which AI files they fetched. Until now an AI crawler could read every article on the site and the log showed nothing but its llms.txt fetch. Only machines are recorded — your readers are never logged here, they are counted separately and without a User-Agent — and a switch in Settings turns the whole stream off if you would rather keep a longer history of the files alone. A page served from a CDN or a caching plugin never reaches WordPress, so on a cached site these are a floor rather than a total, and the screen says so.
 * New: a request that arrives cryptographically signed is recorded as signed even when the signature belongs to an operator this plugin does not recognise. The check was already running, and a valid signature from anyone other than Google or OpenAI proved who sent it and then left no trace at all — so the first company to sign your site would have been invisible. It is written down now, without granting anyone standing they have not earned: proof of identity is not a reason to trust someone.
@@ -401,6 +406,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.40.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.49.0 =
+A warning that your CDN is blocking an AI company is now verified before it may keep saying so: the blocked traffic's addresses are checked against what the company publishes, and when it all proves to be impostors wearing the company's name, the warning stands down to a note that your edge is doing its job. Found live the day it was built: a scanner wearing OpenAI's crawler name, a thousand blocked requests a day, and the real OpenAI never visiting. No breaking changes.
 
 = 1.48.0 =
 The Request Log now records what crawlers read on your pages, not only which AI files they fetched — so an AI reading every article on your site is no longer invisible. Only machines are recorded; your readers are never logged there. A conflict between your CDN and your own AI policy now reaches the Findings list, dated, instead of waiting on one screen for you to find it — and that list no longer says "nothing is blocking AI assistants" when all it checked was this plugin's own setup. A post's structured data now carries its featured image. No breaking changes.
