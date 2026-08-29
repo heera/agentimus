@@ -624,7 +624,8 @@ final class Registrar {
 									'passed'   => self::i(),
 								)
 							),
-						)
+						),
+						'Conflicts the owner folded to a slim row on their Request Log. Still ACTIVE, and still counted by read-findings — a fold is tidiness, not a resolution. A conflict leaves both lists only when its situation really ends.'
 					),
 					'dashUrl'     => self::s(),
 				)

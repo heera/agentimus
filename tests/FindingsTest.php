@@ -343,6 +343,48 @@ final class FindingsTest extends TestCase {
 	}
 
 	/**
+	 * ⭐ COLLAPSED CARDS STILL COUNT — his reversal, 2026-08-29, superseding the
+	 * first cut's "visible conflicts only". A pin on the Request Log can only
+	 * be FOLDED to a slim row, never hidden; folding tidies that screen, it
+	 * does not end the conflict, and a finding that vanished with the card let
+	 * one screen's tidiness silently clear the front door's most urgent row.
+	 * Asserted on the source (like the date test below) because a live
+	 * conflict needs a connected zone to build.
+	 */
+	public function test_a_collapsed_conflict_still_becomes_a_finding() {
+		$src  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Findings.php' );
+		$from = strpos( $src, 'private function edge_conflicts()' );
+		$this->assertNotFalse( $from, 'the source exists' );
+		$edge = substr( $src, $from, strpos( $src, 'private function clear_lines()' ) - $from );
+
+		$this->assertStringContainsString(
+			'hiddenConflicts',
+			$edge,
+			'edge_conflicts() must read the stored-as-dismissed (collapsed) conflicts too — a fold on the log is tidiness, not a resolution.'
+		);
+
+		// And the log keeps a landing for the row's deep link: a collapsed pin
+		// renders as a slim row with the way back open, never as nothing.
+		$app = (string) file_get_contents( dirname( __DIR__ ) . '/resources/admin/App.vue' );
+		$this->assertStringContainsString( 'ar-edge-pin--collapsed', $app, 'the folded card keeps its seat as a slim row' );
+		$this->assertStringContainsString( 'toggleEdgeConflict', $app, 'and the head row toggles it back open' );
+		$this->assertStringNotContainsString( 'Hide this warning', $app, 'the old vanishing Hide is gone' );
+
+		// The weekly email tells the same story: its edge section reads the
+		// folded conflicts too, or the week's mail would claim a clear edge
+		// while the front door counts an active conflict.
+		$dsrc  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Digest/Data.php' );
+		$dfrom = strpos( $dsrc, 'private static function edge_conflicts(' );
+		$this->assertNotFalse( $dfrom, 'the digest edge builder exists' );
+		$dedge = substr( $dsrc, $dfrom, strpos( $dsrc, 'public static function collect(' ) - $dfrom );
+		$this->assertStringContainsString(
+			'hiddenConflicts',
+			$dedge,
+			'Digest\\Data::edge_conflicts() must read the folded conflicts too — one owner, one story, every surface.'
+		);
+	}
+
+	/**
 	 * ⛔⛔ ONE CLOCK NAMES THE DAY. The first cut of this feature let the browser
 	 * format the conflict's start date for the card while PHP formatted it for
 	 * the findings row and the weekly email. On a site set to UTC, read from a

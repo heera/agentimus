@@ -2491,10 +2491,42 @@ body { --ar-bar: var(--ar-accent); }
 .ar-edge-pin__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
 .ar-edge-pin__body { margin: 0 0 6px; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
 .ar-edge-pin__actions { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
-/* The quiet exit: same link grammar as "Review", but faint — acting is the
-   primary path, hiding is the deliberate second choice. */
-.ar-edge-pin__hide { color: var(--ar-ink-faint); }
-.ar-edge-pin__hide:hover { color: var(--ar-ink); }
+/* A real disclosure, one head row in BOTH states — badge, title, chevron are
+   the toggle; there is no separate Hide/Collapse control. The level colour and
+   badge stay in the folded state (a folded warning is still a warning; only
+   its size changed), because the card never leaves the page: the findings row
+   that deep-links here must land on evidence. While folded, the external link
+   sits at the row's right edge so acting stays one click away.
+   ⚠️ Scoped to the LOG pins' head classes only: BingPanel and CloudflareCard
+   still render the stacked badge/__title card and share the base .ar-edge-pin
+   rules above. */
+.ar-edge-pin--collapsed { padding: 7px 16px; }
+.ar-edge-pin__head { display: flex; align-items: center; gap: 14px; }
+.ar-edge-pin:not(.ar-edge-pin--collapsed) .ar-edge-pin__head { margin-bottom: 4px; }
+.ar-edge-pin__row {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+  margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; text-align: left; color: inherit;
+}
+.ar-edge-pin__row .ar-edge-pin__badge { margin: 0; flex: none; }
+.ar-edge-pin__rowtitle { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
+.ar-edge-pin--collapsed .ar-edge-pin__rowtitle {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; color: var(--ar-ink-soft);
+}
+.ar-edge-pin--collapsed .ar-edge-pin__row:hover .ar-edge-pin__rowtitle { color: var(--ar-ink); }
+.ar-edge-pin__headlink { flex: none; white-space: nowrap; }
+/* The chevron's own click target — pointer convenience beside the row button
+   (kept out of the tab order in the markup), pinned to the far right edge in
+   BOTH states so nothing jumps when the card folds or opens. */
+.ar-edge-pin__chevbtn {
+  flex: none; display: inline-flex; align-items: center;
+  margin: 0; padding: 2px; border: 0; background: none; cursor: pointer;
+  color: var(--ar-ink-faint);
+}
+.ar-edge-pin__chevbtn:hover { color: var(--ar-ink); }
+.ar-edge-pin__chev { transition: transform 0.15s; }
+.ar-edge-pin__chev.is-open { transform: rotate(180deg); }
 
 /* One column that is ALLOWED to shrink. Left implicit ("auto"), the track sizes
    to its content, so the crawler table's 620px floor became every edge card's

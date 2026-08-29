@@ -984,11 +984,23 @@ export default {
     refreshSearchOpps() {
       if (this.$refs.searchOpps) this.$refs.searchOpps.loadSearch();
     },
-    // Hide one edge-conflict pin: optimistic removal here, the server records
-    // it. The pin returns only if that conflict ends and later starts again.
-    hideEdgeConflict(c) {
-      this.edgeConflicts = this.edgeConflicts.filter((x) => x.id !== c.id);
-      if (this.api) this.api.dismissCloudflareConflict(c.id).catch(() => {});
+    // Fold one edge-conflict pin down to its slim row, or open it back up. The
+    // card never leaves the page and the finding never budges (his rule,
+    // 2026-08-29: folding a card is tidiness, not a resolution — only the edge
+    // changing, or the site's own policy changing, ends the conflict).
+    // Optimistic flip; the server records it in the same per-conflict store as
+    // before, so the fold survives reloads and prunes itself when the conflict
+    // really ends. A failed write un-flips the card — the screen must never
+    // keep showing a state the store refused to take.
+    toggleEdgeConflict(c) {
+      const fold = !c.collapsed;
+      const set = (v) => {
+        this.edgeConflicts = this.edgeConflicts.map((x) => (x.id === c.id ? { ...x, collapsed: v } : x));
+      };
+      set(fold);
+      if (!this.api) return;
+      const call = fold ? this.api.dismissCloudflareConflict(c.id) : this.api.undismissCloudflareConflict(c.id);
+      call.catch(() => set(!fold));
     },
     goTo(target) {
       // Navigation unmounts whatever the pointer was over — never strand its tooltip.
@@ -2586,21 +2598,48 @@ export default {
         <!-- id: a finding about the edge sends the owner straight here, so the
              card carrying the evidence is what they land on. -->
         <div v-if="settings.enable_activity && edgeConflicts.length" id="ar-edge-pins" v-show="tab === 'log'" class="ar-edge-pins">
-          <div v-for="c in edgeConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
-            <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
-            <p class="ar-edge-pin__title">{{ c.title }}</p>
-            <p class="ar-edge-pin__body">{{ c.body }}</p>
-            <!-- ⭐ WHEN IT STARTED. The body says "in the last 7 days", which is
-                 the window it measured, not the age of the problem — and a
-                 warning whose age is unknown reads as either brand new or
-                 ancient. His catch: "I don't know since when these are there." -->
-            <p v-if="c.sinceText" class="ar-edge-pin__since">{{ c.sinceText }}</p>
-            <div class="ar-edge-pin__actions">
-              <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare →</a>
-              <button type="button" class="ar-linkbtn ar-edge-pin__hide" @click="hideEdgeConflict(c)">
-                {{ c.level === 'warn' ? 'Hide this warning' : 'Hide this notice' }}
+          <!-- A conflict card never leaves this page while the conflict is live —
+               its findings row deep-links here, and only the edge changing (or the
+               site's own policy changing) ends it. What the owner CAN do is fold
+               it: the collapsed pin is a slim one-line row that keeps the level
+               colour, the badge and the title, so the fact stays on the page at a
+               size the owner chose (his call, 2026-08-29 — no Hide, no vanishing). -->
+          <div v-for="c in edgeConflicts" :key="c.id" class="ar-edge-pin" :class="[`ar-edge-pin--${c.level}`, { 'ar-edge-pin--collapsed': c.collapsed }]">
+            <!-- ONE head row in both states — a real disclosure: badge, title and
+                 chevron are the toggle, no separate Collapse/Show controls. Every
+                 piece keeps ONE seat across both states (his call): the external
+                 link sits just before the chevron, the chevron holds the far right
+                 edge — nothing jumps when the card folds or opens. -->
+            <div class="ar-edge-pin__head">
+              <button
+                type="button"
+                class="ar-edge-pin__row"
+                :aria-expanded="c.collapsed ? 'false' : 'true'"
+                @click="toggleEdgeConflict(c)"
+              >
+                <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
+                <span class="ar-edge-pin__rowtitle">{{ c.title }}</span>
+              </button>
+              <!-- ⛔ No "→" in this label: the external-link style already draws
+                   the ↗, and two arrows on one link read as a stutter (his catch,
+                   2026-08-29). The outbound glyph is the one that carries meaning. -->
+              <a class="ar-linkbtn ar-edge-pin__headlink" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare</a>
+              <!-- The chevron toggles too, but the ROW button is the one control
+                   assistive tech sees — this twin is pointer convenience only
+                   (tabindex -1 + aria-hidden keep it out of the tab order and
+                   the tree, so there is one toggle, not two). -->
+              <button type="button" class="ar-edge-pin__chevbtn" tabindex="-1" aria-hidden="true" @click="toggleEdgeConflict(c)">
+                <svg class="ar-edge-pin__chev" :class="{ 'is-open': !c.collapsed }" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.2 8 10l4-3.8" /></svg>
               </button>
             </div>
+            <template v-if="!c.collapsed">
+              <p class="ar-edge-pin__body">{{ c.body }}</p>
+              <!-- ⭐ WHEN IT STARTED. The body says "in the last 7 days", which is
+                   the window it measured, not the age of the problem — and a
+                   warning whose age is unknown reads as either brand new or
+                   ancient. His catch: "I don't know since when these are there." -->
+              <p v-if="c.sinceText" class="ar-edge-pin__since">{{ c.sinceText }}</p>
+            </template>
           </div>
         </div>
         <RequestLog

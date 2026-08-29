@@ -62,9 +62,17 @@ final class Data {
 			}
 			$summary = \Agentimus\Cloudflare\Summary::build( $store, $settings, 7 );
 			$out     = array();
-			// Visible only: one the owner hid is a decision, and the email must
-			// not reopen an argument they have already settled.
-			foreach ( (array) ( $summary['conflicts'] ?? array() ) as $c ) {
+			// Folded pins included — his call, 2026-08-29, same day the findings
+			// were decoupled: a fold on the Request Log shrinks a card, it does
+			// not settle the conflict, and the week's email claiming a clear edge
+			// while the front door counts an active conflict would be two
+			// surfaces telling one owner two stories. A conflict leaves this
+			// list only when its situation really ends.
+			$active = array_merge(
+				(array) ( $summary['conflicts'] ?? array() ),
+				(array) ( $summary['hiddenConflicts'] ?? array() )
+			);
+			foreach ( $active as $c ) {
 				if ( is_array( $c ) && ! empty( $c['title'] ) ) {
 					$out[] = array(
 						'level' => (string) ( $c['level'] ?? 'info' ),

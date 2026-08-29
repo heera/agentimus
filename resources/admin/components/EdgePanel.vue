@@ -76,8 +76,14 @@ export default {
       if (on && !this.loading) this.load();
     },
     // The parent renders the pinned conflict boxes — hand them up on every refresh.
+    // The server's per-conflict "dismissed" store now means COLLAPSED on this
+    // screen: those ride along flagged, never dropped, so a findings row
+    // deep-linking to the pins always lands on evidence at whatever size the
+    // owner folded it to (folding a card is tidiness, not a resolution).
     summary(s) {
-      this.$emit('conflicts', (s && s.conflicts) || []);
+      const open = (s && s.conflicts) || [];
+      const folded = ((s && s.hiddenConflicts) || []).map((c) => ({ ...c, collapsed: true }));
+      this.$emit('conflicts', open.concat(folded));
     },
   },
   mounted() {

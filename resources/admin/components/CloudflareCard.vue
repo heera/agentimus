@@ -213,16 +213,16 @@ export default {
       <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">
         {{ cfDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
       </button>
-      <!-- The warnings ledger: EVERY active conflict, always — hiding a pin
-           on the Request Log hides it THERE only. A card leaves this list
+      <!-- The warnings ledger: EVERY active conflict, always — collapsing a pin
+           on the Request Log folds it THERE only. A card leaves this list
            when its situation really ends, never by hand.
            Empty = no block, no separator. -->
       <div v-if="cfConflicts.length" class="ar-cf-hiddenblk">
         <p class="ar-mcp-eyebrow">Warnings</p>
         <p class="ar-field__hint">
           Everything Cloudflare and your site policy disagree about right now — including
-          warnings you hid on the Request Log screen. A card leaves this list only when
-          its situation is really fixed.
+          warnings you collapsed on the Request Log screen. A card leaves this list only
+          when its situation is really fixed.
         </p>
         <div class="ar-edge-pins">
           <div v-for="c in cfConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
@@ -231,7 +231,7 @@ export default {
             <p class="ar-edge-pin__body">{{ c.body }}</p>
             <div class="ar-edge-pin__actions">
               <a class="ar-linkbtn" :href="c.url" target="_blank" rel="noopener">Review in Cloudflare</a>
-              <span v-if="c.hiddenOnLog" class="ar-cf-hiddenmark">hidden on the Request Log</span>
+              <span v-if="c.hiddenOnLog" class="ar-cf-hiddenmark">collapsed on the Request Log</span>
             </div>
           </div>
         </div>

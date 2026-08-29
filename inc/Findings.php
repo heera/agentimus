@@ -1262,9 +1262,15 @@ final class Findings {
 	 * same information twice. That reasoning is exactly why these belong: they
 	 * have no counter anywhere.
 	 *
-	 * ⭐ VISIBLE CONFLICTS ONLY. {@see Cloudflare\Summary} splits out the ones the
-	 * owner hid, and a warning dismissed on one screen must not reappear on
-	 * another — "hidden" is a decision, not a display quirk.
+	 * ⭐ COLLAPSED CARDS STILL COUNT — his reversal, 2026-08-29, superseding the
+	 * first cut's "visible conflicts only". A pin on the Request Log can no
+	 * longer be hidden at all, only FOLDED to a slim one-line row (the stored
+	 * "dismissed" ids now mean collapsed): folding tidies that screen, it does
+	 * not end the conflict, and a finding that vanished with the card let one
+	 * screen's tidiness silently clear the front door's most urgent row. Only
+	 * the edge changing (or the site's own policy changing) ends these — the
+	 * same rule the Integrations warnings ledger has always stated for itself.
+	 * Collapsed or open, this row's "See what the edge did" lands on the card.
 	 *
 	 * Safe on an admin page load, which is this class's rule: Summary reads the
 	 * stored hourly rows and stored settings, Conflicts::detect() is pure, and
@@ -1284,7 +1290,13 @@ final class Findings {
 
 		$summary = Cloudflare\Summary::build( $store, $this->settings, 7 );
 		$rows    = array();
-		foreach ( (array) ( isset( $summary['conflicts'] ) ? $summary['conflicts'] : array() ) as $c ) {
+		// Open pins first, then the collapsed ones — one list, because a fold
+		// changes how the log DRAWS a conflict, never whether it is happening.
+		$active  = array_merge(
+			(array) ( isset( $summary['conflicts'] ) ? $summary['conflicts'] : array() ),
+			(array) ( isset( $summary['hiddenConflicts'] ) ? $summary['hiddenConflicts'] : array() )
+		);
+		foreach ( $active as $c ) {
 			if ( ! is_array( $c ) || empty( $c['title'] ) ) {
 				continue;
 			}
