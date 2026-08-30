@@ -45,9 +45,6 @@ final class Findings {
 	/** Evidence chips shown per finding before the rest are counted. */
 	const MAX_EVIDENCE = 4;
 
-	/** @var array<int,string>|null Memoized dismissed ids. */
-	private $dismissed = null;
-
 	/** A decision only the owner can make, or a live trust problem. */
 	const URGENT = 'urgent';
 
@@ -186,20 +183,6 @@ final class Findings {
 		usort( $open, $by_weight );
 		usort( $waiting, $by_weight );
 
-		// ⛔ HIDDEN ONES COME OUT FIRST, and only the tier that may be hidden.
-		// A dismissible urgent finding is a way to bury a live trust problem, so
-		// LATER — "worth knowing, costs nothing today" — is the only tier this
-		// applies to. That is not a convention, it is the definition of the tier.
-		$hidden = array();
-		$keep   = array();
-		foreach ( $open as $row ) {
-			if ( self::LATER === $row['tier'] && in_array( (string) $row['id'], $this->dismissed_ids(), true ) ) {
-				$hidden[] = $row;
-				continue;
-			}
-			$keep[] = $row;
-		}
-		$open  = $keep;
 		$found = array_merge( array_slice( $open, 0, self::MAX ), $waiting );
 
 		$counts = array( self::URGENT => 0, self::WORTH => 0, self::LATER => 0, self::WAITING => 0 );
@@ -226,13 +209,6 @@ final class Findings {
 			'clear'    => $this->clear_lines(),
 			'failed'   => $failed,
 			'counts'   => $counts,
-			// ⭐ NEVER A HIDDEN LEDGER. The rows the owner put away travel WITH
-			// the ones they kept, so the screen can carry a visible count and
-			// hand any of them back. The same rule the set-aside list already
-			// follows: a plugin that quietly stops mentioning something has
-			// stopped being trustworthy about everything else it does not
-			// mention either.
-			'hidden'   => array_values( $hidden ),
 		);
 
 		/**
@@ -298,19 +274,6 @@ final class Findings {
 			implode( ', ', $names ),
 			$last
 		);
-	}
-
-	/**
-	 * Findings the owner has put away.
-	 *
-	 * @return array<int,string>
-	 */
-	private function dismissed_ids() {
-		if ( null === $this->dismissed ) {
-			$raw             = (array) $this->settings->get( 'findings_dismissed', array() );
-			$this->dismissed = array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', $raw ) ) ) );
-		}
-		return $this->dismissed;
 	}
 
 	/**

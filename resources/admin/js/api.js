@@ -364,10 +364,5 @@ export function createApi(boot) {
       request('/visibility/suggest', { method: 'POST', body: JSON.stringify(payload) }),
     suggestVisibilityAi: (payload) =>
       request('/visibility/suggest-ai', { method: 'POST', body: JSON.stringify(payload) }),
-
-    // Put a suggestion away, or bring it back. Returns the rebuilt findings
-    // payload so the row and the ledger count change in the same beat.
-    dismissFinding: (id, hidden) =>
-      request('/findings/dismiss', { method: 'POST', body: JSON.stringify({ id, hidden }) }),
   };
 }

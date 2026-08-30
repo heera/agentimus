@@ -1224,11 +1224,6 @@ final class Registrar {
 							'waiting' => self::i( 'Carried but never counted as open work — no edit can clear a waiting row.' ),
 						)
 					),
-					'hidden'   => array(
-						'type'        => 'array',
-						'items'       => array( 'type' => 'object', 'additionalProperties' => true ),
-						'description' => 'Findings the OWNER has put away — same shape as `findings`, and never counted in `counts`. Only "later" rows can be here; urgent and worth ones can never be hidden. ⛔ Do not re-raise these to the owner as if they were new: they are a decision, not an oversight. They travel with the payload rather than being dropped so nothing is ever silently withheld.',
-					),
 				)
 			),
 			function () {

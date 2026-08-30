@@ -23,12 +23,6 @@ By what each finding costs you — visitors lost, AI assistants turned away, or 
 
 The Findings tab carries its own count, and that count only ever measures work you can do something about. Anything merely waiting on a later report gets a quiet dot instead of a number — a number in a nav is a promise that doing the work makes it go down, and waiting is not workable. Clients waiting on an allow-or-block verdict are not findings; they stay with the bell.
 
-## Putting a suggestion away
-
-Anything filed under **when you have time** can be dismissed. It leaves the list and joins a count of what you have put away, with a way to bring each one back.
-
-Only that tier can be hidden. Anything that costs you something — a page losing clicks, a setup check that failed — has no dismiss button, because a list you can silence is not a list you can trust. Nothing is deleted either: a put-away suggestion is still carried in the payload a connected agent reads, marked as your decision rather than dropped.
-
 ## Your content, one row at a time
 
 Beneath the ranked list sits the **content worklist**: one row per post, page or anything else you publish, saying what that piece is actually found for, whether it answers that, and anything else it needs. Anything not meant to be cited can be **set aside** — parked on its own ledger, listed and counted rather than merely absent, so "not meant to be cited" stays a decision you can review instead of a hole in a list.

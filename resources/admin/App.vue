@@ -1655,24 +1655,6 @@ export default {
         this.refreshingFindings = false;
       }
     },
-    // Put a suggestion away, or bring it back.
-    //
-    // The server returns the whole rebuilt findings payload rather than an
-    // acknowledgement, so the row leaving and the "N put away" count changing
-    // land together. Rebuilding locally would have been two guesses about what
-    // the server thinks, and the two would eventually disagree.
-    async dismissFinding({ id, hidden }) {
-      if (this.refreshingFindings) return;
-      this.refreshingFindings = true;
-      try {
-        const res = await this.api.dismissFinding(id, hidden);
-        if (res && res.findings) this.findings = res.findings;
-      } catch (e) {
-        this.flash('error', e.message);
-      } finally {
-        this.refreshingFindings = false;
-      }
-    },
     // Open the drawer, and re-read what it can write on the way in.
     //
     // The boot payload carries this state, but a payload is a photograph: tick a
@@ -2396,7 +2378,6 @@ export default {
           :score="aeo"
           :busy="refreshingFindings"
           @navigate="goTo"
-          @dismiss="dismissFinding"
           @refresh="refreshFindings"
           @seen="dismissResolved"
         />

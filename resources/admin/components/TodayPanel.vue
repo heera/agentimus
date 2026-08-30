@@ -34,7 +34,7 @@ export default {
     score: { type: Object, default: null },
     busy: { type: Boolean, default: false },
   },
-  emits: ['navigate', 'refresh', 'seen', 'dismiss'],
+  emits: ['navigate', 'refresh', 'seen'],
   computed: {
     rows() {
       return Array.isArray(this.findings.findings) ? this.findings.findings : [];
@@ -44,11 +44,6 @@ export default {
     // by the headline, which is the exact miscount this tier exists to end.
     open() {
       return this.rows.filter((r) => 'later' !== r.tier && 'waiting' !== r.tier);
-    },
-    // Suggestions the owner put away. Carried, counted and reversible — never
-    // silently dropped, which is the same rule the set-aside ledger follows.
-    hidden() {
-      return Array.isArray(this.findings.hidden) ? this.findings.hidden : [];
     },
     // Worth knowing, costs nothing today — below the divider.
     later() {
@@ -271,26 +266,6 @@ export default {
               <p v-if="row.evidence && row.evidence.length" class="ar-today__ev">
                 <span v-for="e in row.evidence" :key="e" class="ar-today__chip">{{ e }}</span>
               </p>
-              <!-- ⛔ Only on "later" rows, and the server enforces it too. A hide
-                   control on an urgent finding would be a way to bury a live
-                   problem; on a suggestion it is simply an answer.
-                   ⭐ INSIDE .ar-today__main, and named. His call 2026-08-24, and
-                   it fixes two things at once. It was a bare − icon pinned to
-                   `grid-column: 3` and revealed on hover: invisible until you
-                   went looking, unnamed when you found it, and — because it
-                   claimed the third column — it pushed this row's ACTION out of
-                   the column every other row's action sits in, onto a second
-                   grid row in the 18px marker track. Living in the text column
-                   it cannot collide with anything, and a row with no action
-                   still has somewhere to put it. -->
-              <button
-                v-if="row.tier === 'later'"
-                type="button"
-                class="ar-linkbtn ar-today__hide"
-                :aria-label="`Put away: ${row.title}`"
-                :disabled="busy"
-                @click="$emit('dismiss', { id: row.id, hidden: true })"
-              >Put this away</button>
             </div>
             <!-- Same button in every band. An optional or waiting finding is
                  still somewhere to go, and a text link beside five solid buttons
@@ -314,23 +289,6 @@ export default {
         <span class="ar-today__clear-mark" aria-hidden="true">✓</span>
         <span>{{ line }}<button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'readiness' })">See the checks</button></span>
       </p>
-
-      <!-- The ledger. A count the owner can open and undo, because a plugin that
-           quietly stops mentioning things has stopped being trustworthy about
-           everything else it has not mentioned either. -->
-      <details v-if="hidden.length" class="ar-fold ar-today__hidden">
-        <summary>
-          {{ hidden.length }} {{ hidden.length === 1 ? 'suggestion' : 'suggestions' }} you put away
-        </summary>
-        <ul class="ar-today__hiddenlist">
-          <li v-for="row in hidden" :key="row.id">
-            <span>{{ row.title }}</span>
-            <button type="button" class="ar-linkbtn" :disabled="busy" @click="$emit('dismiss', { id: row.id, hidden: false })">
-              Bring it back
-            </button>
-          </li>
-        </ul>
-      </details>
 
       <!-- A source that couldn't be read. Named, so a missing finding is visible. -->
       <p v-if="failed.length" class="ar-today__failed">
