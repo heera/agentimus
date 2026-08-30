@@ -2502,19 +2502,6 @@ export default {
             assistants read, the log of AI visits and identity checks, and your AI-usage signals.
           </p>
         </section>
-        <!-- ⭐ Above everything: what happened TODAY. The cards below say what
-             the site IS — a standing description that reads the same all week —
-             and this is the one line about the day you are actually in. Only
-             the live numbers appear here; anything that cannot honestly mean
-             "today" lives on the Report screen, where each block dates itself. -->
-        <TodayLine
-          v-show="tab === 'dashboard'"
-          :api="api"
-          :active="tab === 'dashboard'"
-          :live="live"
-          :tick="liveTick"
-          @navigate="goTo"
-        />
         <!-- What the site exposes — the first thing on the page, because the
              page's own subtitle asks "what you expose" before "who is reading
              it". Lives here rather than inside ActivityPanel so it can sit
@@ -2522,6 +2509,23 @@ export default {
         <SurfaceTiles
           v-show="tab === 'dashboard'"
           :summary="dashSummary"
+          @navigate="goTo"
+        />
+        <!-- What happened TODAY — first of the full-width cards, under the
+             tiles. His call 2026-08-30: it used to sit above the tiles, but the
+             tile row is a different shape, and splitting the cards with it cut
+             the group in two — the small row leads, then every card runs
+             consecutively. The cards below say what the site IS — a standing
+             description that reads the same all week — and this is the one
+             line about the day you are actually in. Only the live numbers
+             appear here; anything that cannot honestly mean "today" lives on
+             the Report screen, where each block dates itself. -->
+        <TodayLine
+          v-show="tab === 'dashboard'"
+          :api="api"
+          :active="tab === 'dashboard'"
+          :live="live"
+          :tick="liveTick"
           @navigate="goTo"
         />
         <!-- What the site RUNS — the systems roll-up, between "what you expose"
