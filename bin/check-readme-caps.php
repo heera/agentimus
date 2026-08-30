@@ -10,7 +10,17 @@
  * Description before applying the limit. A number measured the wrong way is
  * worse than no number, since it reassures.
  *
- * Run:  php dev/check-readme-caps.php readme.txt
+ * ⚠️⚠️ AND THE COUNTER ITSELF WAS THE SECOND LESSON. This script said the
+ * 1.50.1 Changelog stood at 4,857 of 5,000 — WP.org truncated it on import.
+ * `str_word_count()` counts only alphabetic runs: "1.50.1", "3,289" and a
+ * bare " — " are all invisible to it, and a changelog is made of exactly
+ * those. Splitting on whitespace read the same section at 5,019, which is the
+ * side of the line WP.org saw. So the count here is WHITESPACE TOKENS: it runs
+ * slightly HIGH against theirs (a list's "*" bullets and "= 1.x.x =" entry
+ * headings count as tokens), which makes the nominal caps carry their own
+ * small safety margin. A counter that errs must err toward the warning.
+ *
+ * Run:  php bin/check-readme-caps.php readme.txt
  * Exits 1 with a diff-able report when any cap is exceeded.
  */
 
@@ -30,6 +40,11 @@ $folded      = array();
 $changelog   = 0;
 $notice      = 0;
 
+/** WP.org-shaped word count: whitespace tokens. See the header for why. */
+function ws_words( $body ) {
+	return count( preg_split( '/\s+/u', trim( strip_tags( $body ) ), -1, PREG_SPLIT_NO_EMPTY ) );
+}
+
 for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 	$raw  = $parts[ $i ];
 	$name = strtolower( trim( $raw ) );
@@ -42,12 +57,12 @@ for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 	}
 
 	if ( 'description' === $name || ! in_array( $name, $standard, true ) ) {
-		$n            = str_word_count( strip_tags( $body ) );
+		$n            = ws_words( $body );
 		$description += $n;
 		$folded[]     = array( trim( $raw ), $n );
 	}
 	if ( 'changelog' === $name ) {
-		$changelog = str_word_count( strip_tags( $body ) );
+		$changelog = ws_words( $body );
 	}
 	if ( 'upgrade notice' === $name ) {
 		// The cap bites per ENTRY, and only the newest one is ever shown.
@@ -58,13 +73,14 @@ for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 }
 
 $caps = array(
-	// ⚠️ 2,400 NOT 2,500, and the difference is measured, not cautious. When
-	// WordPress.org truncated 1.37.0 it cut at ITS 2,500-word mark; the text it
-	// kept measures 2,449 by str_word_count here. So this counter runs ~2% low
-	// against theirs — it counts the raw markdown, they count after their own
-	// processing. A readme at "2,447 of 2,500" by this script was really sitting
-	// ON their line, and stayed truncated. 2,400 here is ~2,450 there.
-	array( 'Description (all folded sections)', $description, 2400, 'words' ),
+	// ⚠️ Nominal caps, deliberately. Whitespace tokens run slightly HIGH against
+	// WP.org's own count (bullets and entry headings are tokens here, markup
+	// there), so the margin is built into the measurement rather than shaved
+	// off the cap. Calibration points: the 1.50.1 Changelog read 5,019 here and
+	// WP.org truncated it; the same import accepted a Description reading 2,457
+	// here. The old str_word_count gate said 4,857 and 2,390 for those — LOW on
+	// exactly the section that got cut.
+	array( 'Description (all folded sections)', $description, 2500, 'words' ),
 	array( 'Changelog',                          $changelog,   5000, 'words' ),
 	array( 'Upgrade Notice (newest entry)',      $notice,       600, 'chars' ),
 );
