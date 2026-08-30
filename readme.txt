@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.50.0
+Stable tag: 1.50.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,10 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.50.1 =
+* Fixed: the "Put this away" link is gone from the Findings screen. Putting a suggestion away only moved it into a fold at the foot of the same list — a collapsible in disguise — and only one kind of row ever carried the control, so part of the list arrived offering to be dismissed while the rest did not. Every finding now simply stays in its list, anything you had put away comes back on its own, and a connected assistant no longer sees a put-away ledger either.
+* Improved: the Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with. The tile row used to sit between Today and everything else, cutting the run of cards in two.
+
 = 1.50.0 =
 * New: you can write your own robots.txt rules from the Crawler Policy card. A plain text box is appended to the end of the generated file, exactly as written — appended, never replacing, so an edit cannot break the Content-Signal line or the crawler blocks the plugin writes, and clearing the box is the whole reset. The live robots.txt is shown right above the box, fetched from your site exactly as a crawler receives it — which also honestly shows when a robots.txt file on disk or an SEO plugin owns the job instead (then the extra rules do not apply, and the box says so), and warns when your server wraps the file in an error code, which a strict crawler may ignore. Write your own Sitemap line and the plugin stops adding its own rather than printing two.
 * New: the review bell's cards now say why a visitor is unchecked, instead of one blank "not verified" covering every case. Each card names its own cause — identity checking is turned off, this bot cannot be checked because its operator publishes nothing to check against, its visits gave no clear answer yet, or it carries a real cryptographic signature from an operator this site does not know. Each cause reads differently on the card, so you can tell at a glance which unchecked rows are waiting for an answer and which will never have one — and the small info icon carries the full reason.
@@ -394,6 +398,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.43.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.50.1 =
+The Findings screen drops its "Put this away" link — it only moved a suggestion into a fold on the same screen, and only some rows had it. Every finding now stays in its list, and anything you had put away comes back. The Dashboard's Today card moves down beside the full-width cards it belongs with, with the four small tiles leading the page. No breaking changes.
 
 = 1.50.0 =
 You can now write your own robots.txt rules from the Crawler Policy card — appended to the generated file, never replacing it, with a live view of the real file and a reset that is just clearing the box. The review bell's cards say why a visitor is unchecked, and every recommendation names the kind of action it asks for before you read a word. Fixes: the panel no longer advises turning on a setting that is already on, and a real-but-unrecognised signature no longer displays as a full pass. No breaking changes.

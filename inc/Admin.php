@@ -987,33 +987,18 @@ final class Admin {
 				// ⛔ The internal-names fix is NOT in the fixes row either. "We stopped
 				// showing you our own key names" is an apology for a thing the owner
 				// never had a word for — the changelog carries it.
+				// ⭐ A small release gets a SMALL card — two items, no fixes row
+				// (the 1.49.0 shape). Padding a two-change release to five rows
+				// would teach people the card exaggerates.
 				array(
 					'icon'  => 'page',
-					'title' => 'Your Own robots.txt Rules',
-					'text'  => 'Write extra robots.txt rules right in the Crawler Policy card — added to the end of the generated file, never replacing it, so nothing the plugin writes can break. A button shows the live file exactly as crawlers see it, and clearing the box is the whole reset.',
+					'title' => 'Findings Keep Every Row',
+					'text'  => 'The "Put this away" link is gone. It only moved a suggestion into a fold at the foot of the same screen, and only some rows had it. Every finding now simply stays in its list — anything you had put away comes back on its own.',
 				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Review Cards That Say Why',
-					'text'  => 'A card in the review bell no longer just says a visitor is unchecked — it says why: checking is turned off, this bot can never be checked, no visit gave a clear answer yet, or it is signed by an operator this site does not know. The small info icon carries the full reason.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Advice That Names Who Acts',
-					'text'  => 'Each recommendation is now a small chip naming the kind of action it asks for — nothing left to do, one plugin setting, or a rule at your host. You can tell the three apart before reading a word, and the cards are several lines shorter.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'Decisions That Know Their Reach',
-					'text'  => 'The Client Decisions dialog now says what a block really reaches — this plugin’s machine files, not your whole site, and not robots.txt — and warns you when blocking is switched off. Tidier rows too, with plain words on the buttons: Stop trusting, Stop ignoring.',
-				),
-				// ⭐ The fixes row: LAST and SINGLE — and this release it is a full
-				// CARD of its own (his call, 2026-08-30): a round of fixes deserves
-				// its own seat, not a clause at the end of a feature's sentence.
 				array(
 					'icon'  => 'clock',
-					'title' => 'A Round of Bug Fixes',
-					'text'  => 'The plugin no longer suggests turning on a setting that is already on. A real signature from an operator it does not recognise no longer shows as a full pass. And a stray cursor no longer makes plain text look clickable.',
+					'title' => 'Today in Its Place',
+					'text'  => 'The Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with — one group, with no small row cutting it in two.',
 				),
 			),
 		);
