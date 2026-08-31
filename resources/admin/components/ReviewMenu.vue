@@ -529,10 +529,10 @@ export default {
       const first = new Date(s.firstSeen).getTime();
       if (sticky || !first) return 'New';
       const left = first + this.newSecs * 1000 - Date.now();
-      if (left <= 0) return 'New · leaves soon';
+      if (left <= 0) return 'New · card disappears soon';
       const m = Math.round(left / 60000);
-      if (m < 60) return `New · leaves in ${Math.max(1, m)}m`;
-      return `New · leaves in ${Math.round(m / 60)}h`;
+      if (m < 60) return `New · card disappears in ${Math.max(1, m)}m`;
+      return `New · card disappears in ${Math.round(m / 60)}h`;
     },
     kindLabel(kind) {
       return { ai: 'AI crawler', seo: 'SEO crawler', search: 'Search engine', social: 'Social preview' }[kind] || 'Crawler';

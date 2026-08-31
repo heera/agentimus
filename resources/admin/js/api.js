@@ -241,7 +241,7 @@ export function createApi(boot) {
     // fact as "we cannot see anything here", and the UI must never conflate them.
     // Cursor walk, same shape as the request log: `before` is the opaque "last_at~id" cursor of the
     // last row on the page you're leaving. Page numbers would be a lie on a log that grows under you.
-    getAgentAccess: (before = '') => request(`/agent-access${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+    getAgentAccess: (offset = 0) => request(`/agent-access${offset ? `?offset=${encodeURIComponent(offset)}` : ''}`),
     markAgentAccessSeen: () => request('/agent-access/seen', { method: 'POST' }),
     clearAgentAccess: () => request('/agent-access', { method: 'DELETE' }),
 

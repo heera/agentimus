@@ -508,6 +508,10 @@ final class Module {
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_text_field',
 						),
+						'offset' => array(
+							'type'    => 'integer',
+							'default' => 0,
+						),
 					),
 				),
 				array(
@@ -538,11 +542,13 @@ final class Module {
 	public function read( $request = null ) {
 		$coverage = self::coverage();
 		$before   = ( $request instanceof \WP_REST_Request ) ? (string) $request->get_param( 'before' ) : '';
+		$offset   = ( $request instanceof \WP_REST_Request ) ? max( 0, (int) $request->get_param( 'offset' ) ) : 0;
 
-		// A cursor walk, the same shape the request log uses — so every row is reachable, however
-		// many there are. A "show more" that stops at 500 would leave the rest of a 5,000-row table
-		// permanently unreachable, which on a flood is exactly when the owner most needs to look.
-		$page = Store::page( Store::DEFAULT_LIMIT, null, $before );
+		// Numbered pages over the same ordered set the cursor walk used — so every row is
+		// reachable, however many there are, and the owner can jump straight to any page. A "show
+		// more" that stops at 500 would leave the rest of a 5,000-row table permanently
+		// unreachable, which on a flood is exactly when the owner most needs to look.
+		$page = Store::page( Store::DEFAULT_LIMIT, null, $before, $offset );
 
 		return rest_ensure_response(
 			array(

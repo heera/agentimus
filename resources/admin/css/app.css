@@ -2836,8 +2836,12 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   color: var(--ar-ink-faint);
   font-variant-numeric: tabular-nums;
 }
-.ar-gidx__pager { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.ar-gidx__pager button {
+/* The shared numbered pager (PagerBar.vue) — grown from this card's own strip,
+   now the one look every listing uses. The current page is the filled chip
+   (aria-current, which is also what styles it — state and styling can't drift
+   apart). */
+.ar-pager { display: flex; align-items: center; gap: 4px; }
+.ar-pager__btn {
   min-width: 26px;
   padding: 3px 6px;
   font-family: var(--ar-mono);
@@ -2849,16 +2853,17 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   border-radius: 4px;
   cursor: pointer;
 }
-.ar-gidx__pager button:hover:not(:disabled):not([aria-current="page"]) { border-color: var(--ar-info); }
-.ar-gidx__pager button[aria-current="page"] {
+.ar-pager__btn:hover:not(:disabled):not([aria-current="page"]) { border-color: var(--ar-info); }
+.ar-pager__btn[aria-current="page"] {
   background: var(--ar-info);
   border-color: var(--ar-info);
   color: var(--ar-surface);
   cursor: default;
 }
-.ar-gidx__pager button:disabled { color: var(--ar-ink-faint); cursor: default; }
-.ar-gidx__pager button:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
-.ar-gidx__pgap { color: var(--ar-ink-faint); font-size: 11.5px; padding: 0 2px; }
+.ar-pager__btn:disabled { color: var(--ar-ink-faint); cursor: default; }
+.ar-pager__btn:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 1px; }
+.ar-pager__gap { color: var(--ar-ink-faint); font-size: 11.5px; padding: 0 2px; }
+.ar-gidx__pagefoot .ar-pager { margin-left: auto; }
 /* Two matched cards close the section: the site-level pointers beside the
    per-page lookup. */
 /* The machine facts between the rows and the lookup — a hairline sets them
@@ -7268,8 +7273,6 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
   flex-wrap: wrap; margin-top: 16px;
 }
 .ar-log__count { margin: 0; font-size: 13px; color: var(--ar-ink-soft); }
-.ar-log__pager { display: flex; gap: 10px; }
-.ar-log__pager .ar-btn { padding: 9px 18px; }
 
 /* The rule spans the card; only the prose is measured. `max-width` on the <p> itself would
    shorten the border with it, leaving it stopping short of the right edge. */
@@ -7683,7 +7686,6 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 
 /* Newer / Older — same cursor walk as the request log's pager, so the two log screens read as
    one control rather than two inventions. */
-.ar-aa__pager { display: flex; gap: 8px; flex: 0 0 auto; }
 
 /* "Not published" on a Discovery Hub row. The row is listed either way — the owner must be able
    to see (and reverse) what their site holds back — but listing it without a caveat would read
@@ -8008,17 +8010,6 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
   padding: 12px 26px; border-top: 1px solid var(--ar-line);
 }
 .ar-work__pager-count { margin: 0; font-size: 12.5px; color: var(--ar-ink-soft); }
-.ar-work__pager-nav { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
-.ar-work__pg {
-  appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
-  min-width: 28px; height: 28px; padding: 0 9px;
-  border: 1px solid transparent; border-radius: 4px;
-  background: transparent; color: var(--ar-ink-soft);
-}
-.ar-work__pg:hover:not(:disabled) { color: var(--ar-ink); border-color: var(--ar-line); }
-.ar-work__pg.is-here { border-color: var(--ar-line-strong); background: var(--ar-surface-2); color: var(--ar-ink); font-weight: 600; }
-.ar-work__pg:disabled { opacity: 0.45; cursor: default; }
-.ar-work__pg-gap { color: var(--ar-ink-faint); padding: 0 2px; }
 
 /* ── The row that opens ──────────────────────────────────────────────────
    One silhouette closed; everything known when asked for. Tokens only, so

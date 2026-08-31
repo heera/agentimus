@@ -6,9 +6,10 @@
  * actually fetch", by letting the two breakdowns intersect: filter by agent AND endpoint
  * and you get the cross-tab the summary cards structurally cannot show.
  *
- * Paging is a cursor walk, not page numbers. The server hands back a `cursor` (the id of
- * the last row on this page); we push it on a stack so "Newer" can walk back. Page numbers
- * would be a lie here — a crawler inserting rows mid-walk shifts every offset.
+ * Paging is numbered (PagerBar): the server counts the whole filtered set, so the strip
+ * can say "page 3 of 41" and jump anywhere. Numbered pages drift when a crawler inserts
+ * rows mid-walk — the accepted price of every numbered admin list, and the owner's call
+ * (2026-08-31) over the cursor walk this screen started with.
  *
  * The footer always states what the view CANNOT show: nothing older than the retention
  * window exists, and a busy site's row cap may have discarded rows inside it. A log that
@@ -16,6 +17,7 @@
  */
 import SelectMenu from './SelectMenu.vue';
 import CardSkeleton from './CardSkeleton.vue';
+import PagerBar from './PagerBar.vue';
 import { uaTip } from '../js/uaTip.js';
 import { surfaceName, isRenamed } from '../js/surfaceNames.js';
 import { formatStamp, relTimeShort } from '../js/wpDate.js';
@@ -33,7 +35,7 @@ const LIST_FILTERS = ['agent', 'endpoint', 'network', 'verdict', 'signer'];
 
 export default {
   name: 'RequestLog',
-  components: { SelectMenu, CardSkeleton },
+  components: { SelectMenu, CardSkeleton, PagerBar },
   mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
@@ -53,8 +55,6 @@ export default {
       facets: { agents: [], endpoints: [], networks: [], signers: [] },
       rows: [],
       total: 0,
-      hasMore: false,
-      cursor: null,
       retentionDays: 30,
       verifyOn: false,
       identifyOn: false,
@@ -66,20 +66,16 @@ export default {
       // 25, not 50: the edge cards live below this log now, and a 50-row page
       // pushed them a full screen further away than they need to be.
       perPage: 25,
-      // Cursor of the page we're on, plus the trail behind it, so "Newer" can reverse.
-      // Where this page starts. In the default order that is a keyset CURSOR
-      // (an id); under any other sort it is an OFFSET. One field, because the
-      // pager asks the same question either way: "where am I".
-      pos: 0,
+      // The 1-based page the strip is on. The server takes it as an offset;
+      // total ÷ perPage tells the pager how many there are.
+      page: 1,
       // ⛔ Every load takes a ticket; only the newest one may write. Two loads
       // can be in flight at once — a drill-down starts a filtered read while the
       // reveal's unfiltered one is still out — and without this the SLOWER
       // response wins whichever it is, which is how a filtered screen ends up
       // showing an unfiltered count.
       reqSeq: 0,
-      // ⭐ 'at' + desc is the default AND the only cursor-paged order.
       sort: { by: 'at', dir: 'desc' },
-      trail: [],
       loading: false,
       loaded: false,
       error: '',
@@ -153,13 +149,11 @@ export default {
         ? 'No network — the lookup couldn’t attribute this visitor to an organisation. Common for home broadband, small hosts and anything behind a privacy proxy.'
         : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI Access to see which organisation each one belongs to.';
     },
-    // Cursor paging can only count pages it has walked; offset paging knows
-    // exactly where it is. Both answer in ROWS, so the line reads the same.
-    keyset() {
-      return 'at' === this.sort.by && 'desc' === this.sort.dir;
-    },
     pageStart() {
-      return this.keyset ? this.trail.length * this.perPage : this.pos;
+      return (this.page - 1) * this.perPage;
+    },
+    pages() {
+      return Math.max(1, Math.ceil(this.total / this.perPage));
     },
     pageFrom() {
       return this.rows.length ? this.pageStart + 1 : 0;
@@ -179,7 +173,7 @@ export default {
         { key: 'client', label: 'Client', w: '18%' },
         { key: 'status', label: 'Status', cls: 'ar-log__statuscol', w: '96px' },
         { key: 'endpoint', label: 'Address', w: '20%' },
-        ...(this.hasNetwork ? [{ key: '', label: 'Network', w: '14%' }] : []),
+        ...(this.hasNetwork ? [{ key: 'network', label: 'Network', w: '14%' }] : []),
         { key: 'ua', label: 'User-Agent' },
         { key: 'at', label: 'Requested at', w: '17%' },
       ];
@@ -187,11 +181,11 @@ export default {
   },
   watch: {
     // The freshness contract: every reveal re-reads the CURRENT page — same
-    // filters, same cursor, exactly what the refresh button beside the title
+    // filters, same page, exactly what the refresh button beside the title
     // does — so a return between polls never shows a log frozen at the last
     // visit. Deferred a tick so a dashboard drill-down's preset fetch (its
     // watcher fires first and starts a page-one load) is never raced by a
-    // stale-cursor read: if a load is already in flight, this one stands down.
+    // stale read: if a load is already in flight, this one stands down.
     active(on) {
       if (!on) return;
       if (!this.loaded) {
@@ -199,7 +193,7 @@ export default {
         return;
       }
       this.$nextTick(() => {
-        if (!this.loading) this.load(this.pos);
+        if (!this.loading) this.load(this.page);
       });
     },
     // A dashboard row's drill-down: start from clean filters, apply the preset
@@ -250,7 +244,7 @@ export default {
         this.facets = { agents: [], endpoints: [], networks: [], signers: [] };
       }
     },
-    async load(pos = 0) {
+    async load(page = 1) {
       if (!this.api) return;
       if (!this.loaded) this.loadFacets();
       this.loading = true;
@@ -259,10 +253,7 @@ export default {
       try {
         const res = await this.api.getActivityLog({
           ...this.filters,
-          // ⛔ The paging key follows the SORT, never both at once: a cursor
-          // means nothing in a list ordered by client, and sending both would
-          // let the server pick — which is how rows go missing.
-          ...(this.keyset ? { before: pos || '' } : { offset: pos || 0 }),
+          offset: (page - 1) * this.perPage,
           per_page: this.perPage,
           orderby: this.sort.by,
           order: this.sort.dir,
@@ -271,15 +262,13 @@ export default {
         if (seq !== this.reqSeq) return;
         this.rows = res.rows || [];
         this.total = res.total || 0;
-        this.hasMore = !!res.hasMore;
-        this.cursor = res.cursor || null;
         this.retentionDays = res.retentionDays || 30;
         this.verifyOn = !!res.verifyOn;
         this.identifyOn = !!res.identifyOn;
         this.pageViewsOn = !!res.pageViewsOn;
         this.autoPrune = res.autoPrune !== false;
         this.maxRows = res.maxRows || 50000;
-        this.pos = pos;
+        this.page = page;
         this.loaded = true;
       } catch (e) {
         if (seq !== this.reqSeq) return;
@@ -288,14 +277,12 @@ export default {
         this.error = (e && e.message) || 'Unable to load the request log.';
         this.rows = [];
         this.total = 0;
-        this.hasMore = false;
       } finally {
         if (seq === this.reqSeq) this.loading = false;
       }
     },
     apply() {
-      this.trail = [];
-      this.load(0);
+      this.load(1);
     },
     // ⭐ Clicking a header sorts the WHOLE filtered set, not the page on screen —
     // sorting 50 visible rows while calling it "sorted" is the lie this avoids.
@@ -306,8 +293,7 @@ export default {
       this.sort = this.sort.by === key
         ? { by: key, dir: 'asc' === this.sort.dir ? 'desc' : 'asc' }
         : { by: key, dir: 'at' === key ? 'desc' : 'asc' };
-      this.trail = [];
-      this.load(0);
+      this.load(1);
     },
     sortState(key) {
       if (!key || this.sort.by !== key) return 'none';
@@ -317,14 +303,8 @@ export default {
       this.filters = noFilters();
       this.apply();
     },
-    older() {
-      if (!this.hasMore) return;
-      this.trail.push(this.pos);
-      this.load(this.keyset ? this.cursor : this.pos + this.perPage);
-    },
-    newer() {
-      if (!this.trail.length) return;
-      this.load(this.trail.pop());
+    goPage(n) {
+      this.load(n);
     },
     // Click a cell to pivot the whole log onto that value — the fastest path from
     // "this row looks odd" to "show me everything this client did".
@@ -410,8 +390,10 @@ export default {
     <div class="ar-card__head ar-card__head--inline">
       <div class="ar-card__titlewrap">
         <h2 class="ar-card__title">Requests</h2>
-        <!-- Refreshes THIS page of results, keeping the filters and the cursor — the same
-             "update this card" affordance the readiness report uses beside its own title. -->
+        <!-- Refreshes THIS page of results, keeping the filters and the page — the same
+             "update this card" affordance the readiness report uses beside its own title.
+             (The cursor era passed `before` here, a name this template never had, so
+             refresh silently reset to the newest page; `page` is real and stays put.) -->
         <button
           type="button"
           class="ar-log__refresh"
@@ -420,7 +402,7 @@ export default {
           :aria-label="loading ? 'Reloading the requests…' : 'Reload these requests'"
           @mouseenter="showUaTip($event, loading ? 'Reloading…' : 'Reload these requests', '')"
           @mouseleave="hideUaTip"
-          @click="load(before)"
+          @click="load(page)"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
         </button>
@@ -607,14 +589,7 @@ export default {
       <p class="ar-log__count">
         Showing <strong>{{ pageFrom }}–{{ pageTo }}</strong> of {{ total }}
       </p>
-      <div class="ar-log__pager">
-        <button type="button" class="ar-btn ar-btn--ghost" :disabled="!trail.length || loading" @click="newer">
-          ← Newer
-        </button>
-        <button type="button" class="ar-btn ar-btn--ghost" :disabled="!hasMore || loading" @click="older">
-          Older →
-        </button>
-      </div>
+      <PagerBar v-if="pages > 1" :page="page" :pages="pages" :busy="loading" label="Request log pages" @go="goPage" />
     </div>
 
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for

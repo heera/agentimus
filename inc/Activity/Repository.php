@@ -811,11 +811,17 @@ final class Repository {
 			// Status is two columns on screen — refused first, then the verdict —
 			// so it is two columns in the ORDER BY, in that reading order.
 			'status'   => 'refused, verdict',
+			'network'  => 'network',
 		);
 		$sort_by  = isset( $args['orderby'] ) && isset( $sortable[ $args['orderby'] ] ) ? (string) $args['orderby'] : 'at';
 		$sort_dir = ( isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ) ? 'ASC' : 'DESC';
-		$keyset   = ( 'at' === $sort_by && 'DESC' === $sort_dir );
-		$offset   = $keyset ? 0 : max( 0, (int) ( isset( $args['offset'] ) ? $args['offset'] : 0 ) );
+		// An EXPLICIT offset opts out of keyset even on the default sort — the
+		// numbered pager jumps to "page 7", which no cursor can address. Keyset
+		// stays for cursor callers (MCP walks by `before`) and for page one,
+		// where the two modes return the same rows anyway.
+		$offset_req = max( 0, (int) ( isset( $args['offset'] ) ? $args['offset'] : 0 ) );
+		$keyset     = ( 'at' === $sort_by && 'DESC' === $sort_dir && 0 === $offset_req );
+		$offset     = $keyset ? 0 : $offset_req;
 
 		if ( $keyset ) {
 			$order_sql = 'id DESC';

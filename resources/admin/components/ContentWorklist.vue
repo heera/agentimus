@@ -15,6 +15,7 @@
  * Fetched on demand, not shipped with the page: every row parses a page.
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
+import PagerBar from './PagerBar.vue';
 
 export default {
   name: 'ContentWorklist',
@@ -40,6 +41,7 @@ export default {
     // and what it does. The gear edits it; the line under the head states it.
     checkTypes: { type: Array, default: () => [] },
   },
+  components: { PagerBar },
   emits: ['load', 'set-aside', 'dismiss-search', 'open-scope', 'clear-issue'],
   data() {
     return {
@@ -370,19 +372,6 @@ export default {
       const want = Math.min(this.pages, Math.max(1, Number(n) || 1));
       if (want === this.page) return;
       this.$emit('load', { filter: this.filter, page: want });
-    },
-    // The window of page numbers worth drawing. A site with sixty pages of
-    // content should not get sixty buttons — the ends and the neighbours are
-    // what anyone actually clicks.
-    pageWindow() {
-      const out = [];
-      const last = this.pages;
-      const here = this.page;
-      for (let n = 1; n <= last; n++) {
-        if (n === 1 || n === last || Math.abs(n - here) <= 1) out.push(n);
-        else if (out[out.length - 1] !== '…') out.push('…');
-      }
-      return out;
     },
     // Set aside / bring back, with one wrinkle: the parent flips the row's
     // state on success by finding it in ITS list — but a row fetched for a
@@ -1009,22 +998,7 @@ export default {
           Showing {{ ((page - 1) * per + 1).toLocaleString() }}–{{ Math.min(page * per, data.total).toLocaleString() }}
           of {{ Number(data.total).toLocaleString() }}
         </p>
-        <div class="ar-work__pager-nav">
-          <button type="button" class="ar-work__pg" :disabled="busy || page <= 1" @click="goPage(page - 1)">‹ Previous</button>
-          <template v-for="(n, idx) in pageWindow()">
-            <span v-if="n === '…'" :key="'gap' + idx" class="ar-work__pg-gap" aria-hidden="true">…</span>
-            <button
-              v-else
-              :key="n"
-              type="button"
-              class="ar-work__pg"
-              :class="{ 'is-here': n === page }"
-              :disabled="busy"
-              @click="goPage(n)"
-            >{{ n }}</button>
-          </template>
-          <button type="button" class="ar-work__pg" :disabled="busy || page >= pages" @click="goPage(page + 1)">Next ›</button>
-        </div>
+        <PagerBar :page="page" :pages="pages" :busy="busy" label="Content pages" @go="goPage" />
       </div>
 
       <!-- The footer describes the list as shipped ("the 30 most worth looking

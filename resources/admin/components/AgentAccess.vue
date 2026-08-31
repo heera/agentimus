@@ -25,10 +25,11 @@ import { uaTip } from '../js/uaTip.js';
 import { confirm } from '../js/confirm.js';
 import RefreshCrank from './RefreshCrank.vue';
 import CardSkeleton from './CardSkeleton.vue';
+import PagerBar from './PagerBar.vue';
 
 export default {
   name: 'AgentAccess',
-  components: { RefreshCrank, CardSkeleton },
+  components: { RefreshCrank, CardSkeleton, PagerBar },
   mixins: [uaTip],
   props: {
     api: { type: Object, default: null },
@@ -47,13 +48,10 @@ export default {
       events: [],
       unseen: 0,
       total: 0,
-      // Cursor walk, mirroring the request log: the server hands back the id of the last row on
-      // this page; we push it on a stack so "Newer" can reverse. Page numbers would be a lie on a
-      // log that grows under you.
-      hasMore: false,
-      cursor: null,
-      before: '',
-      trail: [],
+      // Numbered pages, mirroring the request log's PagerBar. Pages drift when the log
+      // grows or a row's last_at moves it — the accepted price of every numbered admin
+      // list, and the owner's call (2026-08-31) over the cursor walk this screen began with.
+      page: 1,
       perPage: 100,
       retention: 90,
       headline: { abilities: 0, registered: 0, lastAt: '' },
@@ -127,10 +125,13 @@ export default {
     },
     // Where in the walk we are, stated plainly — the same "1–100 of 315" the request log gives.
     pageFrom() {
-      return this.events.length ? this.trail.length * this.perPage + 1 : 0;
+      return this.events.length ? (this.page - 1) * this.perPage + 1 : 0;
     },
     pageTo() {
-      return this.trail.length * this.perPage + this.events.length;
+      return (this.page - 1) * this.perPage + this.events.length;
+    },
+    pages() {
+      return Math.max(1, Math.ceil(this.total / this.perPage));
     },
   },
   watch: {
@@ -141,7 +142,6 @@ export default {
       // markSeen() from the server's CURRENT unseen count, so the badge can never
       // stay lit over a caught-up table.
       if (on) {
-        this.trail = [];
         this.load();
       }
       // Left the screen — that is when a row stops being news, and it must not take a page reload
@@ -162,7 +162,7 @@ export default {
       // must not yank them back to page 1 — new rows land at the top, so they are not on this page
       // anyway, and teleporting mid-read is worse than a slightly stale page. They will see them
       // when they walk back (or the nav badge tells them there is something to walk back to).
-      if (count > 0 && this.active && this.loaded && !this.before && !this.trail.length) this.load();
+      if (count > 0 && this.active && this.loaded && this.page === 1) this.load();
     },
   },
   // The watcher only fires on a CHANGE, so a cold load straight to #agent-access — where
@@ -172,16 +172,14 @@ export default {
     if (this.active) this.load();
   },
   methods: {
-    async load(before = '') {
+    async load(page = 1) {
       if (!this.api) return;
       this.loading = true;
       this.error = '';
       try {
-        const data = await this.api.getAgentAccess(before);
+        const data = await this.api.getAgentAccess((page - 1) * this.perPage);
         this.events = data.events || [];
-        this.hasMore = !!data.hasMore;
-        this.cursor = data.cursor || null;
-        this.before = before;
+        this.page = page;
         this.perPage = data.perPage || this.perPage;
         // Remember anything the server still considers unread BEFORE we mark it read below —
         // this is the only moment we can tell.
@@ -206,15 +204,8 @@ export default {
         this.loading = false;
       }
     },
-    // Walk one page older: remember where we were so "Newer" can come back.
-    older() {
-      if (!this.hasMore || !this.cursor) return;
-      this.trail.push(this.before);
-      this.load(this.cursor);
-    },
-    newer() {
-      if (!this.trail.length) return;
-      this.load(this.trail.pop());
+    goPage(n) {
+      this.load(n);
     },
     async markSeen() {
       if (!this.api) return;
@@ -247,10 +238,7 @@ export default {
         await this.api.clearAgentAccess();
         this.events = [];
         this.total = 0;
-        this.hasMore = false;
-        this.cursor = null;
-        this.before = '';
-        this.trail = [];
+        this.page = 1;
         this.unseen = 0;
         this.$emit('seen');
         this.$emit('flash', 'success', 'Agent Access log cleared.');
@@ -410,10 +398,9 @@ export default {
         <h2 class="ar-card__title">Events</h2>
         <!-- The universal hand-crank, seated beside the title like every other
              data card (was a ghost "Refresh" in the actions — whose bare
-             @click="load" quietly passed the CLICK EVENT as the paging cursor,
-             so "refresh" asked the server for ?before=[object PointerEvent]).
-             Reloads page one; ungated, so an empty list can still check for
-             arrivals. -->
+             @click="load" quietly passed the CLICK EVENT as the paging argument,
+             the bug that taught load() to take an explicit value). Reloads page
+             one; ungated, so an empty list can still check for arrivals. -->
         <RefreshCrank
           :busy="loading"
           :aria-label="loading ? 'Reloading agent access events…' : 'Reload agent access events'"
@@ -616,18 +603,11 @@ export default {
         {{ maxRows.toLocaleString() }} — whichever limit is reached first, so a flood of events
         can push older ones out early.
       </p>
-      <!-- Newer / Older, the same cursor walk the request log uses. Deliberately NOT a "show
+      <!-- Numbered pages, the same PagerBar the request log uses. Deliberately NOT a "show
            more" that grows one page: this table can hold thousands of rows, and a button with a
            ceiling would leave the rest permanently unreachable — on a flood, exactly when the
            owner most needs to read them. -->
-      <div v-if="hasMore || trail.length" class="ar-aa__pager">
-        <button type="button" class="ar-btn ar-btn--ghost" :disabled="!trail.length || loading" @click="newer">
-          ← Newer
-        </button>
-        <button type="button" class="ar-btn ar-btn--ghost" :disabled="!hasMore || loading" @click="older">
-          Older →
-        </button>
-      </div>
+      <PagerBar v-if="pages > 1" :page="page" :pages="pages" :busy="loading" label="Agent access pages" @go="goPage" />
     </div>
 
     <!-- Standing limits of the whole feature, always visible. Same principle as the request

@@ -949,7 +949,7 @@ final class Module {
 		// but a MISSPELLED order ('ascending') would silently reverse the list,
 		// so that one is refused.
 		$orderby = strtolower( trim( (string) $request->get_param( 'orderby' ) ) );
-		if ( '' !== $orderby && in_array( $orderby, array( 'at', 'client', 'endpoint', 'ua', 'status' ), true ) ) {
+		if ( '' !== $orderby && in_array( $orderby, array( 'at', 'client', 'endpoint', 'ua', 'status', 'network' ), true ) ) {
 			$args['orderby'] = $orderby;
 		}
 		$order = strtolower( trim( (string) $request->get_param( 'order' ) ) );

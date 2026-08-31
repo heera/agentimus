@@ -19,6 +19,7 @@
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
 import RefreshCrank from './RefreshCrank.vue';
+import PagerBar from './PagerBar.vue';
 
 // The problem buckets, in reading order (most-lost first) — keyed by the
 // SERVER's stateKey, whose per-state totals are counted before the row cap,
@@ -36,7 +37,7 @@ const GROUP_META = [
 
 export default {
   name: 'GoogleIndexPanel',
-  components: { RefreshCrank },
+  components: { RefreshCrank, PagerBar },
   props: {
     api: { type: Object, default: null },
     // Rendered with v-show, so it stays mounted across tab switches.
@@ -499,25 +500,6 @@ export default {
         }
       }
     },
-    // The visible page numbers: endpoints always, the current page and its
-    // neighbours, ellipses for the gaps — 1 2 … 5 [6] 7 … 10 11.
-    pageWindow(cur, total) {
-      if (total <= 7) {
-        const all = [];
-        for (let i = 1; i <= total; i++) all.push(i);
-        return all;
-      }
-      const keep = new Set([1, 2, total - 1, total, cur - 1, cur, cur + 1]);
-      const out = [];
-      let prev = 0;
-      for (let n = 1; n <= total; n++) {
-        if (!keep.has(n)) continue;
-        if (prev && n - prev > 1) out.push('…');
-        out.push(n);
-        prev = n;
-      }
-      return out;
-    },
     rangeText(key) {
       const g = this.groupState(key);
       if (!g.total) return '';
@@ -822,25 +804,13 @@ export default {
             </ul>
             <div v-if="groupState(g.key).pages > 1" class="ar-gidx__pagefoot">
               <span class="ar-gidx__range">{{ rangeText(g.key) }}</span>
-              <nav class="ar-gidx__pager" :aria-label="`${g.label} pages`">
-                <button
-                  type="button"
-                  :disabled="groupState(g.key).busy || groupState(g.key).page <= 1"
-                  aria-label="Previous page"
-                  @click="gotoPage(g.key, groupState(g.key).page - 1)"
-                >‹</button>
-                <template v-for="(n, i) in pageWindow(groupState(g.key).page, groupState(g.key).pages)" :key="`${g.key}-pg-${i}`">
-                  <span v-if="n === '…'" class="ar-gidx__pgap">…</span>
-                  <button v-else-if="n === groupState(g.key).page" type="button" aria-current="page">{{ n }}</button>
-                  <button v-else type="button" :disabled="groupState(g.key).busy" @click="gotoPage(g.key, n)">{{ n }}</button>
-                </template>
-                <button
-                  type="button"
-                  :disabled="groupState(g.key).busy || groupState(g.key).page >= groupState(g.key).pages"
-                  aria-label="Next page"
-                  @click="gotoPage(g.key, groupState(g.key).page + 1)"
-                >›</button>
-              </nav>
+              <PagerBar
+                :page="groupState(g.key).page"
+                :pages="groupState(g.key).pages"
+                :busy="groupState(g.key).busy"
+                :label="`${g.label} pages`"
+                @go="(n) => gotoPage(g.key, n)"
+              />
             </div>
           </details>
         </template>

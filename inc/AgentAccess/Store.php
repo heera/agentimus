@@ -100,12 +100,17 @@ final class Store {
 	 * @param string|null $kind   Optional kind filter.
 	 * @param string|int  $before Cursor: a "last_at~id" pair; return rows ordered strictly BELOW it
 	 *                            ('' or 0 = first page).
+	 * @param int         $offset Numbered-pager jump: rows to skip from the top. An explicit
+	 *                            offset wins over the cursor — "page 7" is an address no cursor
+	 *                            can express — and page drift under live inserts is the accepted
+	 *                            price, exactly as on every numbered admin list.
 	 * @return array{events:array[],hasMore:bool,cursor:string|null}
 	 */
-	public static function page( $limit = self::DEFAULT_LIMIT, $kind = null, $before = 0 ) {
+	public static function page( $limit = self::DEFAULT_LIMIT, $kind = null, $before = 0, $offset = 0 ) {
 		global $wpdb;
 		$table  = self::name();
 		$limit  = max( 1, min( 500, (int) $limit ) );
+		$offset = max( 0, (int) $offset );
 
 		$where  = array();
 		$params = array();
@@ -113,7 +118,7 @@ final class Store {
 			$where[]  = 'kind = %s';
 			$params[] = (string) $kind;
 		}
-		$cursor = self::parse_cursor( $before );
+		$cursor = ( 0 === $offset ) ? self::parse_cursor( $before ) : null;
 		if ( null !== $cursor ) {
 			$where[]  = '(last_at < %s OR (last_at = %s AND id < %d))';
 			$params[] = $cursor['at'];
@@ -128,6 +133,10 @@ final class Store {
 		// second COUNT query.
 		$sql     .= ' ORDER BY last_at DESC, id DESC LIMIT %d';
 		$params[] = $limit + 1;
+		if ( $offset > 0 ) {
+			$sql     .= ' OFFSET %d';
+			$params[] = $offset;
+		}
 
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
