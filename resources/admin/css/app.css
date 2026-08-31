@@ -2836,10 +2836,12 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   color: var(--ar-ink-faint);
   font-variant-numeric: tabular-nums;
 }
-/* The shared numbered pager (PagerBar.vue) — grown from this card's own strip,
-   now the one look every listing uses. The current page is the filled chip
-   (aria-current, which is also what styles it — state and styling can't drift
-   apart). */
+/* The shared numbered pager (PagerBar.vue) — the one look every listing uses.
+   Neutral ink on surface, NO semantic colour: paging is furniture, and the
+   info-blue the first cut wore read as a foreign accent against both schemes
+   (his call, 2026-08-31). The current page is the filled bold chip, styled off
+   aria-current so state and styling can't drift apart; the borders alone say
+   "button", per the colour-cannot-say-clickable rule. */
 .ar-pager { display: flex; align-items: center; gap: 4px; }
 .ar-pager__btn {
   min-width: 26px;
@@ -2847,17 +2849,18 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
   font-family: var(--ar-mono);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
-  color: var(--ar-info);
+  color: var(--ar-ink-soft);
   background: var(--ar-surface);
-  border: 1px solid var(--ar-line-strong);
+  border: 1px solid var(--ar-line);
   border-radius: 4px;
   cursor: pointer;
 }
-.ar-pager__btn:hover:not(:disabled):not([aria-current="page"]) { border-color: var(--ar-info); }
+.ar-pager__btn:hover:not(:disabled):not([aria-current="page"]) { color: var(--ar-ink); border-color: var(--ar-line-strong); }
 .ar-pager__btn[aria-current="page"] {
-  background: var(--ar-info);
-  border-color: var(--ar-info);
-  color: var(--ar-surface);
+  background: var(--ar-surface-2);
+  border-color: var(--ar-line-strong);
+  color: var(--ar-ink);
+  font-weight: 600;
   cursor: default;
 }
 .ar-pager__btn:disabled { color: var(--ar-ink-faint); cursor: default; }
