@@ -475,8 +475,10 @@ final class WellKnown {
 	private function send( $body, $content_type, $label = '' ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// emitting a generated doc. On-disk files served by stream() are left alone
-		// (so ACME challenges etc. never break).
-		\Agentimus\Guard::maybe_block();
+		// (so ACME challenges etc. never break). The label rides along so a refusal
+		// of a proven impostor lands in the ledger like the serve just below would —
+		// an unlabelled doc stays unlogged either way.
+		\Agentimus\Guard::maybe_block( $label );
 		if ( '' !== $label ) {
 			\Agentimus\Activity\Recorder::record( $label );
 		}
