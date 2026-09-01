@@ -296,7 +296,7 @@ export default {
             </li>
           </ul>
           <p v-else class="arep__empty">No crawler fetched anything in these days.</p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('log')">Open the request log →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('log')">Open the request log <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- People from AI answers ---------------------------------------- -->
@@ -319,7 +319,7 @@ export default {
             </li>
           </ul>
           <p v-else class="arep__empty">Nobody arrived from an AI answer in these days.</p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('visitors')">Open Visitors →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visitors')">Open Visitors <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- What acted here ----------------------------------------------- -->
@@ -337,7 +337,7 @@ export default {
             engine {{ data.impostors.total === 1 ? 'it wasn’t' : 'they weren’t' }}.
           </p>
           <p v-else class="arep__empty">No impostor caught in these days.</p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('agent-access')">Open Agent Access →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('agent-access')">Open Agent Access <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- In search ------------------------------------------------------ -->
@@ -370,7 +370,7 @@ export default {
               </template>
             </p>
           </div>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('visibility')">Open Search performance →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visibility')">Open Search performance <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- Citations ------------------------------------------------------ -->
@@ -404,7 +404,7 @@ export default {
             </template>
             <template v-else>No check has run yet.</template>
           </p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('visibility', 'results')">Open Citations →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visibility', 'results')">Open Citations <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- Readiness score ------------------------------------------------ -->
@@ -423,7 +423,7 @@ export default {
             The score describes your site as it stands, not as it stood on a date — it reads the same
             whichever days you pick.
           </p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('readiness')">Open Readiness →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('readiness')">Open Readiness <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- robots.txt ------------------------------------------------------ -->
@@ -435,7 +435,7 @@ export default {
           <p class="arep__note">
             Your crawler rules changed. If that wasn’t you, check what you activated recently.
           </p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('discovery')">Open Discovery →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('discovery')">Open Discovery <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
         <!-- One thing worth doing ------------------------------------------ -->
@@ -450,7 +450,7 @@ export default {
           </header>
           <p class="arep__nudge">{{ data.nudge.top.label }}</p>
           <p v-if="data.nudge.top.detail" class="arep__note">{{ data.nudge.top.detail }}</p>
-          <button type="button" class="ar-linkbtn arep__go" @click="go('findings')">Open Findings →</button>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('findings')">Open Findings <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
         </section>
 
       </div>

@@ -247,7 +247,7 @@ export default {
           Choose key file…
         </label>
         <span v-if="googleKeyName" class="ar-google__filename">{{ googleKeyName }}</span>
-        <button v-if="!googlePasteOpen && !googleKey" type="button" class="ar-linkbtn ar-google__pastelink" @click="googlePasteOpen = true">
+        <button v-if="!googlePasteOpen && !googleKey" type="button" class="ar-linkbtn ar-linkbtn--act ar-google__pastelink" @click="googlePasteOpen = true">
           or paste it instead
         </button>
       </div>
@@ -321,7 +321,7 @@ export default {
 
     <template v-else-if="google && google.connected">
       <p v-if="googleJustConnected" class="ar-field__hint">
-        <strong>First numbers are in.</strong> <button type="button" class="ar-linkbtn" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities →</button>
+        <strong>First numbers are in.</strong> <button type="button" class="ar-linkbtn ar-linkbtn--go" @click="$emit('navigate', { tab: 'visibility', view: 'performance', anchor: 'ar-group-search' })">Search Opportunities <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
       </p>
       <p class="ar-field__hint">
         One key, read-only, one daily poll of query-level search performance. Numbers are
@@ -380,7 +380,7 @@ export default {
             <ol class="ar-mcp-recipe__steps">
               <li>Turn on the <a href="https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com" target="_blank" rel="noopener"><strong>Google Analytics Data API</strong></a> for the same project your key came from — the blue Enable button, one click. The Search Console API from the recipe above doesn't cover Analytics.</li>
               <li>In <a href="https://analytics.google.com/" target="_blank" rel="noopener">GA4 → Admin</a> → <strong>Property access management</strong>, add
-                <template v-if="google.saEmail"><code>{{ google.saEmail }}</code> <button type="button" class="ar-linkbtn" @click="copyPlainText(google.saEmail)">Copy</button></template>
+                <template v-if="google.saEmail"><code>{{ google.saEmail }}</code> <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="copyPlainText(google.saEmail)">Copy</button></template>
                 <!-- Reachable only when the stored key never parsed (so no address
                      was kept) — exactly when the reader most needs a map to it. -->
                 <template v-else>the service-account email — the <code>client_email</code> inside your key file, also listed under <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener">Service accounts</a> in your Google Cloud console —</template>

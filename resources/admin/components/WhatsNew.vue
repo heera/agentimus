@@ -190,7 +190,7 @@ export default {
       <!-- ⛔ No longer a dialog of its own. The card asks for the panel, which
            carries the highlights AND the older releases in one scroll — a card
            that opened its own modal meant two surfaces telling one story. -->
-      <button type="button" class="ar-linkbtn" @click="$emit('open-panel')">Full changelog</button>
+      <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="$emit('open-panel')">Full changelog</button>
       <button type="button" class="ar-btn ar-whatsnew__gotit" :disabled="closing" @click="gotIt">
         {{ closing ? 'Closing…' : 'Got it' }}
       </button>

@@ -9,19 +9,19 @@ export const RUNGS = [
   {
     key: 'findable',
     label: 'Findable',
-    blurb: 'An agent can crawl and navigate your site.',
+    blurb: 'AI crawlers can reach and navigate your site.',
     ids: ['public', 'permalinks', 'robots', 'sitemap', 'robots_sitemap'],
   },
   {
     key: 'readable',
     label: 'Readable',
-    blurb: 'What it crawls comes back clean and structured.',
+    blurb: 'What they fetch comes back clean and structured.',
     ids: ['llms', 'llms_words', 'llms_full', 'llms_full_size', 'schema', 'post_types', 'topics'],
   },
   {
     key: 'trusted',
     label: 'Trusted',
-    blurb: 'An agent can identify you, trust the source, and attribute it with confidence.',
+    blurb: 'An AI assistant can identify you, trust the source, and attribute it with confidence.',
     ids: ['about', 'expertise', 'same_as', 'entity_image', 'entity_role', 'security_txt', 'ai_usage'],
   },
 ];

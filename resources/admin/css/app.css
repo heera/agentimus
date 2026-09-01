@@ -530,9 +530,17 @@ body { --ar-bar: var(--ar-accent); }
    wp-admin's own `a { color: #2271b1 }` on source order. Written as
    :where(a:not([class])) the whole thing falls to zero and core wins — a prose
    link goes admin-blue. Measured, not guessed. */
+/* Muted underline AT REST, not just on hover — his 2026-08-24 ruling (see
+   .ar-linkbtn): a prose link whose only rest signal is colour paints
+   identically to a status word on most schemes. :where() keeps this at
+   element weight, so a considered room (.ar-wd-wk's code chips, any classed
+   link) still outranks it. */
 :where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])) {
   color: var(--ar-accent);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 :where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])):hover,
 :where(#agentimus-app, .ar-modal, .ar-drawer) a:where(:not([class])):focus-visible {
@@ -540,6 +548,7 @@ body { --ar-bar: var(--ar-accent); }
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+  text-decoration-color: currentColor;
 }
 
 /* Bare anchors — prose links that carry no .ar-* class — otherwise inherit
@@ -2088,16 +2097,9 @@ body { --ar-bar: var(--ar-accent); }
 }
 .ar-whatsnew__itemtext { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ar-ink-soft); }
 .ar-whatsnew__foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 16px; }
-/* The same rule as the audience rows above: a link sitting in a row or a
-   sentence needs a signal that is not its colour. "Got it" beside it is a
-   button with its own box, so it is already unmistakable. */
-.ar-whatsnew__foot .ar-linkbtn {
-	text-decoration: underline;
-	text-decoration-thickness: 1px;
-	text-underline-offset: 3px;
-	text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
-}
-.ar-whatsnew__foot .ar-linkbtn:hover { text-decoration-color: currentColor; }
+/* The muted-at-rest underline this footer link once carried alone now comes
+   from .ar-linkbtn itself — the room rule that pioneered it retired when the
+   ruling became the base. */
 .ar-whatsnew__gotit { font-size: 12.5px; padding: 7px 18px; }
 @media (max-width: 720px) {
   /* One column on a phone — the floor above would otherwise ask for a width the
@@ -2694,8 +2696,19 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 /* The quiet door to Search Console — where "Request indexing" lives. */
 /* No margin-left: the separator owns the spacing now that Re-check sits beside
    this, and a stray margin would push the pair off the lane's right edge. */
-.ar-gidx__gsc { font-size: 11px; color: var(--ar-info); text-decoration: none; white-space: nowrap; }
-.ar-gidx__gsc:hover { text-decoration: underline; }
+/* App accent, not --ar-info: the info-blue read as another product's accent
+   against every scheme (his catch on the Visibility page, 2026-09-01 — the
+   same foreign blue the pager shed). In-sentence and in-row links alike, so
+   the muted rest underline from the link ruling applies; nowrap keeps a link
+   and its outbound mark on one line. */
+.ar-gidx__gsc {
+  font-size: 11px; color: var(--ar-accent); white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.ar-gidx__gsc:hover { color: color-mix(in srgb, var(--ar-accent) 55%, var(--ar-ink)); text-decoration-color: currentColor; }
 /* Our record of the owner's own click, under the door it belongs to. Deliberately
    quiet and deliberately worded as a fact about them, not about Google: no API
    exposes whether an indexing request is pending, so this is the only claim
@@ -3867,18 +3880,40 @@ select.ar-input {
   color: var(--ar-ink-soft); font-size: 12px; line-height: 1.5;
 }
 
-/* No underline anywhere: these sit inside sentences and rails where a rule
-   under every one of them reads as clutter. Colour carries the affordance at
-   rest; hover answers with a soft pill. The padding is carried AT REST, not
-   added on hover — a button that grows under the cursor jostles the
-   separators and words either side on every pass of the mouse, so the room
-   is reserved once and only the fill arrives.
-   Keyboard users get a real focus ring, not a text-decoration to spot. */
+/* A link in a sentence or a row wears a MUTED UNDERLINE AT REST — his ruling
+   2026-08-24 (1.43.0), superseding the colour-only rest this block used to
+   argue for: --ar-good and --ar-accent resolve to the same hex on most
+   schemes, so a link and a status word painted identically, and the status
+   word was the BOLDER of the two. Colour cannot be the only thing that says
+   "clickable" (WCAG 1.4.1), and an underline that arrives on hover only
+   tells nobody anything before they point at it, and a touch user nothing at
+   all. currentColor at 45%, not a token, so it holds on all nine schemes
+   without knowing any of their values; full ink arrives with the shared
+   hover rule further down. The padding is carried AT REST, not added on
+   hover — a button that grows under the cursor jostles the separators and
+   words either side on every pass of the mouse.
+   Keyboard users get a real focus ring as well, not just a decoration. */
 .ar-linkbtn {
   appearance: none; background: none; border: 0; padding: 0 5px; margin-left: 4px; cursor: pointer;
-  font: inherit; color: var(--ar-accent); text-decoration: none; border-radius: 8px;
+  font: inherit; color: var(--ar-accent); border-radius: 8px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
   transition: color 0.15s ease, background-color 0.15s ease;
 }
+/* The standalone kind ANNOUNCES ITSELF — a trailing → in its own label or a
+   drawn chevron in the card footers — and keeps a clean rest, the other half
+   of the same ruling: an arrow already says "this goes somewhere", and
+   underlining it as well would say it twice. .ar-linkbtn--go is the modifier
+   for new ones; the rest are the arrow links' own existing room classes. */
+.ar-linkbtn--go,
+.ar-aud__go,
+.ar-sys__go,
+.ar-today-line__more,
+.ar-optcheck__all,
+.ar-card__more .ar-linkbtn,
+.ar-optsum .ar-linkbtn { text-decoration: none; }
 /* ⛔ The pill is gone (see the one hover rule further down): a background on
    an inline control has to bleed past its own word to look deliberate, and
    that bleed paints over the sentence around it. */
@@ -4706,6 +4741,8 @@ html { scrollbar-gutter: stable; }
   text-underline-offset: 3px;
 }
 .ar-check__action:focus-visible { outline: 2px solid var(--ar-accent); outline-offset: 3px; border-radius: 3px; }
+/* The drawn chevron sits on the mono text line like the typed glyph it replaced. */
+.ar-check__action svg { vertical-align: -1.5px; }
 /* The status tag sits on the first text line even though the row is top-aligned. */
 .ar-check__tag { margin-top: 1px; }
 .ar-check__tag {
@@ -6233,16 +6270,40 @@ button.ar-act-more:hover { color: var(--ar-ink); }
   margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--ar-line);
 }
 /* ⭐ ONE definition of "this link opens another screen", shared rather than
-   copied — the Readiness cards point at Findings and at Visibility → Search
-   with exactly this gesture, and a second copy is how two links to two screens
-   start looking like two different kinds of thing. */
+   copied — a second copy is how two links to two screens start looking like
+   two different kinds of thing. Since 2026-09-01 the whole SPA-nav family
+   wears it: every trailing typed arrow became this drawn chevron (his call —
+   in-app navigation says chevron, the typed glyphs stay for data and for
+   leaving the app). ⛔ Except the RAIL: its regcard and Next line keep the
+   typed arrow (his call, same day) — against the rail's mono type the typed
+   glyph is the one that belongs. */
+.ar-linkbtn--go,
+.ar-aud__go,
+.ar-sys__go,
+.ar-today-line__more,
+.ar-optcheck__all,
 .ar-card__more .ar-linkbtn,
 .ar-optsum .ar-linkbtn { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.ar-linkbtn--go svg,
+.ar-aud__go svg,
+.ar-sys__go svg,
+.ar-today-line__more svg,
+.ar-optcheck__all svg,
 .ar-card__more .ar-linkbtn svg,
 .ar-optsum .ar-linkbtn svg { transition: transform 0.18s ease; }
+.ar-linkbtn--go:hover svg,
+.ar-aud__go:hover svg,
+.ar-sys__go:hover svg,
+.ar-today-line__more:hover svg,
+.ar-optcheck__all:hover svg,
 .ar-card__more .ar-linkbtn:hover svg,
 .ar-optsum .ar-linkbtn:hover svg { transform: translateX(2px); }
 @media (prefers-reduced-motion: reduce) {
+  .ar-linkbtn--go svg,
+  .ar-aud__go svg,
+  .ar-sys__go svg,
+  .ar-today-line__more svg,
+  .ar-optcheck__all svg,
   .ar-card__more .ar-linkbtn svg,
   .ar-optsum .ar-linkbtn svg { transition: none; }
 }
@@ -9442,6 +9503,46 @@ body {
 /* The standalone form shares the ink and the weight; it keeps its own spacing. */
 .ar-linkbtn { font-weight: 600; }
 
+/* IN-PLACE ACTIONS — the third kind of text button (his call, 2026-09-01):
+   Refresh, Purge edge cache, Re-check, Copy, Clear. They GO nowhere, so the
+   underline — which promises a destination — comes off, and hover answers
+   with the quiet wash the tag/service editors already use. The padding and
+   radius are already reserved on .ar-linkbtn, so only the fill arrives.
+   Written BELOW the shared hover rule on purpose: equal weight, later
+   source order, so the wash outranks that rule's underline + background:none.
+   The wizard's own wash classes ride along — two of them sit on .ar-linkbtn
+   elements and were losing their wash to the same shared rule. */
+.ar-linkbtn--act,
+.ar-tags__edit,
+.ar-wiz__moretypes,
+.ar-svc__add { text-decoration: none; }
+.ar-linkbtn--act:hover,
+.ar-linkbtn--act:focus-visible,
+.ar-tags__edit:hover,
+.ar-wiz__moretypes:hover,
+.ar-svc__add:hover {
+  background: var(--ar-hover);
+  text-decoration: none;
+}
+
+/* Fold summaries dressed as linkbtns keep HIS fold grammar (2026-08-12):
+   hover is COLOUR ONLY — no underline, no pill. The colour shift itself
+   still arrives from the shared hover rule above. */
+summary.ar-linkbtn { text-decoration: none; }
+summary.ar-linkbtn:hover,
+summary.ar-linkbtn:focus-visible { text-decoration: none; background: none; }
+
+/* The drawer's Back: the one LEFT-pointing chevron, so its hover nudge leans
+   the way it goes. Clean rest like every other chevroned walk. */
+.ar-drawer__back { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.ar-drawer__back:hover,
+.ar-drawer__back:focus-visible { text-decoration: none; }
+.ar-drawer__back svg { transition: transform 0.18s ease; }
+.ar-drawer__back:hover svg { transform: translateX(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .ar-drawer__back svg { transition: none; }
+}
+
 /* ⛔ NO blanket recolour of classless links. There was one here — a "net" so a
    link added later could not leak wp-admin's blue — and it reached straight
    into the rail's endpoint list, which already had a considered look of its
@@ -9499,6 +9600,11 @@ body {
    someone made rather than a side effect of the markup. */
 #agentimus-app a[target="_blank"].ar-nomark::after,
 :is(.ar-modal, .ar-drawer) a[target="_blank"].ar-nomark::after { content: none; }
+
+/* Wrap a prose link in this to keep the whole phrase — label and outbound
+   mark — on one line. A SPAN, not a class on the anchor: a classed anchor
+   falls out of the classless prose-link rule and loses its dress. */
+.ar-nowrap { white-space: nowrap; }
 
 /* A new tab is a new tab whoever opens it: these controls are <button>s that
    call window.open, so the attribute selector above can never see them. They

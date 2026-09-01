@@ -2449,7 +2449,7 @@ export default {
               <h2 class="ar-next__title">Worth a Look Next</h2>
               <p class="ar-next__sub">Setup is done. These three rooms are where Agentimus earns its keep — in priority order.</p>
             </div>
-            <button type="button" class="ar-linkbtn" @click="dismissNextSteps">Got it — hide this</button>
+            <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="dismissNextSteps">Got it — hide this</button>
           </div>
           <ol class="ar-next__list">
             <li>

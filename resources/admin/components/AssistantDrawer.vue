@@ -800,7 +800,7 @@ export default {
               class="ar-linkbtn ar-drawer__back"
               :disabled="refining || 'creating' === step"
               @click="step = 'idle'"
-            >← Back</button>
+            ><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg> Back</button>
             <button type="button" class="ar-drawer__close" aria-label="Close the assistant" @click="$emit('close')">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
             </button>
@@ -843,7 +843,7 @@ export default {
                 <!-- "Open", not "Edit": this door leads to the editor now, and a
                      link that says Edit but navigates elsewhere is a small lie
                      told on every visit. -->
-                <button type="button" class="ar-linkbtn ar-assist__editdoor" :disabled="busy" @click="openPicker">Open existing</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__editdoor" :disabled="busy" @click="openPicker">Open existing</button>
               </div>
 
               <p v-if="showTypeChooser" class="ar-assist__typenote">{{ isPageShape
@@ -902,7 +902,7 @@ export default {
                   <!-- The draft's own title, not a description of it: after a day
                        away, "your drafted post" identifies nothing. -->
                   <p class="ar-assist__heldtitle">{{ draft.title || 'Untitled' }}</p>
-                  <button type="button" class="ar-linkbtn" @click="restorePreview">Back to the draft →</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--go" @click="restorePreview">Back to the draft <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
                 </div>
               </div>
               <!-- Same promise for a shaped outline when no draft holds the spotlight. -->
@@ -913,7 +913,7 @@ export default {
                 <div class="ar-assist__heldbody">
                   <p class="ar-assist__heldlabel">Outline still here</p>
                   <p class="ar-assist__heldtitle">{{ outline.title || 'Untitled' }}</p>
-                  <button type="button" class="ar-linkbtn" @click="step = 'outline'">Back to the outline →</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--go" @click="step = 'outline'">Back to the outline <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
                 </div>
               </div>
 
@@ -930,7 +930,7 @@ export default {
                 <button
                   v-if="hasWorkToClear"
                   type="button"
-                  class="ar-linkbtn ar-assist__resetlink"
+                  class="ar-linkbtn ar-linkbtn--act ar-assist__resetlink"
                   :disabled="busy"
                   @click="confirmReset = true"
                 >Start over</button>
@@ -949,8 +949,8 @@ export default {
               <div v-else class="ar-assist__actions ar-assist__footrow--confirm">
                 <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                 <span class="ar-assist__spacer"></span>
-                <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
-                <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="confirmReset = false">Keep it</button>
               </div>
 
             </template>
@@ -1109,7 +1109,7 @@ export default {
                   <p v-if="partError('meta')" class="ar-assist__oparterror" role="alert">{{ partError('meta') }}</p>
                 </div>
               </template>
-              <button v-else type="button" class="ar-linkbtn" :disabled="busy" @click="addSection">+ Add a section</button>
+              <button v-else type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="busy" @click="addSection">+ Add a section</button>
 
               <p v-if="staging" class="ar-assist__hint">
                 Every part is written at once — the introduction, each section, the closing and the
@@ -1130,10 +1130,10 @@ export default {
               <div class="ar-assist__foot">
                 <p v-if="error" class="ar-assist__error ar-assist__footerror" role="alert">{{ error }}</p>
                 <div v-if="!confirmReset" class="ar-assist__footrow">
-                  <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="busy" @click="confirmReset = true">Start over</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__resetlink" :disabled="busy" @click="confirmReset = true">Start over</button>
                   <span class="ar-assist__spacer"></span>
                   <button type="button" class="ar-linkbtn" :disabled="busy" @click="editBrief">Edit the brief</button>
-                  <button type="button" class="ar-linkbtn" :disabled="busy" @click="makeOutline">{{ outlining ? 'Outlining…' : 'New outline' }}</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="busy" @click="makeOutline">{{ outlining ? 'Outlining…' : 'New outline' }}</button>
                   <button type="button" class="ar-btn ar-assist__go" :disabled="!outlineReady || busy" @click="compose(true)">
                     <span v-if="stagingActive" class="ar-spinner ar-assist__spin" aria-hidden="true"></span>
                     {{ writeLabel }}
@@ -1142,8 +1142,8 @@ export default {
                 <div v-else class="ar-assist__footrow ar-assist__footrow--confirm">
                   <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                   <span class="ar-assist__spacer"></span>
-                  <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
-                  <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="confirmReset = false">Keep it</button>
                 </div>
               </div>
             </template>
@@ -1221,7 +1221,7 @@ export default {
                 </div>
                 <p v-if="prevDraft && !refining" class="ar-assist__undoline">
                   Replaced the previous version.
-                  <button type="button" class="ar-linkbtn" @click="undoRefine">Undo — bring it back</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="undoRefine">Undo — bring it back</button>
                 </p>
                 <template v-if="!confirmReset">
                   <!-- The preview's own way back: retry, reopen the brief or the
@@ -1229,11 +1229,11 @@ export default {
                        no longer exists, so it silently never rendered and the
                        preview became commit-or-close. -->
                   <div class="ar-assist__footrow">
-                    <button type="button" class="ar-linkbtn ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
+                    <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__resetlink" :disabled="refining || 'creating' === step" @click="confirmReset = true">Start over</button>
                     <span class="ar-assist__spacer"></span>
                     <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="editBrief">Edit the brief</button>
                     <button v-if="outline" type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="step = 'outline'">Edit the outline</button>
-                    <button type="button" class="ar-linkbtn" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">New draft</button>
+                    <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="refining || 'creating' === step" @click="compose(usedOutline)">New draft</button>
                   </div>
                   <div class="ar-assist__footrow ar-assist__footrow--commit">
                     <span class="ar-assist__spacer"></span>
@@ -1254,8 +1254,8 @@ export default {
                 <div v-else class="ar-assist__footrow ar-assist__footrow--confirm">
                   <span class="ar-assist__resettext">Clear everything here and start fresh?</span>
                   <span class="ar-assist__spacer"></span>
-                  <button type="button" class="ar-linkbtn ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
-                  <button type="button" class="ar-linkbtn" @click="confirmReset = false">Keep it</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act ar-assist__resetdanger" @click="confirmStartOver">Yes, clear it</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="confirmReset = false">Keep it</button>
                 </div>
               </div>
             </template>

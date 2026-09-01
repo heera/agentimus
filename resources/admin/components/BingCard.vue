@@ -211,7 +211,7 @@ export default {
       <!-- Names the CARD, not the screen — the lead one paragraph up already
            links "Visibility", and two identical links read as a glitch. -->
       <p v-if="bingJustConnected" class="ar-field__hint">
-        <strong>First numbers are in.</strong> <a class="ar-linkbtn" href="#visibility">In Bing's Index →</a>
+        <strong>First numbers are in.</strong> <a class="ar-linkbtn ar-linkbtn--go" href="#visibility">In Bing's Index <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></a>
       </p>
       <p class="ar-field__hint">
         One key, read-only, one daily poll. Numbers are stored in your own database, so

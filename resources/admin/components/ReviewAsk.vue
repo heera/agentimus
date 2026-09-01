@@ -52,8 +52,8 @@ export default {
     </div>
     <div class="ar-reviewask__actions">
       <button type="button" class="ar-btn ar-newtab" :disabled="answering" @click="writeReview">Write a review</button>
-      <button type="button" class="ar-linkbtn" :disabled="answering" @click="answer('done')">I already did</button>
-      <button type="button" class="ar-linkbtn" :disabled="answering" @click="answer('later')">Maybe later</button>
+      <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="answering" @click="answer('done')">I already did</button>
+      <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="answering" @click="answer('later')">Maybe later</button>
     </div>
   </section>
 </template>

@@ -28,10 +28,13 @@ export default {
     /* The same button does two different things: a config fix opens the tool
        in a NEW TAB (window.open in openNext), a per-post gap walks to another
        screen of this app. One arrow for both was a promise it broke half the
-       time, so the glyph says which one this is (audit, 2026-08-15). */
+       time, so the glyph says which one this is (audit, 2026-08-15). The rail
+       keeps its TYPED arrows (his call, 2026-09-01) while the rest of the app
+       moved to the drawn chevron — against the rail's mono type the typed
+       glyph is the one that belongs. */
     nextGlyph() {
       const a = this.aeoNext && this.aeoNext.action;
-      return a && a.href ? '\u2197' : '\u2192';
+      return a && a.href ? '↗' : '→';
     },
 
     circumference() {
@@ -372,7 +375,7 @@ export default {
             </svg>
           </span>
           <span class="ar-rail-regcard__text">{{ validation.ok ? 'All registrations are valid' : `${validation.count} ${validation.count === 1 ? 'issue' : 'issues'} to fix` }}</span>
-          <span class="ar-rail-regcard__go" aria-hidden="true">→</span>
+          <span class="ar-rail-regcard__go" aria-hidden="true">&rarr;</span>
         </button>
 
         <p class="ar-rail-foot" aria-label="Made with love by Sheikh Heera"><span class="ar-rail-foot__text">Made with <span class="ar-rail-foot__heart" aria-hidden="true">♥</span> by <a class="ar-rail-foot__link" href="https://heera.it" target="_blank" rel="noopener">Sheikh Heera</a></span></p>

@@ -1415,7 +1415,7 @@ export default {
           />
           <div class="ar-types-meta">
             <span class="ar-types-count">{{ selectedTypeCount }} / {{ postTypes.length }} enabled</span>
-            <button type="button" class="ar-linkbtn" @click="selectAllTypes">Select all</button>
+            <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="selectAllTypes">Select all</button>
           </div>
         </div>
 
@@ -1502,7 +1502,7 @@ export default {
           />
           <div class="ar-types-meta">
             <span class="ar-types-count">{{ evergreenCount }} evergreen</span>
-            <button v-if="evergreenCount" type="button" class="ar-linkbtn" @click="clearEvergreen">Clear</button>
+            <button v-if="evergreenCount" type="button" class="ar-linkbtn ar-linkbtn--act" @click="clearEvergreen">Clear</button>
           </div>
         </div>
 
@@ -1776,7 +1776,7 @@ export default {
             <small class="ar-field__hint">
               Refused by name with <code>Disallow: /</code>.
               <span v-if="signal.ai_train">Training is Allowed, so only the crawlers you list here are blocked.</span>
-              <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn" @click="resetTrainers">Reset to defaults</button>
+              <button v-if="!isDefaultTrainers" type="button" class="ar-linkbtn ar-linkbtn--act" @click="resetTrainers">Reset to defaults</button>
             </small>
           </div>
         </div>
@@ -1791,7 +1791,7 @@ export default {
             <label>robots.txt — what crawlers receive <span class="ar-field__tag">live</span></label>
             <small class="ar-field__hint ar-robots-head__meta">
               Fetched from your site just now — exactly what a crawler receives.
-              <button type="button" class="ar-linkbtn" @click="fetchRobotsPreview">Refresh</button>
+              <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="fetchRobotsPreview">Refresh</button>
             </small>
           </div>
           <small v-if="robotsDrift" class="ar-field__hint ar-robots-status">
@@ -1933,7 +1933,7 @@ export default {
           <div class="ar-field">
             <div class="ar-field__head">
               <label>Blocked user-agents <span class="ar-field__tag">optional</span></label>
-              <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
+              <button v-if="api" type="button" class="ar-linkbtn ar-linkbtn--act ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
             </div>
             <TagInput v-model="settings.blocked_agents" placeholder="Add a user-agent to deny — 3+ characters" />
             <div v-if="scannerSuggestions.length" class="ar-suggest">
@@ -1987,7 +1987,7 @@ export default {
         <div class="ar-field ar-field--allow">
           <div class="ar-field__head">
             <label>Always allowed <span class="ar-field__tag">trusted</span></label>
-            <button v-if="api" type="button" class="ar-linkbtn ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
+            <button v-if="api" type="button" class="ar-linkbtn ar-linkbtn--act ar-field__manage" @click="clientManagerOpen = true">Manage clients</button>
           </div>
           <TagInput v-model="settings.allowed_agents" placeholder="Add a user-agent to trust" />
           <small v-if="(settings.allowed_agents || []).length" class="ar-field__hint">
@@ -2099,7 +2099,7 @@ export default {
         <div class="ar-field ar-verreg">
           <div class="ar-field__head">
             <label>Verified bots <span class="ar-field__tag">registry</span></label>
-            <button type="button" class="ar-linkbtn ar-field__manage" @click="toggleVerAdd">
+            <button type="button" class="ar-linkbtn ar-linkbtn--act ar-field__manage" @click="toggleVerAdd">
               {{ verAddOpen ? 'Close' : 'Add a bot' }}
             </button>
           </div>
@@ -2161,7 +2161,7 @@ export default {
                   @click.stop="copyVal(row.url, 'Ranges URL')"
                 >IP ranges</button>
               </span>
-              <button v-if="!row.builtin" type="button" class="ar-linkbtn ar-verreg__remove" @click="removeVerifier(row)">Remove</button>
+              <button v-if="!row.builtin" type="button" class="ar-linkbtn ar-linkbtn--act ar-verreg__remove" @click="removeVerifier(row)">Remove</button>
             </li>
           </ul>
 

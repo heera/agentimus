@@ -639,7 +639,7 @@ export default {
           <span>checked {{ agoMin(view.checkedAt) }}</span>
         </template>
         <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-        <button type="button" class="ar-linkbtn" :disabled="checking" @click="checkNow">
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="checking" @click="checkNow">
           {{ checking ? (view.pending > 0 ? `Checking… ${view.pending} to go` : 'Checking…') : 'Check Now' }}
         </button>
         <!-- A minute-long loop the owner started by hand needs a way out of
@@ -647,7 +647,7 @@ export default {
              count stays readable while the way out sits beside it. -->
         <template v-if="checking">
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-          <button type="button" class="ar-linkbtn" :disabled="cancelling" @click="cancelCheck">
+          <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="cancelling" @click="cancelCheck">
             {{ cancelling ? 'Finishing this page…' : 'Cancel' }}
           </button>
         </template>
@@ -735,7 +735,7 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : 'never visited' }}</span>
                   <span class="ar-gidx__door">
-                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
+                    <button type="button" class="ar-linkbtn ar-linkbtn--act ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
@@ -792,7 +792,7 @@ export default {
                   </span>
                   <span class="ar-gidx__crawl">{{ r.lastCrawl ? `visited ${day(r.lastCrawl)}` : (r.error ? '' : 'never visited') }}</span>
                   <span class="ar-gidx__door">
-                    <button type="button" class="ar-linkbtn ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
+                    <button type="button" class="ar-linkbtn ar-linkbtn--act ar-gidx__recheck" :disabled="!!checkingUrl" @click="recheckUrl(r.url)">{{ checkLabel(r.url) }}</button>
                     <span v-if="r.gscLink" class="ar-gidx__doorsep" aria-hidden="true">·</span>
                     <a v-if="r.gscLink" class="ar-gidx__gsc" :href="r.gscLink" target="_blank" rel="noopener" @click="noteOpened(r)">Open in Search Console</a>
                     <span v-if="r.openedAt" class="ar-gidx__opened">console opened {{ day(r.openedAt) }}</span>
@@ -885,7 +885,7 @@ export default {
                    the default. Offered for a page never checked too — that is
                    exactly when waiting for the rotation is the wrong answer. -->
               <p v-if="lookupOut.status === 'found' || lookupOut.status === 'unchecked'" class="ar-gidx__checkrow">
-                <button type="button" class="ar-linkbtn" :disabled="!!checkingUrl" @click="recheckUrl(lookupOut.row ? lookupOut.row.url : lookupFor)">
+                <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="!!checkingUrl" @click="recheckUrl(lookupOut.row ? lookupOut.row.url : lookupFor)">
                   {{ checkingUrl ? 'Asking Google…' : 'Check It Now' }}
                 </button>
                 <span class="ar-gidx__checkhint">Asks Google about this one page and spends one of today's checks.</span>

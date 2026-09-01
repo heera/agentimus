@@ -849,7 +849,7 @@ export default {
             <template v-if="mcpRailCallText">
               <span class="ar-mcp-rail__sep" aria-hidden="true">·</span><span>{{ mcpRailCallText }}</span>
             </template>
-            <a class="ar-linkbtn" href="#agent-access">See every call in Agent Access →</a>
+            <a class="ar-linkbtn ar-linkbtn--go" href="#agent-access">See every call in Agent Access <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></a>
           </div>
           <p v-if="mcpStatus === 'unreachable'" class="ar-field__hint">
             The address returned “not found”. Re-save the settings; if it persists, something in
@@ -1199,7 +1199,7 @@ export default {
               >
                 {{ mcpSnippetCopied ? 'Copied ✓' : mcpCopyLabel }}
               </button>
-              <button type="button" class="ar-linkbtn" @click="mcpSnippetOpen = !mcpSnippetOpen">
+              <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="mcpSnippetOpen = !mcpSnippetOpen">
                 {{ mcpSnippetOpen ? 'Hide the configuration ▴' : 'Show what this copies ▾' }}
               </button>
             </div>

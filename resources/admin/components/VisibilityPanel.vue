@@ -1024,7 +1024,7 @@ export default {
                feature and reshapes the score, so it must not fire on a stray
                click — and the dialog is where the "nothing is lost" promise
                gets read before it matters. -->
-          <button type="button" class="ar-linkbtn agv-checkstate__off" @click="confirmChecksOff">
+          <button type="button" class="ar-linkbtn ar-linkbtn--act agv-checkstate__off" @click="confirmChecksOff">
             <svg class="agv-checkstate__power" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 3v9" />
               <path d="M17.7 7.2a8 8 0 1 1-11.4 0" />

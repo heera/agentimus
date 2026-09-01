@@ -205,11 +205,11 @@ export default {
             <span>updated {{ agoMin(summary.lastPollAt) }}</span>
           </template>
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-          <button type="button" class="ar-linkbtn" :disabled="fetching" @click="fetchNow">
+          <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="fetching" @click="fetchNow">
             {{ fetching ? 'Refreshing…' : 'Refresh' }}
           </button>
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-          <button type="button" class="ar-linkbtn" :disabled="purging" @click="purgeEdge">
+          <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="purging" @click="purgeEdge">
             {{ purging ? 'Purging…' : 'Purge edge cache' }}
           </button>
           <template v-if="summary.lastError">
@@ -351,8 +351,8 @@ export default {
           </div>
         </div>
         <p class="ar-card__note ar-cf-note">
-          This panel reads numbers only. The rules themselves live in your Cloudflare
-          dashboard — <a :href="summary.dashUrl" target="_blank" rel="noopener">this link takes you to the right screen</a>.
+          This panel reads numbers only. The rules themselves live at Cloudflare —
+          <span class="ar-nowrap"><a :href="summary.dashUrl" target="_blank" rel="noopener">Open Cloudflare dashboard</a></span>.
         </p>
       </section>
     </template>

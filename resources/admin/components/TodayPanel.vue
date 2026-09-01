@@ -217,7 +217,7 @@ export default {
                column shrank 89px → 74px mid-click, taking the score with it. -->
           <button
             type="button"
-            class="ar-linkbtn ar-today__refresh ar-btn--reserve"
+            class="ar-linkbtn ar-linkbtn--act ar-today__refresh ar-btn--reserve"
             data-reserve="Check again"
             :disabled="busy"
             @click="$emit('refresh')"
@@ -246,7 +246,7 @@ export default {
              read on day one — a notice you cannot finish with teaches you to
              skim the top of the screen. Takes the whole batch: "seen it" is
              about the news, not about each line of it. -->
-        <button type="button" class="ar-linkbtn ar-today__won-seen" @click="$emit('seen')">Seen it</button>
+        <button type="button" class="ar-linkbtn ar-linkbtn--act ar-today__won-seen" @click="$emit('seen')">Seen it</button>
       </p>
 
       <!-- The three bands, one loop. Each keeps its own divider; the first has
@@ -294,7 +294,7 @@ export default {
       <p v-if="failed.length" class="ar-today__failed">
         {{ failed.length === 1 ? 'One check couldn’t run' : `${failed.length} checks couldn’t run` }}
         just now, so this list may be short. Nothing is wrong with your site — try
-        <button type="button" class="ar-linkbtn" @click="$emit('refresh')">checking again</button>.
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="$emit('refresh')">checking again</button>.
       </p>
 
     </div>

@@ -602,7 +602,7 @@ export default {
         <button
           v-if="loaded"
           type="button"
-          class="ar-linkbtn"
+          class="ar-linkbtn ar-linkbtn--act"
           :disabled="busy"
           @click="$emit('load')"
         >{{ busy ? 'Checking…' : 'Check again' }}</button>
@@ -711,7 +711,7 @@ export default {
       <p v-if="stale && loaded" class="ar-work__stale">
         Pages you edited have been re-read. The counts above them cover the whole
         site, so those may still be behind.
-        <button type="button" class="ar-linkbtn" :disabled="busy" @click="$emit('load')">
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="busy" @click="$emit('load')">
           {{ busy ? 'Reading…' : 'Read everything again' }}
         </button>
       </p>
@@ -729,7 +729,7 @@ export default {
           The pages that finding counted aren't here any more — re-graded clean,
           set aside, or no longer published. The finding catches up on its next check.
         </template>
-        <button type="button" class="ar-linkbtn" @click="showEverything">Show everything</button>
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="showEverything">Show everything</button>
       </p>
 
       <!-- ⚠️ NARROWED, AND IT SAYS SO. The chips above count the whole bucket
@@ -743,7 +743,7 @@ export default {
              them and it is one too many — said here rather than left to be
              noticed, and the row itself stays put and marked. -->
         <template v-if="fixedHere"> {{ fixedHere === 1 ? 'One of them is' : `${fixedHere} of them are` }} fixed since you opened it.</template>
-        <button type="button" class="ar-linkbtn" @click="$emit('clear-issue')">Show everything</button>
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="$emit('clear-issue')">Show everything</button>
       </p>
 
       <div v-else class="ar-work__tabs">
@@ -858,7 +858,7 @@ export default {
                 <button
                   v-if="canDismissSearch(i)"
                   type="button"
-                  class="ar-linkbtn ar-linkbtn--mute ar-work__aside-q"
+                  class="ar-linkbtn ar-linkbtn--act ar-linkbtn--mute ar-work__aside-q"
                   :disabled="!!dismissingSearch"
                   v-tip="dismissTip(i)"
                   @click="dismissSearchRow(i)"
@@ -958,7 +958,7 @@ export default {
               </a>
               <button
                 type="button"
-                class="ar-linkbtn ar-linkbtn--mute ar-work__undo"
+                class="ar-linkbtn ar-linkbtn--act ar-linkbtn--mute ar-work__undo"
                 :disabled="isSettingAside(i)"
                 @click="setAsideRow(i)"
               >

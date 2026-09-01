@@ -576,7 +576,7 @@ export default {
             type="button"
             class="ar-check__action"
             @click="$emit('navigate', { tab: c.action.tab, anchor: c.action.anchor })"
-          >{{ c.action.label }} →</button>
+          >{{ c.action.label }} <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
           <!-- Extra doors beyond the one action (e.g. robots-change: what each
                connected engine last read). Server-built, only when connected. -->
           <a

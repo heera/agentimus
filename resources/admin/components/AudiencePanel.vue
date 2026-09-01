@@ -248,7 +248,8 @@ export default {
         </ul>
 
         <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'visitors')">
-          See who sent them →
+          See who sent them
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
         </button>
       </div>
 
@@ -299,7 +300,8 @@ export default {
         </ul>
 
         <button type="button" class="ar-linkbtn ar-aud__go" @click="$emit('navigate', 'log')">
-          See every request →
+          See every request
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
         </button>
       </div>
     </div>

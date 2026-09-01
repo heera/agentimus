@@ -172,7 +172,7 @@ export default {
             </span>
           </li>
         </ul>
-        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('agent-access')">Open Agent access &rarr;</button>
+        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('agent-access')">Open Agent access <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
       </div>
 
       <!-- SIGNALS — what the site announces on its own. -->
@@ -220,7 +220,7 @@ export default {
             </span>
           </li>
         </ul>
-        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('readiness')">See Readiness &rarr;</button>
+        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('readiness')">See Readiness <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
       </div>
 
       <!-- SEARCH — the standing half: what the engines hold. Opportunity and
@@ -278,7 +278,7 @@ export default {
             </span>
           </li>
         </ul>
-        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('visibility')">See Search &rarr;</button>
+        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('visibility')">See Search <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
       </div>
 
       <!-- CONTENT — what the writing holds. The big number is the Findings
@@ -317,7 +317,7 @@ export default {
             </span>
           </li>
         </ul>
-        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('findings')">Open Findings &rarr;</button>
+        <button type="button" class="ar-linkbtn ar-sys__go" @click="go('findings')">Open Findings <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
       </div>
 
     </div>

@@ -872,7 +872,7 @@ export default {
                 <li v-if="day(selected.date).loading" class="ar-aivis ar-aivis--muted">Loading…</li>
                 <li v-else-if="day(selected.date).error" class="ar-aivis ar-aivis--muted">
                   {{ day(selected.date).error }}
-                  <button type="button" class="ar-linkbtn" @click="loadDay(selected.date)">Retry</button>
+                  <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="loadDay(selected.date)">Retry</button>
                 </li>
                 <template v-else>
                   <li v-for="(r, i) in day(selected.date).rows" :key="i" class="ar-aivis">
@@ -893,7 +893,7 @@ export default {
                     <template v-if="day(selected.date).capped">
                       Showing the {{ day(selected.date).rows.length }} busiest of {{ day(selected.date).rowCount }} — narrow the filters to see the rest.
                     </template>
-                    <button v-else type="button" class="ar-linkbtn" @click="loadDay(selected.date, true)">
+                    <button v-else type="button" class="ar-linkbtn ar-linkbtn--act" @click="loadDay(selected.date, true)">
                       Show all {{ day(selected.date).rowCount }}
                     </button>
                   </li>
@@ -917,7 +917,7 @@ export default {
       <p class="ar-card__lead">
         People who arrived from somewhere we couldn’t match to an AI assistant. Most are
         ordinary sites, search engines and social apps.
-        <button type="button" class="ar-linkbtn" @click="unknownWhy = !unknownWhy">
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="unknownWhy = !unknownWhy">
           {{ unknownWhy ? 'Hide details' : 'Learn more' }}
         </button>
       </p>
@@ -946,7 +946,7 @@ export default {
               …and {{ unknownHostsRest.count }} more {{ unknownHostsRest.count === 1 ? 'host' : 'hosts' }},
               {{ unknownHostsRest.hits }} {{ unknownHostsRest.hits === 1 ? 'visit' : 'visits' }} between them.
             </template>
-            <button type="button" class="ar-linkbtn" @click="unknownAllHosts = !unknownAllHosts">
+            <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="unknownAllHosts = !unknownAllHosts">
               {{ unknownAllHosts ? 'Show the top 8' : `Show all ${unknownHosts.length}` }}
             </button>
           </p>
@@ -968,7 +968,7 @@ export default {
               …and {{ unknownUtmRest.count }} more {{ unknownUtmRest.count === 1 ? 'tag' : 'tags' }},
               {{ unknownUtmRest.hits }} {{ unknownUtmRest.hits === 1 ? 'visit' : 'visits' }} between them.
             </template>
-            <button type="button" class="ar-linkbtn" @click="unknownAllUtm = !unknownAllUtm">
+            <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="unknownAllUtm = !unknownAllUtm">
               {{ unknownAllUtm ? 'Show the top 8' : `Show all ${unknownUtm.length}` }}
             </button>
           </p>

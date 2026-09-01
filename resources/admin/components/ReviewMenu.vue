@@ -255,7 +255,7 @@ export default {
           recommend: {
             cat: 'host',
             tip: enforced
-              ? `Already refused at this site’s AI endpoints. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
+              ? `Already refused at this site’s AI files. To stop it site-wide, ${ipAdvice} — it can’t be blocked by name.`
               : `It can’t be blocked by name — ${ipAdvice}.`,
           },
         };
@@ -810,7 +810,7 @@ export default {
           their own — their requests stay in the log. Flagged clients don't leave on a timer:
           they stay until you Allow, Block or Ignore them.
         </p>
-        <button type="button" class="ar-linkbtn ar-rev-foot__manage" @click="$emit('manage'); close()">Manage clients</button>
+        <button type="button" class="ar-linkbtn ar-linkbtn--act ar-rev-foot__manage" @click="$emit('manage'); close()">Manage clients</button>
       </div>
     </div>
 

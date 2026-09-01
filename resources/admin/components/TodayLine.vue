@@ -175,7 +175,8 @@ export default {
           }}<span v-if="clockNote" class="ar-today-line__utc" v-tip="clockNote"> · UTC day</span> · so far</p>
       </div>
       <button type="button" class="ar-linkbtn ar-today-line__more" @click="$emit('navigate', 'report')">
-        See any range →
+        See any range
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
       </button>
     </div>
 

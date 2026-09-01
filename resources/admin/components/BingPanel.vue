@@ -359,7 +359,7 @@ export default {
             <span>updated {{ agoMin(summary.lastPollAt) }}</span>
           </template>
           <span class="ar-mcp-rail__sep" aria-hidden="true">·</span>
-          <button type="button" class="ar-linkbtn" :disabled="fetching" @click="fetchNow">
+          <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="fetching" @click="fetchNow">
             {{ fetching ? 'Refreshing…' : 'Refresh' }}
           </button>
           <template v-if="summary.lastError">

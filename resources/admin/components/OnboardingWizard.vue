@@ -585,7 +585,7 @@ export default {
                   <div v-for="(svc, i) in services" :key="i" class="ar-wiz__svc">
                     <div class="ar-wiz__svc-head">
                       <span class="ar-wiz__subhead">Service {{ i + 1 }}</span>
-                      <button type="button" class="ar-linkbtn" @click="removeService(i)">Remove</button>
+                      <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="removeService(i)">Remove</button>
                     </div>
                     <div class="ar-field">
                       <label :for="'ar-wiz-svc-name-' + i">Name</label>
@@ -902,18 +902,18 @@ export default {
 
           <div class="ar-modal__actions ar-wiz__actions">
             <template v-if="view === 'welcome'">
-              <button type="button" class="ar-linkbtn ar-wiz__skip" @click="$emit('skip')">Skip for now</button>
+              <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" @click="$emit('skip')">Skip for now</button>
               <button type="button" class="ar-btn" @click="getStarted">Get started</button>
             </template>
             <template v-else-if="view === 'form'">
-              <button type="button" class="ar-linkbtn ar-wiz__skip" :disabled="saving" @click="$emit('skip')">Skip for now</button>
+              <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" :disabled="saving" @click="$emit('skip')">Skip for now</button>
               <button v-if="step > 1" type="button" class="ar-btn ar-btn--ghost" :disabled="saving" @click="back">Back</button>
               <button v-if="step < totalSteps" type="button" class="ar-btn" @click="next">Continue</button>
               <button v-else type="button" class="ar-btn" :disabled="saving" @click="finish">{{ finishLabel }}</button>
             </template>
             <template v-else-if="view === 'done'">
               <template v-if="canProve">
-                <button type="button" class="ar-linkbtn ar-wiz__skip" @click="$emit('done')">Go to dashboard</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" @click="$emit('done')">Go to dashboard</button>
                 <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('revisit')">Back</button>
                 <button type="button" class="ar-btn" @click="startProof">Now let's prove it</button>
               </template>
@@ -931,15 +931,15 @@ export default {
                 <button type="button" class="ar-btn ar-wiz__done-btn" @click="finishProof">Go to dashboard</button>
               </template>
               <template v-else-if="proofState === 'timeout'">
-                <button type="button" class="ar-linkbtn ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
                 <button type="button" class="ar-btn ar-btn--ghost" @click="tryAnotherAssistant">Try another assistant</button>
               </template>
               <template v-else-if="proofState === 'watching'">
-                <button type="button" class="ar-linkbtn ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
                 <button type="button" class="ar-btn ar-btn--ghost" @click="tryAnotherAssistant">Back</button>
               </template>
               <template v-else>
-                <button type="button" class="ar-linkbtn ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
+                <button type="button" class="ar-linkbtn ar-linkbtn--act ar-wiz__skip" @click="finishProof">Skip this — go to dashboard</button>
                 <button type="button" class="ar-btn ar-btn--ghost" @click="backToDone">Back</button>
               </template>
             </template>
