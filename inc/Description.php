@@ -201,7 +201,9 @@ final class Description {
 	/**
 	 * The post's excerpt for the fallback: its MANUAL excerpt when set, otherwise a short
 	 * summary derived from the body. The derivation strips block delimiters, shortcodes and
-	 * tags off the RAW content and trims to {@see SUMMARY_WORDS} — deliberately NOT via
+	 * tags off the RAW content, budgets {@see SUMMARY_WORDS}, then finishes at an honest
+	 * boundary ({@see finish_cut()}) — whole sentences when it can, an ellipsis-marked
+	 * clause or word cut when it can't. Deliberately NOT via
 	 * get_the_excerpt()/`the_content`, whose off-loop run can blank the body on some sites
 	 * (see {@see Content::markdown_source()}), so the fallback stays robust where rendering
 	 * is not. Returns '' only when there is no manual excerpt and no body text at all.
@@ -238,11 +240,56 @@ final class Description {
 			return '';
 		}
 
-		$summary = wp_trim_words( $content, self::SUMMARY_WORDS, '' );
-		// Don't leave the summary dangling on a separator — a trailing em/en-dash, colon or
-		// comma from a mid-sentence cut reads as broken in a meta description. Unicode-aware
-		// (byte-wise rtrim would corrupt a multibyte dash); sentence punctuation is kept.
-		return (string) preg_replace( '/[\s\x{2014}\x{2013}\x{2012}\-:;,|·]+$/u', '', $summary );
+		$window = wp_trim_words( $content, self::SUMMARY_WORDS, '' );
+		if ( $window === $content ) {
+			return $content; // Nothing was cut — the summary ends where the author ended it.
+		}
+		return self::finish_cut( $window );
+	}
+
+	/**
+	 * Finish a truncated prefix at an honest boundary. A blind word-count cut ends
+	 * mid-clause, and this line is SERVED — the meta description, the JSON-LD
+	 * description and the .md twin's opening blockquote all carry it — so it bit as
+	 * "a description nobody would quote" while every check passed. The ladder:
+	 *
+	 *   1. whole sentences — pull back to the last sentence end inside the cut
+	 *      (a complete sentence needs no continuation mark);
+	 *   2. a clause boundary, with an ellipsis saying honestly that the text goes on;
+	 *   3. a word boundary: strip dangling separators (Unicode-aware — a byte-wise
+	 *      rtrim would corrupt a multibyte dash), then the same honest ellipsis.
+	 *
+	 * Steps 1–2 hold out for a boundary past a third of the prefix, so a tiny first
+	 * sentence ("Yes.") can't shrink the whole summary to it. Offsets from
+	 * PREG_OFFSET_CAPTURE are bytes; every cut lands on a matched boundary, so the
+	 * byte substr can never split a multibyte character.
+	 *
+	 * @param string $prefix Text known to have been cut off a longer original.
+	 * @return string
+	 */
+	private static function finish_cut( $prefix ) {
+		$prefix = rtrim( (string) $prefix );
+		if ( '' === $prefix ) {
+			return '';
+		}
+
+		if ( preg_match_all( '/[.!?\x{2026}][)\]"\x{201D}\x{2019}\']*(?=\s|$)/u', $prefix, $m, PREG_OFFSET_CAPTURE ) ) {
+			$last = end( $m[0] );
+			$end  = $last[1] + strlen( $last[0] );
+			if ( $end >= strlen( $prefix ) / 3 ) {
+				return substr( $prefix, 0, $end );
+			}
+		}
+
+		if ( preg_match_all( '/[,;:\x{2014}\x{2013}\x{2012}\-·|](?=\s)/u', $prefix, $m, PREG_OFFSET_CAPTURE ) ) {
+			$last = end( $m[0] );
+			if ( $last[1] >= strlen( $prefix ) / 3 ) {
+				return rtrim( substr( $prefix, 0, $last[1] ) ) . '…';
+			}
+		}
+
+		$out = (string) preg_replace( '/[\s\x{2014}\x{2013}\x{2012}\-:;,|·]+$/u', '', $prefix );
+		return '' === $out ? '' : $out . '…';
 	}
 
 	/**
@@ -259,16 +306,32 @@ final class Description {
 	}
 
 	/**
-	 * Clip a string to a character length, multibyte-aware when the extension is present,
-	 * trimming any trailing partial-word whitespace.
+	 * Clip a string to a character length, multibyte-aware when the extension is present.
+	 * A value over the cap is cut at an honest boundary ({@see finish_cut()}) rather than
+	 * mid-word — this gate serves every surface, so a long manual excerpt or a
+	 * filter-supplied description must not leave the cap as a mid-clause chop either.
 	 *
 	 * @param string $value Value.
 	 * @param int    $len   Max characters.
 	 * @return string
 	 */
 	private static function clip( $value, $len ) {
-		$out = function_exists( 'mb_substr' ) ? mb_substr( $value, 0, $len ) : substr( $value, 0, $len );
-		return rtrim( $out );
+		$chars = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
+		if ( $chars <= $len ) {
+			return rtrim( $value );
+		}
+		// One character of head-room for the ellipsis a mid-text cut earns, so the
+		// result can never bust the cap.
+		$window = function_exists( 'mb_substr' ) ? mb_substr( $value, 0, $len - 1 ) : substr( $value, 0, $len - 1 );
+		// If the cap split a token (the next character is not a space), drop the
+		// partial token — finish_cut() can then treat the tail as whole words. Unless
+		// the window is ONE unbroken token (a long URL): a shortened token then beats
+		// an empty description.
+		$next = function_exists( 'mb_substr' ) ? mb_substr( $value, $len - 1, 1 ) : substr( $value, $len - 1, 1 );
+		if ( '' !== $next && ! preg_match( '/\s/u', $next ) && preg_match( '/\s/u', $window ) ) {
+			$window = (string) preg_replace( '/\S+$/u', '', $window );
+		}
+		return self::finish_cut( $window );
 	}
 
 	/**

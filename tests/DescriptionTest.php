@@ -138,6 +138,71 @@ final class DescriptionTest extends TestCase {
 		$this->assertLessThanOrEqual( Description::MAX_LEN, mb_strlen( $out ) );
 	}
 
+	// ---- honest truncation --------------------------------------------------
+	// The derived summary is SERVED — meta description, JSON-LD, the .md twin's
+	// blockquote — so a blind word-count cut ends it mid-clause on every surface
+	// at once while the checks still pass. The cut must land on a boundary, and a
+	// mid-text cut must say so with an ellipsis.
+
+	/** A long multi-sentence body: the summary is whole sentences, no continuation mark. */
+	public function test_derived_summary_ends_at_a_sentence_boundary() {
+		$body = 'The pager grew a numbered strip on every listing. It keeps a constant seven slots so the buttons never shift under the pointer. '
+			. 'What follows is a very long third sentence that runs well past the thirty word budget the derivation allows for a summary of the body text of a post.';
+		$this->fixture( 40, array(), array( 'post_content' => $body, 'post_excerpt' => '' ) );
+		$this->assertSame(
+			'The pager grew a numbered strip on every listing. It keeps a constant seven slots so the buttons never shift under the pointer.',
+			Description::for_post( 40 )
+		);
+	}
+
+	/** One enormous first sentence: cut at its last clause boundary, marked with an ellipsis. */
+	public function test_one_giant_sentence_cuts_at_a_clause_with_an_ellipsis() {
+		$body = 'This single opening sentence keeps rolling through clause after clause, first naming the pager and its seven constant slots, '
+			. 'then the sortable network column and the chip that says what actually happens to a card nobody wants.';
+		$this->fixture( 41, array(), array( 'post_content' => $body, 'post_excerpt' => '' ) );
+		$this->assertSame(
+			'This single opening sentence keeps rolling through clause after clause, first naming the pager and its seven constant slots…',
+			Description::for_post( 41 )
+		);
+	}
+
+	/** No punctuation at all: a word cut still carries the continuation mark. */
+	public function test_word_cut_summary_carries_the_continuation_mark() {
+		$words = array();
+		for ( $i = 1; $i <= 40; $i++ ) {
+			$words[] = "word$i";
+		}
+		$this->fixture( 42, array(), array( 'post_content' => implode( ' ', $words ), 'post_excerpt' => '' ) );
+		$out = Description::for_post( 42 );
+		$this->assertSame( implode( ' ', array_slice( $words, 0, 30 ) ) . '…', $out );
+	}
+
+	/** A tiny first sentence must not shrink the whole summary to itself. */
+	public function test_tiny_first_sentence_does_not_swallow_the_summary() {
+		$body = 'Yes. And yet the real answer needs the long second sentence that follows it, walking through every part of the case, '
+			. 'so a summary reduced to the two-word opener would tell a reader nothing at all about anything.';
+		$this->fixture( 43, array(), array( 'post_content' => $body, 'post_excerpt' => '' ) );
+		$out = Description::for_post( 43 );
+		$this->assertNotSame( 'Yes.', $out );
+		$this->assertStringStartsWith( 'Yes. And yet the real answer', $out );
+		$this->assertStringEndsWith( '…', $out );
+	}
+
+	/** The MAX_LEN cap never chops mid-word: a manual excerpt over the cap ends on a whole token. */
+	public function test_cap_cut_lands_on_a_word_boundary() {
+		$long = trim( str_repeat( 'alpha beta gamma delta epsilon ', 20 ) ); // ~620 chars, no punctuation.
+		$this->fixture( 44, array(), array( 'post_excerpt' => $long, 'post_content' => '' ) );
+		$out = Description::for_post( 44 );
+		$this->assertLessThanOrEqual( Description::MAX_LEN, mb_strlen( $out ) );
+		$this->assertMatchesRegularExpression( '/(alpha|beta|gamma|delta|epsilon)…$/u', $out );
+	}
+
+	/** A body that fits the budget whole is served verbatim — no mark, no re-cut. */
+	public function test_short_body_is_never_marked_as_cut() {
+		$this->fixture( 45, array(), array( 'post_content' => '<p>Two short sentences. That fit whole.</p>', 'post_excerpt' => '' ) );
+		$this->assertSame( 'Two short sentences. That fit whole.', Description::for_post( 45 ) );
+	}
+
 	// ---- JSON-LD surface ----------------------------------------------------
 
 	/** JSON-LD: the description surfaces as schema.org `description` on the per-post node. */
