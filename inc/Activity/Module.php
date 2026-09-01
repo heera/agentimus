@@ -111,23 +111,7 @@ final class Module {
 					'methods'             => 'GET',
 					'permission_callback' => array( $this, 'can_manage' ),
 					'callback'            => function () {
-						$stats = Repository::stats( $this->settings );
-						// The Agent Access nav badge rides THIS payload — the one the dashboard
-						// already polls for the review bell — rather than polling its own endpoint
-						// every tick. One COUNT query on a request that was happening anyway, versus
-						// a second HTTP round-trip that would also drag back up to 100 event rows
-						// just to render a number.
-						$stats['agentAccessUnseen'] = \Agentimus\AgentAccess\Store::unseen_count();
-						// People and machines, side by side, from the payload above
-						// plus one indexed aggregate per connected search source.
-						// Assembled server-side so the two halves can never drift
-						// apart between the screens that show them.
-						$stats['audience'] = \Agentimus\Audience::from_stats( $stats );
-						// The systems roll-up card rides here too: option reads, two
-						// indexed COUNTs and two file_exists — see Systems for why the
-						// expensive truths it points at are NOT recomputed on this poll.
-						$stats['systems'] = \Agentimus\Systems::summary( $this->settings, $stats );
-						return rest_ensure_response( $stats );
+						return rest_ensure_response( $this->stats_payload() );
 					},
 				),
 				array(
@@ -135,7 +119,7 @@ final class Module {
 					'permission_callback' => array( $this, 'can_manage' ),
 					'callback'            => function () {
 						Repository::clear();
-						return rest_ensure_response( Repository::stats( $this->settings ) );
+						return rest_ensure_response( $this->stats_payload() );
 					},
 				),
 			)
@@ -608,8 +592,8 @@ final class Module {
 	 * the client so it drops out of the list WITHOUT being allow- or block-listed (no
 	 * policy change), remembering the volume the owner saw so it can reappear if the
 	 * client later changes materially. Returns the refreshed stats so the row leaves in
-	 * place. No settings are touched, so — unlike block/allow — the response is stats
-	 * only.
+	 * place. No settings are touched, so — unlike block/allow — the response carries
+	 * no settings block.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
@@ -619,7 +603,7 @@ final class Module {
 			(string) $request->get_param( 'ua' ),
 			(int) $request->get_param( 'hits' )
 		);
-		return rest_ensure_response( Repository::stats( $this->settings ) );
+		return rest_ensure_response( $this->stats_payload() );
 	}
 
 	/**
@@ -754,7 +738,7 @@ final class Module {
 				array(
 					'status'   => 'no-ip',
 					'message'  => __( 'No address is on record for this client to re-check.', 'agentimus' ),
-					'activity' => Repository::stats( $this->settings ),
+					'activity' => $this->stats_payload(),
 				)
 			);
 		}
@@ -786,7 +770,7 @@ final class Module {
 				'status'   => 'checked',
 				'verdict'  => $verdict,
 				'perIp'    => $per_ip,
-				'activity' => Repository::stats( $this->settings ),
+				'activity' => $this->stats_payload(),
 			)
 		);
 	}
@@ -845,9 +829,43 @@ final class Module {
 	 */
 	private function block_payload() {
 		return array(
-			'activity' => Repository::stats( $this->settings ),
+			'activity' => $this->stats_payload(),
 			'settings' => $this->settings->all(),
 		);
+	}
+
+	/**
+	 * The activity payload, assembled ONE way for every route that returns one.
+	 *
+	 * The admin app replaces its whole `activity` object with whatever an activity
+	 * route hands back, and the audience / systems cards gate their skeletons on
+	 * those blocks being present — so a route answering with bare Repository::stats()
+	 * silently strips them and both cards flash their first-load loading state on a
+	 * one-row action (that is exactly how the review queue's Ignore made "Who Reached
+	 * Your Site" reload). Same drift shape as the MCP projections: two surfaces, one
+	 * payload — never a slimmer copy per route.
+	 *
+	 * @return array Stats plus the blocks the dashboard screens ride on:
+	 *               agentAccessUnseen, audience, systems.
+	 */
+	private function stats_payload() {
+		$stats = Repository::stats( $this->settings );
+		// The Agent Access nav badge rides THIS payload — the one the dashboard
+		// already polls for the review bell — rather than polling its own endpoint
+		// every tick. One COUNT query on a request that was happening anyway, versus
+		// a second HTTP round-trip that would also drag back up to 100 event rows
+		// just to render a number.
+		$stats['agentAccessUnseen'] = \Agentimus\AgentAccess\Store::unseen_count();
+		// People and machines, side by side, from the payload above
+		// plus one indexed aggregate per connected search source.
+		// Assembled server-side so the two halves can never drift
+		// apart between the screens that show them.
+		$stats['audience'] = \Agentimus\Audience::from_stats( $stats );
+		// The systems roll-up card rides here too: option reads, two
+		// indexed COUNTs and two file_exists — see Systems for why the
+		// expensive truths it points at are NOT recomputed on this poll.
+		$stats['systems'] = \Agentimus\Systems::summary( $this->settings, $stats );
+		return $stats;
 	}
 
 	/**
