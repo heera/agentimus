@@ -298,6 +298,14 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.0 =
+* New: every long list turns the same way now — the Request Log, Agent Access, the content worklist and the Google Index card all carry one numbered pager, with a constant seven slots so the strip never changes width and a button never shifts under your pointer between clicks. The Request Log's Network column joins the sortable ones, and its refresh button no longer quietly resets you to page one.
+* Improved: one language for links across the plugin. A link inside a sentence wears a quiet underline, because colour cannot be the only thing that says "clickable" when a status word can paint the identical colour beside it. A jump to another screen ends in a small drawn chevron; a button that acts in place — Refresh, Purge edge cache, Re-check — answers your pointer with a soft highlight instead of an underline promising a destination it does not have; and every link that leaves your site keeps its small outward arrow. The Search Console and Bing Webmaster links on the Visibility screens also stop wearing a blue no other part of the plugin uses.
+* Fixed: a description derived from a post's opening paragraph was cut wherever the word budget ran out — mid-clause, and at the length cap sometimes mid-word — and that line is served: the meta description, the structured data and the page's markdown twin all carry it. It now ends at a sentence boundary when whole sentences fit, and marks a genuine mid-cut honestly with an ellipsis when they cannot.
+* Fixed: editing a category or tag description never cleared that archive page at your CDN. A publish purges the pages it changes, but a term edit saves no post, so nothing fired and the edge kept serving the old archive for the rest of its cache life. The term's archive page is purged now, on edit and on delete.
+* Fixed: acting on a review-bell card — Ignore, Allow, Block or Re-check — made the Dashboard's "Who Reached Your Site" and "What Your Site Runs" cards flash back to their first-load loading state. The refreshed numbers an action returns now carry everything those cards read, the same payload the Dashboard itself is served.
+* Fixed: one refusal path recorded nothing — a proven impostor turned away at a .well-known document vanished from the Request Log while the same refusal at llms.txt was written down. Every refusal leaves its line now.
+
 = 1.50.1 =
 * Fixed: the "Put this away" link is gone from the Findings screen. Putting a suggestion away only moved it into a fold at the foot of the same list — a collapsible in disguise — and only one kind of row ever carried the control, so part of the list arrived offering to be dismissed while the rest did not. Every finding now simply stays in its list, anything you had put away comes back on its own, and a connected assistant no longer sees a put-away ledger either.
 * Improved: the Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with. The tile row used to sit between Today and everything else, cutting the run of cards in two.
@@ -370,6 +378,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.45.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.0 =
+Every long list turns with one numbered pager — seven steady slots, nothing shifts under your pointer — and the Request Log's refresh no longer resets you to page one. One language for links: quiet underlines in sentences, chevrons for in-app jumps, a soft highlight for buttons that act in place. Descriptions end on whole sentences everywhere they are served, and editing a category or tag now clears its archive page at your CDN. No breaking changes.
 
 = 1.50.1 =
 The Findings screen drops its "Put this away" link — it only moved a suggestion into a fold on the same screen, and only some rows had it. Every finding now stays in its list, and anything you had put away comes back. The Dashboard's Today card moves down beside the full-width cards it belongs with, with the four small tiles leading the page. No breaking changes.

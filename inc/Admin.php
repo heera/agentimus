@@ -992,13 +992,23 @@ final class Admin {
 				// would teach people the card exaggerates.
 				array(
 					'icon'  => 'page',
-					'title' => 'Findings Keep Every Row',
-					'text'  => 'The "Put this away" link is gone. It only moved a suggestion into a fold at the foot of the same screen, and only some rows had it. Every finding now simply stays in its list — anything you had put away comes back on its own.',
+					'title' => 'Numbered Pages on Every List',
+					'text'  => 'The Request Log, Agent Access, the worklist and the Google Index card all turn with one numbered pager now — seven steady slots, so the buttons never shift under your pointer, and the log\'s refresh no longer resets you to page one.',
 				),
 				array(
-					'icon'  => 'clock',
-					'title' => 'Today in Its Place',
-					'text'  => 'The Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with — one group, with no small row cutting it in two.',
+					'icon'  => 'link',
+					'title' => 'One Language for Links',
+					'text'  => 'A link in a sentence wears a quiet underline, a jump to another screen ends in a small chevron, a button that acts in place answers with a soft highlight, and everything that leaves your site keeps its outward arrow.',
+				),
+				array(
+					'icon'  => 'search',
+					'title' => 'Descriptions End on Whole Sentences',
+					'text'  => 'A description drawn from a post\'s opening now stops at a sentence instead of mid-thought — the same line your meta description, structured data and markdown twin all serve.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Also Fixed',
+					'text'  => 'Acting on a review card no longer flashes the Dashboard\'s visitor cards back to loading, editing a category or tag now clears its archive page at your CDN, and every refused request leaves its line in the log.',
 				),
 			),
 		);
