@@ -70,6 +70,14 @@ final class CachePurge {
 		// The edited/removed post's own .md twin — a URL generic cache plugins never purge.
 		add_action( 'save_post', array( __CLASS__, 'queue_post' ), 20, 1 );
 		add_action( 'before_delete_post', array( __CLASS__, 'queue_post' ), 20, 1 );
+		// A term edit changes its ARCHIVE PAGE — the description printed on it, its
+		// title — with no post save anywhere in sight, so none of the hooks above
+		// fire. Describing every live term in one sitting left every one of those
+		// archives serving stale from the edge for the rest of its TTL.
+		add_action( 'edited_term', array( __CLASS__, 'queue_term' ), 20, 3 );
+		// On delete, hook BEFORE the row goes: get_term_link() can no longer
+		// resolve the term once delete_term fires.
+		add_action( 'pre_delete_term', array( __CLASS__, 'queue_term_before_delete' ), 20, 2 );
 	}
 
 	/**
@@ -202,6 +210,45 @@ final class CachePurge {
 		}
 
 		return $urls;
+	}
+
+	/**
+	 * Queue one term's archive page after the term itself was edited.
+	 *
+	 * ⛔ Edge-only, for the reason in {@see site_listing_urls()} — and doubly so
+	 * here: local caching plugins hook these same core seams themselves, while
+	 * the copy at the edge has nobody else to clear it. Only the archive URL is
+	 * queued: a description edit (the common case, and the one that bit) changes
+	 * no other address, and a rename's ghost at the old slug ages out with its
+	 * TTL rather than earning sitemap-wide purges on every edit.
+	 *
+	 * @param int    $term_id  Term ID.
+	 * @param int    $tt_id    Term taxonomy ID (unused).
+	 * @param string $taxonomy Taxonomy slug.
+	 */
+	public static function queue_term( $term_id, $tt_id = 0, $taxonomy = '' ) {
+		if ( ! Cloudflare\Purge::armed() ) {
+			return;
+		}
+		$tax = get_taxonomy( (string) $taxonomy );
+		if ( ! $tax || empty( $tax->public ) ) {
+			return; // A private taxonomy has no archive to go stale.
+		}
+		$link = get_term_link( (int) $term_id, (string) $taxonomy );
+		if ( is_string( $link ) && '' !== $link ) {
+			self::queue( array( $link ) );
+		}
+	}
+
+	/**
+	 * `pre_delete_term` adapter: same queue, different argument order — the hook
+	 * passes (term_id, taxonomy) with no tt_id between them.
+	 *
+	 * @param int    $term_id  Term ID.
+	 * @param string $taxonomy Taxonomy slug.
+	 */
+	public static function queue_term_before_delete( $term_id, $taxonomy ) {
+		self::queue_term( $term_id, 0, $taxonomy );
 	}
 
 	/**

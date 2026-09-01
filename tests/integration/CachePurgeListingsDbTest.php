@@ -185,6 +185,69 @@ final class CachePurgeListingsDbTest extends DbTestCase {
 		$this->assertContains( untrailingslashit( get_permalink( $this->post_id ) ) . '.md', $queued );
 	}
 
+	/* ------------------------------------------------------------ term edits */
+
+	/**
+	 * ⚠️ THE 08-31 BITE. Describing every live term in one sitting changed dozens
+	 * of archive PAGES with no post save anywhere in sight — save_post never
+	 * fired, nothing was purged, and every one of those archives kept serving
+	 * stale from the edge for the rest of its TTL. A term edit is a page edit.
+	 */
+	public function test_editing_a_terms_description_purges_its_archive() {
+		$this->arm_edge();
+		$term = get_term_by( 'name', 'Alpha', 'category' );
+
+		wp_update_term( $term->term_id, 'category', array( 'description' => 'Posts about the first thing.' ) );
+		$queued = $this->flush_and_capture();
+
+		$this->assertContains( get_term_link( $term ), $queued, 'The edited description is printed on the archive page — the edge copy must go.' );
+	}
+
+	/** Same line as the listings: no edge, no term URLs — local caches hook these seams themselves. */
+	public function test_a_term_edit_with_no_edge_queues_nothing_for_the_term() {
+		$term = get_term_by( 'name', 'Beta', 'category' );
+
+		wp_update_term( $term->term_id, 'category', array( 'description' => 'Posts about the second thing.' ) );
+		$queued = $this->flush_and_capture();
+
+		$this->assertNotContains( get_term_link( $term ), $queued, 'Listings are the edge’s problem; with no edge connected the seam stays quiet.' );
+	}
+
+	/** Deleting a term: its archive must be queued BEFORE the row goes, or the link can no longer resolve. */
+	public function test_deleting_a_term_purges_the_archive_it_leaves_behind() {
+		$this->arm_edge();
+		$term = get_term_by( 'name', 'one', 'post_tag' );
+		$link = get_term_link( $term );
+		$this->assertIsString( $link, 'The term really has an archive — a WP_Error here would prove nothing.' );
+
+		wp_delete_term( $term->term_id, 'post_tag' );
+		$queued = $this->flush_and_capture();
+
+		$this->assertContains( $link, $queued, 'The deleted term’s archive is exactly the page whose edge copy just went wrong.' );
+	}
+
+	/** A private taxonomy’s term edit has no public archive to purge. */
+	public function test_a_private_taxonomys_term_edit_queues_nothing() {
+		$this->arm_edge();
+		register_taxonomy( 'ar_secret', 'post', array( 'public' => false ) );
+		$created = wp_insert_term( 'hidden', 'ar_secret' );
+		$this->assertIsArray( $created, 'The secret term really exists — a failed insert would prove nothing.' );
+
+		wp_update_term( (int) $created['term_id'], 'ar_secret', array( 'description' => 'Not for anyone.' ) );
+		$queued = $this->flush_and_capture();
+
+		// The term edit still flushes the internal caches (llms.txt lists terms), so the
+		// site files legitimately queue — only the term itself must contribute nothing.
+		$this->assertSame(
+			array(),
+			array_values( array_filter( $queued, static function ( $u ) {
+				return false !== strpos( $u, 'ar_secret' ) || false !== strpos( $u, 'hidden' );
+			} ) ),
+			'A taxonomy with no public archive has nothing that can go stale.'
+		);
+		unregister_taxonomy( 'ar_secret' );
+	}
+
 	/**
 	 * Capture the request's queued set without touching the network: the purge
 	 * filter is the last stop before any adapter is called.
