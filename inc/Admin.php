@@ -990,25 +990,12 @@ final class Admin {
 				// ⭐ A small release gets a SMALL card — two items, no fixes row
 				// (the 1.49.0 shape). Padding a two-change release to five rows
 				// would teach people the card exaggerates.
-				array(
-					'icon'  => 'page',
-					'title' => 'Numbered Pages on Every List',
-					'text'  => 'The Request Log, Agent Access, the worklist and the Google Index card all turn with one numbered pager now — seven steady slots, so the buttons never shift under your pointer, and the log\'s refresh no longer resets you to page one.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'One Language for Links',
-					'text'  => 'A link in a sentence wears a quiet underline, a jump to another screen ends in a small chevron, a button that acts in place answers with a soft highlight, and everything that leaves your site keeps its outward arrow.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Descriptions End on Whole Sentences',
-					'text'  => 'A description drawn from a post\'s opening now stops at a sentence instead of mid-thought — the same line your meta description, structured data and markdown twin all serve.',
-				),
+				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
+				// whole release, and there is one thing an owner may want to do.
 				array(
 					'icon'  => 'shield',
-					'title' => 'Also Fixed',
-					'text'  => 'Acting on a review card no longer flashes the Dashboard\'s visitor cards back to loading, editing a category or tag now clears its archive page at your CDN, and every refused request leaves its line in the log.',
+					'title' => 'A Connection Key Opens One Door',
+					'text'  => 'A security fix. A connection key, or an approved assistant\'s access token, could be accepted on two neighbouring admin routes, where a read-only key could mint itself a write key. Every credential is now honoured at the MCP endpoint alone. If you are not sure who holds a read-only key, create a new one; that retires the old one.',
 				),
 			),
 		);

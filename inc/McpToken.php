@@ -52,6 +52,10 @@ final class McpToken {
 	 */
 	public static function watch() {
 		add_filter( 'determine_current_user', array( self::class, 'authenticate' ), 30 );
+		// The seat above is decided from the URL, before core has matched a
+		// route. This runs once core HAS matched one, and refuses the seat
+		// anywhere but the MCP endpoint — the backstop behind is_mcp_request().
+		add_filter( 'rest_request_before_callbacks', array( self::class, 'confine' ), 0, 3 );
 	}
 
 	/**
@@ -255,23 +259,91 @@ final class McpToken {
 	}
 
 	/**
-	 * Whether this request targets the MCP route — pretty permalinks or the
-	 * ?rest_route= form. The token is honored nowhere else.
+	 * Whether a REST route string IS the MCP route — exactly, never by prefix.
+	 * `/agentimus/v1/mcp-token` and `/agentimus/v1/mcp-status` are sibling
+	 * admin routes, not longer spellings of this one. Shared by the seat
+	 * below, the dispatch backstop and the OAuth server's WWW-Authenticate
+	 * hint, so all three name the same door.
+	 *
+	 * @param string $route A route as core dispatches it (leading slash).
+	 * @return bool
+	 */
+	public static function is_route( $route ) {
+		return self::ROUTE === untrailingslashit( (string) $route );
+	}
+
+	/**
+	 * Whether this request targets the MCP route. The token is honored nowhere
+	 * else — and this runs from `determine_current_user`, BEFORE core has
+	 * matched a route, so it must resolve the route the way core will:
+	 *
+	 *  - A `rest_route` public query var, when present, IS the route. Core
+	 *    reads it from the body first, then the query string, and either beats
+	 *    the path (WP::parse_request) — so a pretty MCP path carrying
+	 *    `?rest_route=/agentimus/v1/mcp-token` dispatches to the sibling, and
+	 *    the path must not get a vote.
+	 *  - Its value must equal the route EXACTLY. A prefix test took
+	 *    `/agentimus/v1/mcp-token` for this route and seated the owner on the
+	 *    admin route that mints tokens, where a read key could mint itself a
+	 *    write key (Patchstack, 2026-09-02; fixed in 1.51.1). It is compared
+	 *    byte-for-byte to the constant, unsanitized on purpose: a cleaned-up
+	 *    copy would be judged in place of the string core actually dispatches.
+	 *  - Otherwise the pretty form: the route is the tail of the request PATH,
+	 *    never the raw URI, so a core route that merely mentions ours in its
+	 *    query string (/wp-json/wp/v2/users?x=/agentimus/v1/mcp) is not ours.
+	 *
+	 * Whatever this decides, confine() holds it against the route core really
+	 * matched, so a wrong answer here can seat nobody on any other route.
 	 *
 	 * @return bool
 	 */
 	private static function is_mcp_request() {
-		// Match on the request PATH only, never the raw URI. A bearer token scoped
-		// to this route must NOT be honored on a core REST endpoint that merely
-		// mentions the route in its query string (e.g. /wp-json/wp/v2/users?x=/agentimus/v1/mcp).
-		// Pretty permalinks put the route at the tail of the path; the plain
-		// ?rest_route= form carries no route in the path and is matched separately below.
+		// phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput -- routing detection only, no state change: compared to a constant, never stored or echoed.
+		if ( isset( $_POST['rest_route'] ) || isset( $_GET['rest_route'] ) ) {
+			$raw = isset( $_POST['rest_route'] ) ? $_POST['rest_route'] : $_GET['rest_route'];
+			return is_string( $raw ) && self::is_route( wp_unslash( $raw ) );
+		}
+		// phpcs:enable
 		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		$path = untrailingslashit( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
-		if ( '' !== $path && self::ROUTE === substr( $path, -strlen( self::ROUTE ) ) ) {
-			return true;
+		return '' !== $path && self::ROUTE === substr( $path, -strlen( self::ROUTE ) );
+	}
+
+	/**
+	 * rest_request_before_callbacks: refuse a token-seated request on any
+	 * route but the MCP endpoint. is_mcp_request() judges the URL before core
+	 * has matched a route; this runs after it has, and answers from the match
+	 * itself — so however the URL was read, the identity this token seated
+	 * reaches no other route's permission callback, where `manage_options`
+	 * would take it for the owner's own session. Zero-cost for every request
+	 * the token did not authenticate, and silent on errors already decided.
+	 *
+	 * @param mixed            $response Dispatch result so far (null = proceed).
+	 * @param array            $handler  The matched handler (unused).
+	 * @param \WP_REST_Request $request  The request core matched.
+	 * @return mixed
+	 */
+	public static function confine( $response, $handler, $request ) {
+		if ( is_wp_error( $response ) || ! self::used_this_request() ) {
+			return $response;
 		}
-		$route = isset( $_GET['rest_route'] ) ? sanitize_text_field( wp_unslash( $_GET['rest_route'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing detection only, no state change.
-		return 0 === strpos( $route, self::ROUTE );
+		if ( self::is_route( $request->get_route() ) ) {
+			return $response;
+		}
+		return self::off_route_error();
+	}
+
+	/**
+	 * The refusal a plugin credential earns off the MCP route — one shape for
+	 * both doors (connection token, OAuth grant).
+	 *
+	 * @return \WP_Error
+	 */
+	public static function off_route_error() {
+		return new \WP_Error(
+			'agentimus_credential_off_route',
+			__( 'This credential is accepted only at the MCP endpoint.', 'agentimus' ),
+			array( 'status' => 403 )
+		);
 	}
 }

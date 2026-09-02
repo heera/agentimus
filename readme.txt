@@ -298,6 +298,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.1 =
+* Security: a connection key, or an approved assistant's access token, was accepted on two neighbouring admin routes and not only at the MCP endpoint it was issued for — the check matched the route by prefix, and the route that creates keys starts with the same letters. In WordPress's plain ?rest_route= form that seated the key as the administrator who created it, and one request could mint a write key from a read-only one whenever agent writes were on. Reported by Ananda Dhakal of Patchstack. The route is now matched exactly in every form WordPress accepts, and a second check holds every plugin credential to the route WordPress actually dispatched, refusing it anywhere else. If you are not sure who holds a read-only key, create a new one; that retires the old one.
+
 = 1.51.0 =
 * New: every long list turns the same way now — the Request Log, Agent Access, the content worklist and the Google Index card all carry one numbered pager, with a constant seven slots so the strip never changes width and a button never shifts under your pointer between clicks. The Request Log's Network column joins the sortable ones, and its refresh button no longer quietly resets you to page one.
 * Improved: one language for links across the plugin. A link inside a sentence wears a quiet underline, because colour cannot be the only thing that says "clickable" when a status word can paint the identical colour beside it. A jump to another screen ends in a small drawn chevron; a button that acts in place — Refresh, Purge edge cache, Re-check — answers your pointer with a soft highlight instead of an underline promising a destination it does not have; and every link that leaves your site keeps its small outward arrow. The Search Console and Bing Webmaster links on the Visibility screens also stop wearing a blue no other part of the plugin uses.
@@ -378,6 +381,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.45.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.1 =
+Security fix: a connection key or an approved assistant's access token was accepted on two neighbouring admin routes, where a read-only key could mint itself a write key. Every plugin credential is now honoured at the MCP endpoint alone and refused anywhere else. Update now if the MCP server is on. No breaking changes.
 
 = 1.51.0 =
 Every long list turns with one numbered pager — seven steady slots, nothing shifts under your pointer — and the Request Log's refresh no longer resets you to page one. One language for links: quiet underlines in sentences, chevrons for in-app jumps, a soft highlight for buttons that act in place. Descriptions end on whole sentences everywhere they are served, and editing a category or tag now clears its archive page at your CDN. No breaking changes.

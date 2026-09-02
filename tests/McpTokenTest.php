@@ -21,13 +21,13 @@ final class McpTokenTest extends TestCase {
 		McpToken::reset_request();
 		$GLOBALS['_af_users'] = array( 7 => true );
 		$_SERVER['REQUEST_URI'] = '/wp-json/agentimus/v1/mcp';
-		unset( $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'] );
+		unset( $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	protected function tearDown(): void {
 		\_af_reset_options();
 		McpToken::reset_request();
-		unset( $GLOBALS['_af_users'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'] );
+		unset( $GLOBALS['_af_users'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	private function bearer( $token ) {
@@ -92,6 +92,104 @@ final class McpTokenTest extends TestCase {
 		$_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/users?x=/agentimus/v1/mcp';
 		unset( $_GET['rest_route'] );
 		$this->assertFalse( McpToken::authenticate( false ) );
+	}
+
+	/**
+	 * ⛔ The Patchstack report (2026-09-02): the query form accepted every route
+	 * that merely STARTED with ours, so `/agentimus/v1/mcp-token` — the admin
+	 * route that mints tokens — seated the owner for a read key, and one POST
+	 * there minted it a write key. A sibling is not a longer spelling of this
+	 * route: the value must equal it exactly.
+	 */
+	public function test_query_form_sibling_route_is_not_the_mcp_route() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		foreach ( array( '/agentimus/v1/mcp-token', '/agentimus/v1/mcp-status', '/agentimus/v1/mcp/anything', '/agentimus/v1/mcpx', ' /agentimus/v1/mcp' ) as $sibling ) {
+			McpToken::reset_request();
+			$_SERVER['REQUEST_URI'] = '/?rest_route=' . rawurlencode( $sibling );
+			$_GET['rest_route']     = $sibling;
+			$this->assertFalse( McpToken::authenticate( false ), $sibling );
+			$this->assertFalse( McpToken::used_this_request(), $sibling );
+		}
+	}
+
+	/** Core trims one trailing slash before dispatch; the seat reads the route the same way. */
+	public function test_query_form_trailing_slash_is_still_the_mcp_route() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$_SERVER['REQUEST_URI'] = '/?rest_route=/agentimus/v1/mcp/';
+		$_GET['rest_route']     = '/agentimus/v1/mcp/';
+		$this->assertSame( 7, McpToken::authenticate( false ) );
+	}
+
+	/**
+	 * Core dispatches a `rest_route` query var whenever one is present, even
+	 * under a pretty path (WP::parse_request: the query var beats the rewrite
+	 * match). A pretty MCP path carrying `?rest_route=<sibling>` therefore runs
+	 * the sibling — and the seat must judge the query var, not the path.
+	 */
+	public function test_query_var_wins_over_a_pretty_mcp_path() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$_SERVER['REQUEST_URI'] = '/wp-json/agentimus/v1/mcp?rest_route=/agentimus/v1/mcp-token';
+		$_GET['rest_route']     = '/agentimus/v1/mcp-token';
+		$this->assertFalse( McpToken::authenticate( false ) );
+	}
+
+	/**
+	 * A form-encoded body field wins over the query string AND the path in
+	 * core's resolution, so it is the route here too — in both directions.
+	 */
+	public function test_body_rest_route_is_the_route_core_dispatches() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+
+		$_SERVER['REQUEST_URI'] = '/wp-json/agentimus/v1/mcp';
+		$_POST['rest_route']    = '/agentimus/v1/mcp-token';
+		$this->assertFalse( McpToken::authenticate( false ), 'The body names the sibling: the path is not the route.' );
+
+		McpToken::reset_request();
+		$_SERVER['REQUEST_URI'] = '/index.php';
+		$_POST['rest_route']    = '/agentimus/v1/mcp';
+		$this->assertSame( 7, McpToken::authenticate( false ), 'The body names our route: that is what core will run.' );
+
+		McpToken::reset_request();
+		$_POST['rest_route'] = array( '/agentimus/v1/mcp' ); // Core answers a non-string with a 400; we seat nobody.
+		$this->assertFalse( McpToken::authenticate( false ) );
+	}
+
+	/* ---- the dispatch backstop -------------------------------------------- */
+
+	/**
+	 * However the URL was read, the seat is held against the route core
+	 * actually matched: a token-seated request reaching any other route is
+	 * refused before that route's permission callback can take the identity
+	 * for the owner's own session.
+	 */
+	public function test_confine_refuses_a_token_seated_request_off_the_mcp_route() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$this->assertSame( 7, McpToken::authenticate( false ) );
+
+		$refused = McpToken::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp-token' ) );
+		$this->assertInstanceOf( \WP_Error::class, $refused );
+		$this->assertSame( 'agentimus_credential_off_route', $refused->get_error_code() );
+		$this->assertSame( 403, $refused->get_error_data()['status'] );
+
+		$this->assertNull( McpToken::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' ) ), 'The MCP route itself passes untouched.' );
+		$this->assertNull( McpToken::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp/' ) ), 'Same route, core-trimmed.' );
+	}
+
+	/** No token in play → no opinion: cookies and application passwords keep every route they had. An error already decided is not replaced either. */
+	public function test_confine_is_silent_without_a_token_and_keeps_earlier_errors() {
+		$off = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp-token' );
+		$this->assertNull( McpToken::confine( null, array(), $off ) );
+
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		McpToken::authenticate( false );
+		$earlier = new \WP_Error( 'rest_no_route', 'x', array( 'status' => 404 ) );
+		$this->assertSame( $earlier, McpToken::confine( $earlier, array(), $off ) );
 	}
 
 	public function test_wrong_token_and_wrong_prefix_fall_through() {

@@ -24,14 +24,14 @@ final class OauthServerTest extends TestCase {
 		McpToken::reset_request();
 		$GLOBALS['_af_users']   = array( 7 => true );
 		$_SERVER['REQUEST_URI'] = '/wp-json/agentimus/v1/mcp';
-		unset( $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'] );
+		unset( $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	protected function tearDown(): void {
 		\_af_reset_options();
 		Server::reset_request();
 		McpToken::reset_request();
-		unset( $GLOBALS['_af_users'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'] );
+		unset( $GLOBALS['_af_users'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	/* ---- helpers ---------------------------------------------------------- */
@@ -323,6 +323,53 @@ final class OauthServerTest extends TestCase {
 
 		$_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/posts';
 		$this->assertFalse( Server::authenticate( false ) ); // Wrong door — a stranger.
+	}
+
+	/**
+	 * The Patchstack sibling-route report (2026-09-02) applies to this door
+	 * too: a read grant on `?rest_route=/agentimus/v1/mcp-token` would have
+	 * seated the approving administrator on the route that mints write
+	 * tokens. The grant is judged by the same exact-route test as the token.
+	 */
+	public function test_token_is_ignored_on_a_sibling_query_form_route() {
+		list( $client, , $code ) = $this->code_for( 'read', 'read' );
+		$tokens                  = $this->exchange( $client, $code );
+		$this->bearer( $tokens['access_token'] );
+
+		$_SERVER['REQUEST_URI'] = '/?rest_route=/agentimus/v1/mcp-token';
+		$_GET['rest_route']     = '/agentimus/v1/mcp-token';
+		$this->assertFalse( Server::authenticate( false ) );
+		$this->assertSame( '', Server::request_credential() );
+
+		$_SERVER['REQUEST_URI'] = '/?rest_route=/agentimus/v1/mcp';
+		$_GET['rest_route']     = '/agentimus/v1/mcp';
+		$this->assertSame( 7, Server::authenticate( false ), 'The exact route still opens.' );
+	}
+
+	/** And the dispatch backstop holds a grant-seated request to the route core matched. */
+	public function test_confine_refuses_a_grant_seated_request_off_the_mcp_route() {
+		list( $client, , $code ) = $this->code_for();
+		$tokens                  = $this->exchange( $client, $code );
+		$this->bearer( $tokens['access_token'] );
+		$this->assertSame( 7, Server::authenticate( false ) );
+
+		$refused = Server::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp-token' ) );
+		$this->assertInstanceOf( \WP_Error::class, $refused );
+		$this->assertSame( 'agentimus_credential_off_route', $refused->get_error_code() );
+		$this->assertSame( 403, $refused->get_error_data()['status'] );
+		$this->assertNull( Server::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' ) ) );
+
+		Server::reset_request();
+		$this->assertNull( Server::confine( null, array(), new \WP_REST_Request( 'POST', '/agentimus/v1/mcp-token' ) ), 'No grant → no opinion.' );
+	}
+
+	/** The WWW-Authenticate breadcrumb belongs to the MCP route's own 401 — not to a sibling admin route that shares the prefix. */
+	public function test_advertise_marks_only_the_mcp_route() {
+		$mcp = Server::advertise( new \WP_REST_Response( null, 401 ), null, new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' ) );
+		$this->assertArrayHasKey( 'WWW-Authenticate', $mcp->get_headers() );
+
+		$sibling = Server::advertise( new \WP_REST_Response( null, 401 ), null, new \WP_REST_Request( 'GET', '/agentimus/v1/mcp-token' ) );
+		$this->assertArrayNotHasKey( 'WWW-Authenticate', $sibling->get_headers() );
 	}
 
 	public function test_expired_access_token_falls_through() {

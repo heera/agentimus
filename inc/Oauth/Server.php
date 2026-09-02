@@ -435,6 +435,9 @@ final class Server {
 	public static function watch() {
 		add_filter( 'determine_current_user', array( self::class, 'authenticate' ), 31 );
 		add_filter( 'rest_post_dispatch', array( self::class, 'advertise' ), 10, 3 );
+		// The grant's seat is judged from the URL before core matches a route;
+		// this holds it against the route core matched. See McpToken::confine().
+		add_filter( 'rest_request_before_callbacks', array( self::class, 'confine' ), 0, 3 );
 	}
 
 	/**
@@ -450,7 +453,7 @@ final class Server {
 	public static function advertise( $result, $server, $request ) {
 		if ( $result instanceof \WP_REST_Response
 			&& 401 === $result->get_status()
-			&& 0 === strpos( (string) $request->get_route(), '/agentimus/v1/mcp' ) ) {
+			&& McpToken::is_route( $request->get_route() ) ) { // The MCP route's own 401 — not a sibling admin route's.
 			$result->header(
 				'WWW-Authenticate',
 				'Bearer resource_metadata="' . home_url( '/.well-known/oauth-protected-resource/agentimus/mcp' ) . '"'
@@ -497,6 +500,29 @@ final class Server {
 		);
 		self::touch(); // The Connected-agents card's "last used" line lives or dies here.
 		return (int) $entry['user_id'];
+	}
+
+	/**
+	 * rest_request_before_callbacks: refuse a grant-seated request on any
+	 * route but the MCP endpoint — the backstop the connection token keeps
+	 * ({@see McpToken::confine()}), for the same reason: the seat is judged
+	 * from the URL before core matches a route, and this is where the matched
+	 * route can be held against it. Silent when no grant seated this request,
+	 * and on errors already decided.
+	 *
+	 * @param mixed            $response Dispatch result so far (null = proceed).
+	 * @param array            $handler  The matched handler (unused).
+	 * @param \WP_REST_Request $request  The request core matched.
+	 * @return mixed
+	 */
+	public static function confine( $response, $handler, $request ) {
+		if ( is_wp_error( $response ) || null === self::$request_grant ) {
+			return $response;
+		}
+		if ( McpToken::is_route( $request->get_route() ) ) {
+			return $response;
+		}
+		return McpToken::off_route_error();
 	}
 
 	/**
