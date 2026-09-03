@@ -4,7 +4,11 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
-## 1.51.1
+## 1.51.2
+* Fixed: a page your own site redirects — a retired page folded into the homepage, say — was filed by the Google Index card under "Google chose a different address", the harshest heading, with a line that blamed Google for an address your site picked. Google's own wording for it is "Page with redirect", and it now has its own group, "Sent elsewhere by this site", whose row names where the page goes. It still counts, the way a page you block on purpose does; nothing is hidden.
+* Fixed: asking the Google Index tool about a page the daily check had not reached yet answered with an error instead of "not checked yet" — the tool's own output rules did not allow an empty row. An assistant asking about a brand-new page now gets the honest answer.
+* New: the share card names your X account. X already builds a link preview from the Open Graph tags, image included, whether or not you have connected X to Agentimus. When you have, the card also carries a twitter:site tag with the connected account, so the preview is attributed to you. Nothing is guessed when X is not connected.
+
 * Security: a connection key, or an approved assistant's access token, was accepted on two neighbouring admin routes and not only at the MCP endpoint it was issued for. The check asked whether the requested route *started with* `/agentimus/v1/mcp`, and `/agentimus/v1/mcp-token` — the route the settings screen uses to create the key — starts with it. A request there in WordPress's plain `?rest_route=` form seated the key as the administrator who created it, and one request could mint a write key from a read-only one whenever agent writes were switched on; the new key then passed every write check honestly. Reported by Ananda Dhakal of Patchstack. The route is now matched exactly, in every form WordPress accepts — the pretty path, the `?rest_route=` query, and the same field in a form body, which WordPress reads before either — and a second check holds every plugin credential to the route WordPress actually dispatched, refusing it anywhere else before that route's own permission check can mistake it for the owner's session. Exploiting it needed the MCP server switched on and a valid key or approved grant in hand. If you are not sure who holds a read-only key, create a new one; that retires the old one.
 
 ## 1.51.0

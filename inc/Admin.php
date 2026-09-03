@@ -993,9 +993,19 @@ final class Admin {
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
 				array(
-					'icon'  => 'shield',
-					'title' => 'A Connection Key Opens One Door',
-					'text'  => 'A security fix. A connection key, or an approved assistant\'s access token, could be accepted on two neighbouring admin routes, where a read-only key could mint itself a write key. Every credential is now honoured at the MCP endpoint alone. If you are not sure who holds a read-only key, create a new one; that retires the old one.',
+					'icon'  => 'search',
+					'title' => 'Sent Elsewhere by This Site',
+					'text'  => 'A page your own site redirects, like a retired page folded into your homepage, has its own group on the Google Index card now, and the row says where it goes. It used to sit under "Google chose a different address", which blamed Google for a choice your site made.',
+				),
+				array(
+					'icon'  => 'link',
+					'title' => 'Share Cards Name Your X Account',
+					'text'  => 'A link shared on X has always previewed with its title, text and image. When you have connected X, the preview is now also attributed to your account.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'Also Fixed',
+					'text'  => 'An assistant asking about a page the daily Google check has not reached yet is told "not checked yet" instead of getting an error.',
 				),
 			),
 		);

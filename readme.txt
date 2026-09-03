@@ -298,6 +298,11 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.2 =
+* Fixed: a page your own site redirects — a retired page folded into the homepage, say — was filed by the Google Index card under "Google chose a different address", the harshest heading, with a line that blamed Google for an address your site picked. Google's own wording for it is "Page with redirect", and it now has its own group, "Sent elsewhere by this site", whose row names where the page goes. It still counts, the way a page you block on purpose does; nothing is hidden.
+* Fixed: asking the Google Index tool about a page the daily check had not reached yet answered with an error instead of "not checked yet" — the tool's own output rules did not allow an empty row. An assistant asking about a brand-new page now gets the honest answer.
+* New: the share card names your X account. X already builds a link preview from the Open Graph tags, image included, whether or not you have connected X to Agentimus. When you have, the card also carries a twitter:site tag with the connected account, so the preview is attributed to you. Nothing is guessed when X is not connected.
+
 = 1.51.1 =
 * Security: a connection key, or an approved assistant's access token, was accepted on two neighbouring admin routes and not only at the MCP endpoint it was issued for — the check matched the route by prefix, and the route that creates keys starts with the same letters. In WordPress's plain ?rest_route= form that seated the key as the administrator who created it, and one request could mint a write key from a read-only one whenever agent writes were on. Reported by Ananda Dhakal of Patchstack. The route is now matched exactly in every form WordPress accepts, and a second check holds every plugin credential to the route WordPress actually dispatched, refusing it anywhere else. If you are not sure who holds a read-only key, create a new one; that retires the old one.
 
@@ -381,6 +386,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.45.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.2 =
+The Google Index card files a page your own site redirects under "Sent elsewhere by this site" instead of blaming Google for the address, and the Google Index tool answers "not checked yet" for a brand-new page instead of failing. Share cards name your connected X account. No breaking changes.
 
 = 1.51.1 =
 Security fix: a connection key or an approved assistant's access token was accepted on two neighbouring admin routes, where a read-only key could mint itself a write key. Every plugin credential is now honoured at the MCP endpoint alone and refused anywhere else. Update now if the MCP server is on. No breaking changes.
