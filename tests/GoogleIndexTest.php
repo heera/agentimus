@@ -200,6 +200,12 @@ final class GoogleIndexTest extends TestCase {
 	public function test_state_key_buckets_by_precedence() {
 		$this->assertSame( 'error', Index::state_key( array( 'error' => 'x', 'google_canonical' => 'https://a.test/b' ) ) );
 		$this->assertSame( 'canonical', Index::state_key( array( 'url' => 'https://a.test/x', 'google_canonical' => 'https://a.test/y' ) ) );
+		$this->assertSame(
+			'redirect',
+			Index::state_key( array( 'url' => 'https://a.test/terms', 'google_canonical' => 'https://a.test/', 'coverage_state' => 'Page with redirect' ) ),
+			'a redirect this site issues outranks the canonical test — Google followed an instruction, it did not overrule one'
+		);
+		$this->assertContains( 'redirect', Index::state_keys() );
 		$this->assertSame( 'unknown', Index::state_key( array( 'coverage_state' => 'URL is unknown to Google' ) ) );
 		$this->assertSame( 'discovered', Index::state_key( array( 'coverage_state' => 'Discovered - currently not indexed' ) ) );
 		$this->assertSame( 'crawled', Index::state_key( array( 'coverage_state' => 'Crawled - currently not indexed' ) ) );

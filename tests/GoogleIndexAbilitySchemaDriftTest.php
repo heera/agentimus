@@ -150,6 +150,29 @@ final class GoogleIndexAbilitySchemaDriftTest extends TestCase {
 		);
 	}
 
+	/** A lookup for a page the sweep never reached answers "unchecked" with a
+	 * null row — and the schema must ALLOW that null. Declared as a plain
+	 * object, the honest answer failed the ability's own output validation and
+	 * an agent asking about an unchecked page got an error, not "unchecked". */
+	public function test_unchecked_lookup_has_a_null_row_the_schema_allows() {
+		$this->ensure_capture_stub();
+		$GLOBALS['_af_abilities'] = array();
+		( new Registrar( new Settings() ) )->register_abilities();
+		$ability = $GLOBALS['_af_abilities']['agentimus/read-google-index'];
+
+		$GLOBALS['_af_options']['agentimus_google'] = array(
+			'sa_json'  => 'ciphertext-not-empty',
+			'property' => 'sc-domain:example.test',
+		);
+
+		$out = call_user_func( $ability['execute_callback'], array( 'url' => '/never-checked/' ) );
+		$this->assertSame( 'unchecked', $out['lookup']['status'] );
+		$this->assertNull( $out['lookup']['row'], 'no stored answer means no row — not an empty object dressed as one' );
+
+		$row = $ability['output_schema']['properties']['lookup']['properties']['row'];
+		$this->assertContains( 'null', (array) $row['type'], 'lookup.row must be nullable, or the whole honest payload is refused' );
+	}
+
 	/** The optional paging input swaps site.problems for one state's page —
 	 * everything else in the payload, counts included, stays complete. */
 	public function test_problems_paging_input_swaps_the_problem_rows() {

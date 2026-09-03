@@ -805,6 +805,7 @@ final class Index {
 					'unknown'    => 0,
 					'discovered' => 0,
 					'crawled'    => 0,
+					'redirect'   => 0,
 					'blocked'    => 0,
 					'other'      => 0,
 				),
@@ -1001,7 +1002,7 @@ final class Index {
 	 * @return array<int,string>
 	 */
 	public static function state_keys() {
-		return array( 'error', 'canonical', 'unknown', 'discovered', 'crawled', 'blocked', 'other' );
+		return array( 'error', 'canonical', 'unknown', 'discovered', 'crawled', 'redirect', 'blocked', 'other' );
 	}
 
 	/**
@@ -1009,7 +1010,7 @@ final class Index {
 	 * count pills can tell the uncapped truth: rows are capped, counts never
 	 * are, and the client must group by the same key the totals were counted
 	 * under. Buckets, most-lost first: error, canonical, unknown, discovered,
-	 * crawled, blocked, other.
+	 * crawled, redirect, blocked, other.
 	 *
 	 * @param array $row A stored sweep row (or coverage entry).
 	 * @return string
@@ -1018,11 +1019,21 @@ final class Index {
 		if ( ! empty( $row['error'] ) ) {
 			return 'error';
 		}
+		$state = (string) ( isset( $row['coverage_state'] ) ? $row['coverage_state'] : '' );
+		// "Page with redirect" is this site's own instruction being followed:
+		// the URL redirects, and Google files the page where the redirect
+		// lands — so its canonical differs by construction. Judged BEFORE the
+		// canonical test, or a page the site deliberately sends elsewhere
+		// (a retired page folded into the homepage) would read as Google
+		// overruling the owner, in the harshest bucket, with the row blaming
+		// Google for an address the theme chose.
+		if ( 0 === stripos( $state, 'Page with redirect' ) ) {
+			return 'redirect';
+		}
 		$canonical = (string) ( isset( $row['google_canonical'] ) ? $row['google_canonical'] : '' );
 		if ( '' !== $canonical && self::norm( $canonical ) !== self::norm( (string) ( isset( $row['url'] ) ? $row['url'] : '' ) ) ) {
 			return 'canonical';
 		}
-		$state = (string) ( isset( $row['coverage_state'] ) ? $row['coverage_state'] : '' );
 		if ( false !== stripos( $state, 'unknown to Google' ) ) {
 			return 'unknown';
 		}

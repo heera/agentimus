@@ -65,6 +65,7 @@ Problems are grouped by state, with Google's own phrase quoted under each headin
 | Discovered, not yet crawled | *Discovered – currently not indexed* | Known, waiting for a visit |
 | Crawled, but left out | *Crawled – currently not indexed* | Visited, then not added |
 | Google chose a different address | — | Known, but filed under another URL; the row names which |
+| Sent elsewhere by this site | *Page with redirect* | Your site redirects the page, and Google files it where the redirect lands — usually deliberate, such as a retired page folded into another |
 | Blocked by this site | — | robots.txt or a noindex tag asks Google to stay out |
 
 Counts always tell the whole truth even when the list of rows is bounded: a group's count is every page in that state site-wide, not just the rows on screen. Where a group is long, it unfolds in place; where the whole list is very long, the card says so and links to Search Console's own Pages report, which has no cap.

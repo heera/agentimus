@@ -30,6 +30,7 @@ const GROUP_META = [
   { key: 'discovered', label: 'Discovered, not yet crawled', sub: 'Google’s own wording: “Discovered – currently not indexed” — known, still waiting for a first visit.' },
   { key: 'crawled', label: 'Crawled, but left out', sub: 'Google’s own wording: “Crawled – currently not indexed” — visited, then not added to the index.' },
   { key: 'canonical', label: 'Google chose a different address', sub: 'These pages are known — Google just files them under another URL; each row names which.' },
+  { key: 'redirect', label: 'Sent elsewhere by this site', sub: 'Google’s own wording: “Page with redirect” — this site redirects these pages, and Google files each where its redirect lands. Usually deliberate; each row names where.' },
   { key: 'blocked', label: 'Blocked by this site', sub: 'robots.txt or a noindex tag asks Google to stay out — each row names which.' },
   { key: 'error', label: 'Check failed', sub: 'These checks did not get an answer from Google — each row carries its own error.' },
   { key: 'other', label: 'Not in the index', sub: '' },
@@ -429,7 +430,15 @@ export default {
       // Inside a problem GROUP the state is the heading — repeating it on
       // every row is what made the flat list read as noise.
       if (!grouped && r.verdict && r.verdict !== 'pass' && r.state) bits.push(r.state);
-      if (r.canonicalDiffers) bits.push(`Google treats ${r.googleCanonical} as the real address of this page`);
+      // A page THIS SITE redirects: Google followed an instruction, it did not
+      // overrule one — so the clause names the site as the actor, not Google.
+      if (r.stateKey === 'redirect') {
+        bits.push(r.googleCanonical
+          ? `this site redirects the page to ${r.googleCanonical}, and Google files it there`
+          : 'this site redirects the page, and Google follows the redirect');
+      } else if (r.canonicalDiffers) {
+        bits.push(`Google treats ${r.googleCanonical} as the real address of this page`);
+      }
       if (r.robotsBlocked) bits.push('robots.txt blocks Google here');
       if (r.noindex) bits.push('a noindex tag or header asks Google to skip this page');
       const fetch = {

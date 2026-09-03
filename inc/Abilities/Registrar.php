@@ -756,7 +756,7 @@ final class Registrar {
 			'googleCanonical'  => self::s( 'The canonical Google chose; empty when unknown.' ),
 			'inSitemap'        => self::b( 'Whether a sitemap Google knows lists this URL — false on an unindexed page means nobody told Google it exists.' ),
 			'referrers'        => self::i( 'Pages Google knows link to this URL (at least — Google caps what it reports); 0 on an unindexed page names the other discovery gap: nothing points here.' ),
-			'stateKey'         => self::s( 'The problem bucket this row counts under: error | canonical | unknown | discovered | crawled | blocked | other; groups and site.problemStates share these keys.' ),
+			'stateKey'         => self::s( 'The problem bucket this row counts under: error | canonical | unknown | discovered | crawled | redirect | blocked | other; groups and site.problemStates share these keys.' ),
 			'richIssues'       => self::i( 'Rich-result issues Google reports on this page; 0 = none.' ),
 			'richTypes'        => self::s( 'Rich-result types Google detected, comma-separated; empty = none.' ),
 			'gscLink'          => self::s( 'Deep link to this URL\'s inspection in Search Console — where "Request indexing" lives (that button has no API).' ),
@@ -790,7 +790,7 @@ final class Registrar {
 				. 'when no key is connected.',
 			self::obj(
 				array(
-					'problemsState' => self::s( 'Optional: a problem bucket (error | canonical | unknown | discovered | crawled | blocked | other) — site.problems becomes one page of exactly that state\'s rows.' ),
+					'problemsState' => self::s( 'Optional: a problem bucket (error | canonical | unknown | discovered | crawled | redirect | blocked | other) — site.problems becomes one page of exactly that state\'s rows.' ),
 					'problemsPage'  => self::i( 'Optional: 1-based page of 50 within problemsState; ignored without it. Beyond the last page, site.problems is empty.' ),
 					'url'           => self::s( 'Optional: ONE page to answer for, absolute or site-relative. Answers from the stored record only — no live call to Google, no quota spent — so use it to ask "is THIS page in?" without walking rows. Adds `lookup` to the response; the rest of the payload is unchanged.' ),
 				)
@@ -840,6 +840,7 @@ final class Registrar {
 									'unknown'    => self::i( 'Never seen by Google.' ),
 									'discovered' => self::i( 'Discovered, not yet crawled.' ),
 									'crawled'    => self::i( 'Crawled, but not indexed.' ),
+									'redirect'   => self::i( 'This site redirects the page (Google: "Page with redirect"); Google files it where the redirect lands. Usually deliberate — a retired page folded into another — not a fault.' ),
 									'blocked'    => self::i( 'Blocked by robots.txt or noindex.' ),
 									'other'      => self::i( 'Anything else not on Google.' ),
 								)
@@ -867,7 +868,7 @@ final class Registrar {
 						array(
 							'status' => self::s( 'Only present when `url` was asked for. found = a stored answer is in `row`; unchecked = this site\'s page, no answer stored yet (site.cycleDays says when the rotation reaches it); foreign = not a URL on this site, so it is never checked here.' ),
 							'url'    => self::s( 'The URL as asked, resolved against the site when it was site-relative.' ),
-							'row'    => self::obj( $index_row ),
+							'row'    => self::nullable_obj( $index_row ),
 						)
 					),
 				)
@@ -3862,6 +3863,20 @@ final class Registrar {
 	/** An integer-or-null property (for a nullable cursor). */
 	private static function nullable_int() {
 		return array( 'type' => array( 'integer', 'null' ) );
+	}
+
+	/**
+	 * An object-or-null property — for an answer that may honestly have no
+	 * object (a lookup for a page nobody has checked yet). Declared as a plain
+	 * object, the null the callback returns fails the ability's own output
+	 * validation and the WHOLE payload is refused, "unchecked" included.
+	 *
+	 * @param array $properties Property => sub-schema.
+	 */
+	private static function nullable_obj( array $properties ) {
+		$schema         = self::obj( $properties );
+		$schema['type'] = array( 'object', 'null' );
+		return $schema;
 	}
 
 	/**
