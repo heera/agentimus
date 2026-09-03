@@ -35,6 +35,8 @@ The image is chosen by a simple chain — first match wins:
 2. Your site-wide **default share image** — pick one under Settings → **Discovery** → *Search basics* (used when a page has no featured image).
 3. Your **Site Icon**.
 
+X reads the same Open Graph tags, so a shared link previews on X with its image whether or not you have connected X to Agentimus. One card fact Open Graph cannot carry is *which* X account the site is: when you have connected X (under Settings → **Integrations**), the card also names that account in a `twitter:site` tag, so the preview is attributed to you. Nothing is guessed when X is not connected.
+
 One honest detail: many themes and plugins (Jetpack among them) already print their own Open Graph tags. Agentimus checks the page head and **prints cards only when nobody else has** — so whatever your site already does for social previews keeps working, and Agentimus fills the gap only where there is one.
 
 ## Canonical links

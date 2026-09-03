@@ -311,6 +311,16 @@ final class Seo {
 		// The large-image card only when there is an image to be large with.
 		$tags['twitter:card'] = ( null !== $image ) ? 'summary_large_image' : 'summary';
 
+		// X reads the title, text and image from the og: tags above, so the card
+		// renders for every site, connected to X or not. The one thing Open
+		// Graph cannot say is WHICH X account the site is — twitter:site — and
+		// the plugin knows that only when the owner has connected X (the handle
+		// the announcements post as). Printed then, never guessed otherwise.
+		$handle = ltrim( (string) Integrations\Services\Twitter::connection()['handle'], '@' );
+		if ( '' !== $handle && Integrations\Services\Twitter::connected() ) {
+			$tags['twitter:site'] = '@' . $handle;
+		}
+
 		/**
 		 * Filter the share-card tag map before printing (og:/twitter: key => content).
 		 * Values are escaped after this filter, so a provider can't break the head.

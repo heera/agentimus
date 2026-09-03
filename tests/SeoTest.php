@@ -16,6 +16,7 @@ namespace Agentimus\Tests;
 use Agentimus\Seo;
 use Agentimus\Settings;
 use PHPUnit\Framework\TestCase;
+use Agentimus\Integrations\Connections;
 
 final class SeoTest extends TestCase {
 
@@ -152,6 +153,29 @@ final class SeoTest extends TestCase {
 		// No featured image, no site default, no Site Icon in the test env:
 		$this->assertStringNotContainsString( 'og:image', $out );
 		$this->assertStringContainsString( '<meta name="twitter:card" content="summary" />', $out );
+		// X is not connected here: the card must not guess an account.
+		$this->assertStringNotContainsString( 'twitter:site', $out );
+	}
+
+	/** twitter:site names the X account the site is — the one card fact the
+	 * og: tags cannot carry — and only when the owner has connected X. */
+	public function test_cards_name_the_connected_x_account() {
+		$this->fixture_on_view( 7, null );
+		Connections::store( 'x', array( 'client_id' => 'cid', 'refresh_token' => 'rt', 'handle' => 'heera' ) );
+		$out = $this->cards();
+		Connections::forget( 'x' );
+		$this->assertStringContainsString( '<meta name="twitter:site" content="@heera" />', $out );
+		$this->assertStringContainsString( '<meta name="twitter:card" content="summary" />', $out, 'the card type still prints beside it' );
+	}
+
+	/** A stored handle without a usable grant (disconnected, or a half-finished
+	 * authorize) is not a connection — nothing is printed. */
+	public function test_cards_skip_twitter_site_without_a_live_grant() {
+		$this->fixture_on_view( 7, null );
+		Connections::store( 'x', array( 'client_id' => 'cid', 'refresh_token' => '', 'handle' => '@heera' ) );
+		$out = $this->cards();
+		Connections::forget( 'x' );
+		$this->assertStringNotContainsString( 'twitter:site', $out );
 	}
 
 	public function test_cards_use_the_seo_title_when_set() {
