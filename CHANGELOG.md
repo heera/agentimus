@@ -4,6 +4,10 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.51.3
+* Fixed: DuckDuckBot was flagged as a fake on every visit. The identity check looked for a duckduckgo.com address name, which DuckDuckGo does not publish. Its crawler runs from cloud addresses listed in DuckDuckGo's own address file, and that file was never read. DuckDuckBot is now checked against that list alone. For every crawler, an address its operator's own list names now counts as genuine even when the name lookup says no; a list that is out of date, missing or silent never clears a failed check. If a DuckDuckBot row is still in your review queue, re-check it to clear the old flag.
+* Fixed: in the review queue, a fake crawler using a real crawler's exact name borrowed the real one's traffic. Two failed requests beside hundreds of genuine Bingbot visits were marked "High volume" and sorted above a much larger impersonation, and ignoring such a row did not stick while the real crawler kept visiting. A row caught faking is now weighed on its own failed requests only: for the badge, for its place in the list, and for when an ignored row comes back.
+
 ## 1.51.2
 * Fixed: a page your own site redirects — a retired page folded into the homepage, say — was filed by the Google Index card under "Google chose a different address", the harshest heading, with a line that blamed Google for an address your site picked. Google's own wording for it is "Page with redirect", and it now has its own group, "Sent elsewhere by this site", whose row names where the page goes. It still counts, the way a page you block on purpose does; nothing is hidden.
 * Fixed: asking the Google Index tool about a page the daily check had not reached yet answered with an error instead of "not checked yet" — the tool's own output rules did not allow an empty row. An assistant asking about a brand-new page now gets the honest answer.

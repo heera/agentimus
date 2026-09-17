@@ -994,18 +994,13 @@ final class Admin {
 				// whole release, and there is one thing an owner may want to do.
 				array(
 					'icon'  => 'search',
-					'title' => 'Sent Elsewhere by This Site',
-					'text'  => 'A page your own site redirects, like a retired page folded into your homepage, has its own group on the Google Index card now, and the row says where it goes. It used to sit under "Google chose a different address", which blamed Google for a choice your site made.',
+					'title' => 'DuckDuckBot No Longer Looks Fake',
+					'text'  => 'Every DuckDuckBot visit was flagged as a fake, because the check looked for something DuckDuckGo never publishes. It is now checked against DuckDuckGo\'s own address list. If DuckDuckBot is still in your review queue, re-check it to clear the old flag.',
 				),
 				array(
-					'icon'  => 'link',
-					'title' => 'Share Cards Name Your X Account',
-					'text'  => 'A link shared on X has always previewed with its title, text and image. When you have connected X, the preview is now also attributed to your account.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Also Fixed',
-					'text'  => 'An assistant asking about a page the daily Google check has not reached yet is told "not checked yet" instead of getting an error.',
+					'icon'  => 'shield',
+					'title' => 'A Fake Crawler Can\'t Borrow the Real One\'s Traffic',
+					'text'  => 'A fake using a real crawler\'s name was marked High volume and sat at the top of your review queue on the real crawler\'s visits. Now only its own failed requests count, and ignoring it sticks.',
 				),
 			),
 		);
