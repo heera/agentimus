@@ -219,10 +219,16 @@ final class BotVerifier {
 	/**
 	 * The claim cascade, in ONE place: forward-confirmed reverse DNS first, the
 	 * operator's published IP-range file when rDNS is inapplicable (a range-only
-	 * operator like GPTBot) or inconclusive. Every consumer of "is this UA's
-	 * claim genuine?" reads THIS function — the serve-path Guard, the activity
-	 * ingest, and the admin re-check — so blocking, reporting and the re-check
-	 * button can never drift apart on what verified/spoofed means.
+	 * operator like GPTBot) or inconclusive — or when rDNS said no. Every consumer
+	 * of "is this UA's claim genuine?" reads THIS function — the serve-path Guard,
+	 * the activity ingest, and the admin re-check — so blocking, reporting and the
+	 * re-check button can never drift apart on what verified/spoofed means.
+	 *
+	 * An address the operator's own list names is the operator's, whatever its PTR
+	 * says: a crawler run from cloud addresses has no hostname in the operator's
+	 * domain, and judging that absence first called the real one an impostor.
+	 * The list may only rescue, never condemn, a claim rDNS already rejected — a
+	 * stale or unfetched list leaves the rDNS "no" standing.
 	 *
 	 * @param string $ua    User-Agent, any case.
 	 * @param string $ip    Source IP.
@@ -240,16 +246,17 @@ final class BotVerifier {
 		if ( true === $r ) {
 			return 1;
 		}
-		if ( false === $r ) {
-			return 2;
-		}
 		$token = VerifierRegistry::claimed( $ua_lc );
-		if ( '' === $token ) {
-			return 0; // No claim in the registry — nothing to fail. Fail open.
+		$range = 0; // No claim in the registry — nothing to fail. Fail open.
+		if ( '' !== $token ) {
+			$range = $fresh
+				? BotRanges::recheck( $token, (string) $ip )
+				: BotRanges::verdict( $token, (string) $ip );
 		}
-		return $fresh
-			? BotRanges::recheck( $token, (string) $ip )
-			: BotRanges::verdict( $token, (string) $ip );
+		if ( false === $r ) {
+			return 1 === $range ? 1 : 2;
+		}
+		return $range;
 	}
 
 	/**

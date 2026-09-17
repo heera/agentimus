@@ -744,7 +744,8 @@ final class Module {
 		}
 
 		// Fresh FCrDNS for each address, with the published-IP-range check as fallback when
-		// rDNS is inapplicable (a range-only operator like GPTBot) or inconclusive. Fold to
+		// rDNS is inapplicable (a range-only operator like GPTBot), inconclusive, or says no
+		// to an address the operator's own list names. Fold to
 		// the WORST (spoofed > verified > undetermined), mirroring the ingest aggregation.
 		$verdict = 0;
 		$per_ip  = array();

@@ -35,9 +35,9 @@ export default {
         return { tone: 'muted', head: 'Couldn’t determine', detail: 'The resolver was too slow to answer — try again in a moment.' };
       }
       if (r.host) {
-        return { tone: 'muted', head: 'Not a known search engine', detail: `${r.ip} reverse-resolves to ${r.host}, which isn’t one of the verifiable engines (Googlebot, Bingbot, DuckDuckBot, Applebot, Yandex).` };
+        return { tone: 'muted', head: 'Not a known search engine', detail: `${r.ip} reverse-resolves to ${r.host}, which isn’t one of the engines this check can confirm (Googlebot, Bingbot, Applebot, Yandex).` };
       }
-      return { tone: 'muted', head: 'No reverse-DNS record', detail: `${r.ip} has no PTR record — a genuine search-engine crawler always does.` };
+      return { tone: 'muted', head: 'No reverse-DNS record', detail: `${r.ip} has no PTR record — genuine Googlebot, Bingbot, Applebot and Yandex addresses always do. DuckDuckBot has none; DuckDuckGo publishes an address list instead.` };
     },
   },
   watch: {

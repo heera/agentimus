@@ -33,7 +33,9 @@ final class VerifierRegistry {
 	 * Built-in entries. Domain suffixes match the operators' verification docs; range-file
 	 * URLs were each fetched and format-checked before shipping (all use the shared
 	 * `{"prefixes":[{"ipv4Prefix":…}]}` format Google introduced). Yandex publishes rDNS
-	 * only — no range file.
+	 * only — no range file. DuckDuckGo publishes its address list only — its bot runs on
+	 * cloud addresses with no duckduckgo.com PTR, so an rDNS suffix would call the real
+	 * crawler an impostor.
 	 *
 	 * @return array<string,array{token:string,label:string,ua:string,domains:string[],url:string,builtin:bool}>
 	 */
@@ -54,7 +56,7 @@ final class VerifierRegistry {
 			'duckduckbot'   => array(
 				'label'   => 'DuckDuckBot',
 				'ua'      => 'duckduckbot',
-				'domains' => array( '.duckduckgo.com' ),
+				'domains' => array(),
 				'url'     => 'https://duckduckgo.com/duckduckbot.json',
 			),
 			'applebot'      => array(

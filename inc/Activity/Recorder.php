@@ -360,7 +360,8 @@ final class Recorder {
 	 * The full claim-based verdict: reverse-DNS first (the per-request check), then the
 	 * published-IP-range fallback for a claim the registry can range-verify — either a
 	 * range-only operator (GPTBot…) or an rDNS engine whose lookup was inconclusive
-	 * (resolver down, budget spent). The range side reads a cron-fetched cache and
+	 * (resolver down, budget spent) or said no to an address the operator's own list
+	 * names. The range side reads a cron-fetched cache and
 	 * NEVER fetches on this path ({@see BotRanges::verdict}), so it adds no latency
 	 * and no new failure mode; with the publisher unreachable it just answers 0.
 	 *

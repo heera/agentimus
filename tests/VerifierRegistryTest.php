@@ -51,6 +51,8 @@ final class VerifierRegistryTest extends TestCase {
 		$this->assertNotEmpty( $entries['googlebot']['url'], 'Googlebot also publishes a range file.' );
 		$this->assertSame( array(), $entries['gptbot']['domains'], 'GPTBot is range-only.' );
 		$this->assertSame( '', $entries['yandex']['url'], 'Yandex publishes rDNS only.' );
+		$this->assertSame( array(), $entries['duckduckbot']['domains'], 'DuckDuckGo publishes an address list only — no rDNS.' );
+		$this->assertNotEmpty( $entries['duckduckbot']['url'] );
 	}
 
 	public function test_a_disabled_builtin_leaves_the_registry_and_the_rdns_map() {
@@ -216,6 +218,57 @@ final class VerifierRegistryTest extends TestCase {
 			)
 		);
 		$this->assertSame( 0, BotRanges::verdict( 'gptbot', '192.0.2.9' ), 'The entry’s URL changed — the old file no longer describes it.' );
+	}
+
+	/* -- The claim cascade: the operator's own list outranks its PTR -------- */
+
+	const DDG_UA    = 'DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)';
+	const GOOGLE_UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+
+	/** Seed one operator's range cache the way the daily cron would. */
+	private function seedRange( string $token, array $prefixes, int $age ): void {
+		update_option(
+			BotRanges::OPTION,
+			array(
+				$token => array(
+					'url'        => VerifierRegistry::entry( $token )['url'],
+					'fetched_at' => time() - $age,
+					'prefixes'   => $prefixes,
+				),
+			)
+		);
+	}
+
+	/** REGRESSION (heera.it, 2026-09-17): every DuckDuckBot request was booked as an
+	 *  impostor, each from an address on duckduckbot.json. The registry demanded a
+	 *  duckduckgo.com PTR that DuckDuckGo never promised, and its cloud addresses have none. */
+	public function test_a_listed_duckduckbot_verifies_without_a_dns_lookup() {
+		$lookups = 0;
+		add_filter( 'agentimus_reverse_dns', static function () use ( &$lookups ) {
+			$lookups++;
+			return '';
+		} );
+		$this->seedRange( 'duckduckbot', array( '20.191.45.212/32' ), HOUR_IN_SECONDS );
+
+		$this->assertSame( 1, BotVerifier::claim_verdict( self::DDG_UA, '20.191.45.212' ) );
+		$this->assertSame( 2, BotVerifier::claim_verdict( self::DDG_UA, '203.0.113.9' ), 'Off the fresh list is still an impostor.' );
+		$this->assertSame( 0, $lookups, 'DuckDuckBot is range-only: no reverse lookup is spent on it.' );
+	}
+
+	public function test_an_address_on_the_operators_own_list_outranks_a_missing_ptr() {
+		add_filter( 'agentimus_reverse_dns', static function () { return ''; } ); // No PTR: rDNS says no.
+		$this->seedRange( 'googlebot', array( '66.249.64.0/19' ), HOUR_IN_SECONDS );
+
+		$this->assertSame( 1, BotVerifier::claim_verdict( self::GOOGLE_UA, '66.249.66.1' ), 'Google’s own list names the address — a missing PTR does not outvote it.' );
+		$this->assertSame( 2, BotVerifier::claim_verdict( self::GOOGLE_UA, '203.0.113.9' ) );
+		$this->assertSame( 1, BotVerifier::claim_verdict( self::GOOGLE_UA, '66.249.66.1', true ), 'The admin re-check reads the same cascade.' );
+	}
+
+	public function test_a_list_that_does_not_name_the_address_leaves_rdns_no_standing() {
+		add_filter( 'agentimus_reverse_dns', static function () { return ''; } );
+		$this->seedRange( 'googlebot', array( '66.249.64.0/19' ), BotRanges::FRESH_TTL + HOUR_IN_SECONDS );
+
+		$this->assertSame( 2, BotVerifier::claim_verdict( self::GOOGLE_UA, '203.0.113.9' ), 'A stale list cannot condemn — but its silence does not lift rDNS’s no either.' );
 	}
 
 	/* -- Settings sanitisation of custom entries ---------------------------- */

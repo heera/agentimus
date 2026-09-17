@@ -200,7 +200,8 @@ final class Guard {
 	 * Whether this request's claimed bot identity CONCLUSIVELY failed verification —
 	 * the one predicate that may cost a claimed bot its protection or (under
 	 * block_spoofed) the request. Two operator-sourced proofs, tried in order:
-	 *   • forward-confirmed reverse DNS answered a definite NO (verdict false); or
+	 *   • forward-confirmed reverse DNS answered a definite NO (verdict false) and
+	 *     the operator's published IP-range file does not name the address; or
 	 *   • rDNS was inapplicable/inconclusive (null) AND the claimed operator's
 	 *     published IP-range file is FRESH and excludes this address
 	 *     ({@see BotRanges::verdict} — its staleness asymmetry means a stale or

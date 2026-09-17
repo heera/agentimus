@@ -386,6 +386,24 @@ final class GuardTest extends TestCase {
 		$this->assertTrue( Guard::denies( self::GOOGLEBOT, true ), 'A fresh range exclusion condemns even when DNS cannot.' );
 	}
 
+	const DUCKDUCKBOT = 'DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)';
+
+	/** REGRESSION (heera.it, 2026-09-17): the real DuckDuckBot, from an address on
+	 *  DuckDuckGo's own published list, was judged forged for lacking a duckduckgo.com
+	 *  PTR — and a forged search engine loses its protection and is refused. */
+	public function test_a_duckduckbot_on_duckduckgos_own_list_is_served() {
+		$ip = '20.191.45.212';
+		add_filter( 'agentimus_client_ip', static function () use ( &$ip ) { return $ip; } );
+		add_filter( 'agentimus_reverse_dns', static function () { return ''; }, 10, 2 ); // Cloud address: no PTR.
+		$this->seedRanges( 'duckduckbot', array( '20.191.45.212/32' ) );
+		$this->configure( array( 'block_agents' => true, 'verify_bots' => true ) );
+
+		$this->assertFalse( Guard::denies( self::DUCKDUCKBOT, true ), 'On the operator’s own list = the operator.' );
+
+		$ip = '203.0.113.9';
+		$this->assertTrue( Guard::denies( self::DUCKDUCKBOT, true ), 'The same name off the fresh list is still refused.' );
+	}
+
 	/** REGRESSION (heera.it, 2026-07-18): identity checks must NOT run for an explicit
 	 *  UA — that's a display call (the review panel's "already blocked" badge), where
 	 *  the current IP is the ADMIN's own browser. Judged against that IP, every bot
