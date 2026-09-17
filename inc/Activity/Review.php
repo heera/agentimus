@@ -82,7 +82,7 @@ final class Review {
 		$rows  = isset( $stats['threats']['sources'] ) ? (array) $stats['threats']['sources'] : array();
 		foreach ( $rows as $row ) {
 			if ( isset( $row['ua'] ) && (string) $row['ua'] === $ua ) {
-				$hits = (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 );
+				$hits = (int) ( isset( $row['volume'] ) ? $row['volume'] : 0 );
 				break;
 			}
 		}

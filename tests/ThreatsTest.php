@@ -365,6 +365,77 @@ final class ThreatsTest extends TestCase {
 		$this->assertSame( gmdate( 'c', self::NOW - HOUR_IN_SECONDS ), $s['spoofLastSeen'], 'The newest failure wins.' );
 	}
 
+	/* -- An impostor is weighed on its own requests, not the real engine's ---
+	 *
+	 * Caught live on heera.it 2026-09-17: a Bingbot row with 741 verified requests
+	 * and 2 failed ones wore "High volume", scored severity 7 and topped the queue,
+	 * above a 422-request impersonation — every bit of that weight was the real
+	 * crawler's. A caught impostor is weighed on what did NOT prove genuine. */
+
+	const BINGBOT_LEGACY = 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)';
+
+	/** A spoofed row with its population split, as threats() hands it over. */
+	private function split( string $ua, string $agent, int $hits, int $spoof, int $verified ): array {
+		return $this->sourceV( $ua, $agent, $hits, 20 * DAY_IN_SECONDS, 2 ) + array(
+			'spoof_hits'      => $spoof,
+			'spoof_last_seen' => $this->gmt( 17 * DAY_IN_SECONDS ),
+			'verified_hits'   => $verified,
+		);
+	}
+
+	public function test_the_real_engines_volume_does_not_make_its_impostor_heavy() {
+		$r = $this->analyze( array( $this->split( self::GOOGLEBOT, 'Googlebot', 743, 2, 741 ) ) );
+		$s = $r['sources'][0];
+		$this->assertFalse( $s['flags']['heavy'], 'Two failed requests are not high volume, however busy the real crawler is.' );
+		$this->assertSame( 5, $s['severity'], 'Caught faking, nothing more.' );
+		$this->assertSame( 2, $s['volume'] );
+		$this->assertSame( 743, $s['hits'], 'The aggregate stays the aggregate.' );
+	}
+
+	public function test_an_impostors_own_volume_still_makes_it_heavy() {
+		$r = $this->analyze( array( $this->split( self::GOOGLEBOT, 'Googlebot', 600, 600, 0 ) ) );
+		$this->assertTrue( $r['sources'][0]['flags']['heavy'] );
+		$this->assertSame( 7, $r['sources'][0]['severity'] );
+	}
+
+	public function test_a_last_hour_burst_by_the_real_engine_is_not_the_impostors_burst() {
+		$src = $this->split( self::GOOGLEBOT, 'Googlebot', 60, 2, 58 );
+
+		$r = $this->analyze( array( $src ), array( self::GOOGLEBOT => 40 ), array( 'recentVerified' => array( self::GOOGLEBOT => 40 ) ) );
+		$this->assertFalse( $r['sources'][0]['flags']['heavy'], 'All 40 recent requests proved genuine.' );
+
+		$r = $this->analyze( array( $src ), array( self::GOOGLEBOT => 40 ), array( 'recentVerified' => array( self::GOOGLEBOT => 5 ) ) );
+		$this->assertTrue( $r['sources'][0]['flags']['heavy'], '35 unproven requests in the hour are a burst.' );
+	}
+
+	public function test_a_large_impersonation_outranks_a_tiny_one_riding_a_busy_name() {
+		$r = $this->analyze(
+			array(
+				$this->split( self::GOOGLEBOT, 'Googlebot', 743, 2, 741 ),
+				$this->split( self::BINGBOT_LEGACY, 'Bingbot', 422, 422, 0 ),
+			)
+		);
+		$this->assertSame( self::BINGBOT_LEGACY, $r['sources'][0]['ua'], '422 failed requests lead; 2 failed requests follow.' );
+		$this->assertSame( 0, $r['counts']['heavy'] );
+	}
+
+	public function test_an_ignored_impostor_stays_ignored_while_only_the_real_engine_grows() {
+		$key       = 'ua:' . md5( strtolower( self::GOOGLEBOT ) );
+		$dismissed = array( $key => array( 'at' => self::NOW, 'hits' => 2 ) );
+
+		$r = $this->withDismissed( array( $this->split( self::GOOGLEBOT, 'Googlebot', 1600, 2, 1598 ) ), $dismissed );
+		$this->assertCount( 0, $r['sources'], 'The real crawler doubling is not the impostor changing.' );
+
+		$r = $this->withDismissed( array( $this->split( self::GOOGLEBOT, 'Googlebot', 1640, 42, 1598 ) ), $dismissed );
+		$this->assertCount( 1, $r['sources'], 'The impostor itself coming back in volume re-surfaces it.' );
+	}
+
+	public function test_a_row_that_is_not_an_impostor_is_weighed_on_every_request() {
+		$r = $this->analyze( array( $this->source( self::NEWBOT, 'Other bot', 600, HOUR_IN_SECONDS ) + array( 'verified_hits' => 600 ) ) );
+		$this->assertSame( 600, $r['sources'][0]['volume'] );
+		$this->assertTrue( $r['sources'][0]['flags']['heavy'] );
+	}
+
 	/* -- Attribution: the owning network on a review row ------------------- */
 
 	public function test_a_review_row_carries_the_owning_network() {

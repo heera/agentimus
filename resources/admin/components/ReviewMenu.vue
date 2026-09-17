@@ -163,7 +163,9 @@ export default {
       return !!this.allowing && this.allowing.ua === s.ua;
     },
     doDismiss(s) {
-      this.$emit('dismiss', { ua: s.ua, hits: s.hits });
+      // The volume the queue weighs this row by, so the come-back test later
+      // compares like with like (an impostor's own requests, not the real engine's).
+      this.$emit('dismiss', { ua: s.ua, hits: s.volume });
     },
     isDismissing(s) {
       return !!this.dismissing && this.dismissing.ua === s.ua;

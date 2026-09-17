@@ -94,14 +94,16 @@ final class ReviewQueue {
 			ARRAY_A
 		);
 		$recent_rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT ua, COUNT(*) AS c FROM $table WHERE hit_at >= %s GROUP BY ua", $hour ),
+			$wpdb->prepare( "SELECT ua, COUNT(*) AS c, SUM(CASE WHEN verdict = 1 THEN 1 ELSE 0 END) AS v FROM $table WHERE hit_at >= %s GROUP BY ua", $hour ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-		$recent = array();
+		$recent          = array();
+		$recent_verified = array();
 		foreach ( (array) $recent_rows as $r ) {
-			$recent[ (string) $r['ua'] ] = (int) $r['c'];
+			$recent[ (string) $r['ua'] ]          = (int) $r['c'];
+			$recent_verified[ (string) $r['ua'] ] = (int) $r['v'];
 		}
 
 		$result = self::analyze_threats(
@@ -121,6 +123,7 @@ final class ReviewQueue {
 				'limit'      => (int) apply_filters( 'agentimus_threats_limit', self::THREATS_LIMIT ),
 				'dismissed'  => self::dismissed_map(),
 				'reverified' => self::reverified_map(),
+				'recentVerified' => $recent_verified,
 			)
 		);
 
@@ -197,6 +200,7 @@ final class ReviewQueue {
 		$out        = array();
 		$counts     = array( 'new' => 0, 'heavy' => 0, 'spoof' => 0 );
 		$reverified = isset( $opts['reverified'] ) ? (array) $opts['reverified'] : array();
+		$rec_proven = isset( $opts['recentVerified'] ) ? (array) $opts['recentVerified'] : array();
 
 		foreach ( $sources as $s ) {
 			$ua      = isset( $s['ua'] ) ? (string) $s['ua'] : '';
@@ -240,10 +244,23 @@ final class ReviewQueue {
 			$spoof_last    = empty( $s['spoof_last_seen'] ) ? 0 : strtotime( $s['spoof_last_seen'] . ' UTC' );
 			$verified_hits = isset( $s['verified_hits'] ) ? (int) $s['verified_hits'] : 0;
 
-			$is_new      = $first > 0 && ( $now - $first ) <= $new_secs;
-			$is_heavy    = $rec >= $burst_min || $hits >= $heavy_min;
-			$is_spoof    = Classifier::is_spoof( $ua );
 			$fake_engine = 2 === $verdict; // Live reverse-DNS: claims an engine it isn't.
+
+			// What this row is weighed by. A caught impostor is weighed on the requests
+			// that did NOT prove genuine: the verified ones are the real engine sharing its
+			// name, and counting them made the forgery "heavy" on the real crawler's volume.
+			// Caught live 2026-09-17: two failed requests topped the queue on the real
+			// Bingbot's 741 verified ones, ranked above a 422-request impersonation.
+			$volume  = $hits;
+			$vol_rec = $rec;
+			if ( $fake_engine ) {
+				$volume  = max( 0, $hits - $verified_hits );
+				$vol_rec = max( 0, $rec - ( isset( $rec_proven[ $ua ] ) ? (int) $rec_proven[ $ua ] : 0 ) );
+			}
+
+			$is_new      = $first > 0 && ( $now - $first ) <= $new_secs;
+			$is_heavy    = $vol_rec >= $burst_min || $volume >= $heavy_min;
+			$is_spoof    = Classifier::is_spoof( $ua );
 
 			if ( ! $is_new && ! $is_heavy && ! $is_spoof && ! $fake_engine ) {
 				continue; // Nothing flags it.
@@ -305,6 +322,10 @@ final class ReviewQueue {
 				'guide'     => $known ? null : Catalog::self_declared( $ua ),
 				'hits'      => $hits,
 				'recent'    => $rec,
+				// The volume the queue judges this row by — `hits`, or on a caught impostor
+				// only the requests that did not prove genuine. Heavy, the ranking and an
+				// Ignore's come-back test all read this one number.
+				'volume'    => $volume,
 				'firstSeen' => $first ? gmdate( 'c', $first ) : '',
 				'lastSeen'  => $last ? gmdate( 'c', $last ) : '',
 				'flags'     => array(
@@ -386,7 +407,7 @@ final class ReviewQueue {
 
 		// Rank for a "review" panel: rows that still need a decision lead; an
 		// already-blocked client is handled, so it sinks. Within each group, most
-		// severe first, then by raw volume.
+		// severe first, then by the volume each row is weighed by.
 		usort(
 			$out,
 			static function ( $a, $b ) {
@@ -396,7 +417,7 @@ final class ReviewQueue {
 				if ( $a['severity'] !== $b['severity'] ) {
 					return $b['severity'] - $a['severity'];
 				}
-				return $b['hits'] - $a['hits'];
+				return $b['volume'] - $a['volume'];
 			}
 		);
 
@@ -463,6 +484,7 @@ final class ReviewQueue {
 	private static function fold_variant( array $keep, array $add ) {
 		$keep['hits']    += $add['hits'];
 		$keep['recent']  += $add['recent'];
+		$keep['volume']  += $add['volume'];
 		$keep['severity'] = max( $keep['severity'], $add['severity'] );
 		// The population split folds like the totals it splits: counts sum, and the
 		// newest failure dates the merged verdict (ISO-8601 +00:00 sorts lexically).
@@ -556,7 +578,7 @@ final class ReviewQueue {
 			$key = self::dismiss_key( $row['ua'] );
 			if ( isset( $dismissed[ $key ] ) ) {
 				$was  = isset( $dismissed[ $key ]['hits'] ) ? (int) $dismissed[ $key ]['hits'] : 0;
-				$grew = (int) $row['hits'] >= max( $was * 2, $was + (int) $burst_min );
+				$grew = (int) $row['volume'] >= max( $was * 2, $was + (int) $burst_min );
 				if ( ! $grew ) {
 					continue; // Dismissed and materially unchanged — suppress.
 				}
