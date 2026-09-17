@@ -299,8 +299,8 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 == Changelog ==
 
 = 1.51.3 =
-* Fixed: DuckDuckBot was flagged as a fake on every visit. The identity check looked for a duckduckgo.com address name, which DuckDuckGo does not publish. Its crawler runs from cloud addresses listed in DuckDuckGo's own address file, and that file was never read. DuckDuckBot is now checked against that list alone. For every crawler, an address its operator's own list names now counts as genuine even when the name lookup says no; a list that is out of date, missing or silent never clears a failed check. If a DuckDuckBot row is still in your review queue, re-check it to clear the old flag.
-* Fixed: in the review queue, a fake crawler using a real crawler's exact name borrowed the real one's traffic. Two failed requests beside hundreds of genuine Bingbot visits were marked "High volume" and sorted above a much larger impersonation, and ignoring such a row did not stick while the real crawler kept visiting. A row caught faking is now weighed on its own failed requests only: for the badge, for its place in the list, and for when an ignored row comes back.
+* Fixed: a real search crawler could be flagged as a fake on every visit. The identity check asked for an address name that not every operator publishes, and a crawler run from cloud addresses has none, so its operator's own published address list was never read. An address the operator's own list names now counts as genuine, even when the name lookup says no, and a crawler whose operator publishes only a list is checked against that list alone. A list that is out of date, missing or silent never clears a failed check. If a crawler is still flagged in your review queue, re-check it to clear the old flag.
+* Fixed: in the review queue, a fake crawler using a real crawler's exact name borrowed the real one's traffic. Two failed requests beside hundreds of genuine visits were marked "High volume" and sorted above a much larger impersonation, and ignoring such a row did not stick while the real crawler kept visiting. A row caught faking is now weighed on its own failed requests only: for the badge, for its place in the list, and for when an ignored row comes back.
 
 = 1.51.2 =
 * Fixed: a page your own site redirects — a retired page folded into the homepage, say — was filed by the Google Index card under "Google chose a different address", the harshest heading, with a line that blamed Google for an address your site picked. Google's own wording for it is "Page with redirect", and it now has its own group, "Sent elsewhere by this site", whose row names where the page goes. It still counts, the way a page you block on purpose does; nothing is hidden.
@@ -392,7 +392,7 @@ The most recent releases are listed here, back to 1.45.0. Every earlier one, bac
 == Upgrade Notice ==
 
 = 1.51.3 =
-DuckDuckBot is no longer flagged as a fake, and a fake crawler no longer borrows the real crawler's traffic to top the review queue. No breaking changes.
+A real search crawler is no longer flagged as a fake when its address is on its operator's own published list, and a fake crawler no longer borrows the real crawler's traffic to top the review queue. No breaking changes.
 
 = 1.51.2 =
 The Google Index card files a page your own site redirects under "Sent elsewhere by this site" instead of blaming Google for the address, and the Google Index tool answers "not checked yet" for a brand-new page instead of failing. Share cards name your connected X account. No breaking changes.

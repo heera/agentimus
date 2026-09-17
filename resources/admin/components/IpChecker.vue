@@ -37,7 +37,7 @@ export default {
       if (r.host) {
         return { tone: 'muted', head: 'Not a known search engine', detail: `${r.ip} reverse-resolves to ${r.host}, which isn’t one of the engines this check can confirm (Googlebot, Bingbot, Applebot, Yandex).` };
       }
-      return { tone: 'muted', head: 'No reverse-DNS record', detail: `${r.ip} has no PTR record — genuine Googlebot, Bingbot, Applebot and Yandex addresses always do. DuckDuckBot has none; DuckDuckGo publishes an address list instead.` };
+      return { tone: 'muted', head: 'No reverse-DNS record', detail: `${r.ip} has no PTR record — genuine Googlebot, Bingbot, Applebot and Yandex addresses always do. Some crawlers publish an address list instead and have none.` };
     },
   },
   watch: {

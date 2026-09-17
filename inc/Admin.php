@@ -994,8 +994,8 @@ final class Admin {
 				// whole release, and there is one thing an owner may want to do.
 				array(
 					'icon'  => 'search',
-					'title' => 'DuckDuckBot No Longer Looks Fake',
-					'text'  => 'Every DuckDuckBot visit was flagged as a fake, because the check looked for something DuckDuckGo never publishes. It is now checked against DuckDuckGo\'s own address list. If DuckDuckBot is still in your review queue, re-check it to clear the old flag.',
+					'title' => 'Real Crawlers Are Checked Against Their Own Lists',
+					'text'  => 'A real search crawler could be flagged as a fake on every visit, because the check looked for something its operator never publishes. A crawler whose address is on its operator\'s own published list now counts as genuine. If one is still flagged in your review queue, re-check it to clear the old flag.',
 				),
 				array(
 					'icon'  => 'shield',
