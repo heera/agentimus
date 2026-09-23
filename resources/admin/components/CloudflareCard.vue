@@ -13,6 +13,7 @@
  */
 import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
+import { edgeBadge } from '../js/edgeBadge.js';
 import ConnectionRail from './ConnectionRail.vue';
 import CardSkeleton from './CardSkeleton.vue';
 import AppLink from './AppLink.vue';
@@ -50,6 +51,7 @@ export default {
     if (this.active && !this.cf) this.loadCloudflare();
   },
   methods: {
+    edgeBadge,
     async loadCloudflare() {
       if (!this.api) return;
       try {
@@ -226,7 +228,7 @@ export default {
         </p>
         <div class="ar-edge-pins">
           <div v-for="c in cfConflicts" :key="c.id" class="ar-edge-pin" :class="`ar-edge-pin--${c.level}`">
-            <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
+            <span class="ar-edge-pin__badge">{{ edgeBadge(c) }}</span>
             <p class="ar-edge-pin__title">{{ c.title }}</p>
             <p class="ar-edge-pin__body">{{ c.body }}</p>
             <div class="ar-edge-pin__actions">

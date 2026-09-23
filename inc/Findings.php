@@ -1289,9 +1289,13 @@ final class Findings {
 					number_format_i18n( (int) $counts['requests'] )
 				);
 			} elseif ( $impostor && ! empty( $c['checked']['spoofed'] ) ) {
+				// ⛔ REQUESTS, NOT IMPOSTORS. `spoofed` counts blocked requests
+				// proven to come from outside the operator's addresses — a handful
+				// of machines can send hundreds. On heera.it (2026-09-23) the old
+				// chip called one request "1 … impostors": wrong in number and noun.
 				$evidence[] = sprintf(
-					/* translators: %s: request count. */
-					__( '%s confirmed impostors', 'agentimus' ),
+					/* translators: %s: how many blocked requests were proven to come from someone else. */
+					_n( '%s request proven fake', '%s requests proven fake', (int) $c['checked']['spoofed'], 'agentimus' ),
 					number_format_i18n( (int) $c['checked']['spoofed'] )
 				);
 			} elseif ( ! $impostor && ! empty( $counts['passed'] ) ) {

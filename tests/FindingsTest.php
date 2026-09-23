@@ -436,8 +436,22 @@ final class FindingsTest extends TestCase {
 
 		$this->assertStringContainsString( "'edge_impostors'", $edge, 'the demoted conflict has its own finding id' );
 		$this->assertStringContainsString( "'edge-blocks-'", $edge, 'told apart by the id prefix, never by level alone' );
-		$this->assertStringContainsString( 'confirmed impostors', $edge, 'its chip counts the proven fakes, not trainer passes' );
+		$this->assertStringContainsString( 'requests proven fake', $edge, 'its chip counts the proven fakes, not trainer passes' );
 		$this->assertStringContainsString( 'Nothing needs allowing', $edge, 'its copy asks nothing of the owner' );
+	}
+
+	/**
+	 * ⛔ The impostor chip counts REQUESTS, in the right number. heera.it
+	 * 2026-09-23 read "1 confirmed impostors": a plural on one, and a noun
+	 * that called each blocked request a separate impostor.
+	 */
+	public function test_the_impostor_chip_counts_requests_with_a_plural_form() {
+		$src  = (string) file_get_contents( dirname( __DIR__ ) . '/inc/Findings.php' );
+		$from = strpos( $src, 'private function edge_conflicts()' );
+		$edge = substr( $src, $from, strpos( $src, 'private function clear_lines()' ) - $from );
+
+		$this->assertStringContainsString( "_n( '%s request proven fake', '%s requests proven fake', (int) \$c['checked']['spoofed']", $edge );
+		$this->assertStringNotContainsString( 'confirmed impostors', $edge );
 	}
 
 	/** The impostor note asks nothing of the owner — it ranks below even the training notice. */

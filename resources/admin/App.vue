@@ -3,6 +3,7 @@ import { createApi } from './js/api.js';
 import { navIcon } from './js/groupIcons.js';
 import { tipGuard } from './js/tipGuard.js';
 import { setTheme, resolvedTheme } from './js/theme.js';
+import { edgeBadge } from './js/edgeBadge.js';
 import ScoreRail from './components/ScoreRail.vue';
 import SettingsForm from './components/SettingsForm.vue';
 import ReadinessPanel from './components/ReadinessPanel.vue';
@@ -756,6 +757,7 @@ export default {
   },
   methods: {
     navIcon,
+    edgeBadge,
     // What a screen reader hears on a tab that carries state. The dot is purely
     // visual, so its meaning has to be spelled out here or the tab announces
     // nothing at all where a sighted user sees a mark.
@@ -2602,7 +2604,7 @@ export default {
                 :aria-expanded="c.collapsed ? 'false' : 'true'"
                 @click="toggleEdgeConflict(c)"
               >
-                <span class="ar-edge-pin__badge">{{ c.level === 'warn' ? 'Conflict' : 'Not enforced' }}</span>
+                <span class="ar-edge-pin__badge">{{ edgeBadge(c) }}</span>
                 <span class="ar-edge-pin__rowtitle">{{ c.title }}</span>
               </button>
               <!-- ⛔ No "→" in this label: the external-link style already draws
