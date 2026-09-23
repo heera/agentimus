@@ -298,6 +298,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.4 =
+* Fixed: the Request Log could warn that Cloudflare was blocking an AI company your policy allows when it was really stopping impostors using that company's name. The warning checks the blocked requests against the company's own published addresses and steps down to a note when they all come from somewhere else, but it needed at least ten fakes from the last day, so as an impersonation campaign faded, the warning came back on its last few requests. Once every request blocked that day is proven fake, the warning now steps down however few there were.
+* Fixed: a crawler you block on purpose (on your own block list, or a training crawler while your robots.txt says ai-train=no) could still shape a Cloudflare warning about its company. Its blocks set the day the warning said it started, and its requests were counted in the impostor check. Both now leave it out, as the warning itself always did.
+* Changed: Cloudflare warnings and the training notice say how many requests fell in the last day, instead of "some".
+* Fixed: the impostor note wore a "Not enforced" badge, although Cloudflare is stopping those requests. It is now badged "Impostors", on the Request Log and in Settings, and its Findings row counts "requests proven fake" instead of "confirmed impostors".
+
 = 1.51.3 =
 * Fixed: a real search crawler could be flagged as a fake on every visit. The identity check asked for an address name that not every operator publishes, and a crawler run from cloud addresses has none, so its operator's own published address list was never read. An address the operator's own list names now counts as genuine, even when the name lookup says no, and a crawler whose operator publishes only a list is checked against that list alone. A list that is out of date, missing or silent never clears a failed check. If a crawler is still flagged in your review queue, re-check it to clear the old flag.
 * Fixed: in the review queue, a fake crawler using a real crawler's exact name borrowed the real one's traffic. Two failed requests beside hundreds of genuine visits were marked "High volume" and sorted above a much larger impersonation, and ignoring such a row did not stick while the real crawler kept visiting. A row caught faking is now weighed on its own failed requests only: for the badge, for its place in the list, and for when an ignored row comes back.
@@ -390,6 +396,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.45.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.4 =
+Cloudflare warnings about an AI company step down once every blocked request is proven to be an impostor, leave out crawlers you block on purpose, and say how many blocks fell in the last day. No breaking changes.
 
 = 1.51.3 =
 A real search crawler is no longer flagged as a fake when its address is on its operator's own published list, and a fake crawler no longer borrows the real crawler's traffic to top the review queue. No breaking changes.

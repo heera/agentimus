@@ -993,14 +993,14 @@ final class Admin {
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
 				array(
-					'icon'  => 'search',
-					'title' => 'Real Crawlers Are Checked Against Their Own Lists',
-					'text'  => 'A real search crawler could be flagged as a fake on every visit, because the check looked for something its operator never publishes. A crawler whose address is on its operator\'s own published list now counts as genuine. If one is still flagged in your review queue, re-check it to clear the old flag.',
+					'icon'  => 'shield',
+					'title' => 'Impostor Warnings Step Down When They Should',
+					'text'  => 'When Cloudflare blocks requests that only wear an AI company\'s name, the warning now steps down as soon as every blocked request is proven fake, even on a quiet day. It is badged Impostors instead of Not enforced.',
 				),
 				array(
-					'icon'  => 'shield',
-					'title' => 'A Fake Crawler Can\'t Borrow the Real One\'s Traffic',
-					'text'  => 'A fake using a real crawler\'s name was marked High volume and sat at the top of your review queue on the real crawler\'s visits. Now only its own failed requests count, and ignoring it sticks.',
+					'icon'  => 'page',
+					'title' => 'Warnings Say How Many',
+					'text'  => 'Cloudflare warnings now say how many blocks fell in the last day, and a crawler you block on purpose no longer changes the day a warning says it started.',
 				),
 			),
 		);
