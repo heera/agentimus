@@ -867,6 +867,166 @@ final class CloudflareTest extends TestCase {
 		) );
 	}
 
+	// ── heera.it 2026-09-23: a week-old scanner plus one probe ─────────────
+
+	/** heera.it's policy that day: AI reading allowed, ai-train=no, GPTBot on his block list. */
+	private function heera_policy() {
+		return array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array( 'GPTBot' ) );
+	}
+
+	/**
+	 * ⛔ HOW MANY, NOT "SOME". The warning read "85 of 325 … including some in
+	 * the last day" when the last day held ONE blocked request — a probe for
+	 * /wp-config.php. The owner weighs a warning by that number, so it prints.
+	 */
+	public function test_the_warning_says_how_many_blocks_were_in_the_last_day() {
+		$out = Conflicts::detect(
+			array(
+				$this->crawler( 'oai-searchbot', 'OpenAI', 325, 8, 232, 85 ),
+				$this->crawler( 'gptbot', 'OpenAI', 257, 0, 0, 257 ),
+			),
+			$this->heera_policy(),
+			7,
+			array(
+				'oai-searchbot' => array( 'blocked' => 1, 'passed' => 24 ),
+				'gptbot'        => array( 'blocked' => 7, 'passed' => 0 ),
+			)
+		);
+
+		$this->assertSame( 'edge-blocks-openai', $out[0]['id'] );
+		$this->assertStringContainsString( '85 of 325', $out[0]['body'] );
+		$this->assertStringContainsString( '1 of them in the last day', $out[0]['body'] );
+		$this->assertStringNotContainsString( 'some in the last day', $out[0]['body'] );
+		$this->assertSame( 1, $out[0]['counts']['recent'], 'GPTBot is his own block — its 7 are not the conflict\'s' );
+	}
+
+	public function test_the_training_notice_says_how_many_got_through_in_the_last_day() {
+		$out = Conflicts::detect(
+			array( $this->crawler( 'claudebot', 'Anthropic', 240, 0, 57, 183 ) ),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
+			7,
+			array( 'claudebot' => array( 'blocked' => 8, 'passed' => 7 ) )
+		);
+
+		$this->assertSame( 'train-not-enforced', $out[0]['id'] );
+		$this->assertStringContainsString( '57 requests in the last 7 days, 7 of them in the last day', $out[0]['body'] );
+		$this->assertSame( 7, $out[0]['counts']['recent'] );
+	}
+
+	/**
+	 * ⛔⛔ THE START DATE COUNTS WHAT THE WARNING COUNTS. The scanner ran 09-16
+	 * and 09-17; GPTBot — on his block list — was blocked 24 times on 09-22.
+	 * The card said "Started September 22": dated from a block he asked for.
+	 */
+	public function test_the_onset_ignores_a_crawler_the_owner_blocks_on_purpose() {
+		$daily = array(
+			'2026-09-15' => array( 'oai-searchbot' => array( 'requests' => 30, 'blocked' => 0, 'passed' => 30 ) ),
+			'2026-09-16' => array( 'oai-searchbot' => array( 'requests' => 120, 'blocked' => 40, 'passed' => 80 ) ),
+			'2026-09-17' => array( 'oai-searchbot' => array( 'requests' => 90, 'blocked' => 44, 'passed' => 46 ) ),
+			'2026-09-18' => array( 'oai-searchbot' => array( 'requests' => 20, 'blocked' => 0, 'passed' => 20 ) ),
+			'2026-09-22' => array(
+				'oai-searchbot' => array( 'requests' => 35, 'blocked' => 0, 'passed' => 35 ),
+				'gptbot'        => array( 'requests' => 24, 'blocked' => 24, 'passed' => 0 ),
+			),
+			'2026-09-23' => array(
+				'oai-searchbot' => array( 'requests' => 25, 'blocked' => 1, 'passed' => 24 ),
+				'gptbot'        => array( 'requests' => 7, 'blocked' => 7, 'passed' => 0 ),
+			),
+		);
+		$ops = array( 'oai-searchbot' => 'OpenAI', 'gptbot' => 'OpenAI' );
+
+		$onset = Conflicts::onset( $daily, 'edge-blocks-openai', $ops, $this->heera_policy() );
+
+		$this->assertSame( '2026-09-16', $onset['at'], 'the scanner\'s days, not GPTBot\'s' );
+		$this->assertFalse( $onset['bounded'] );
+	}
+
+	/** The other way an owner asks: ai-train=no makes any trainer's block agreement. */
+	public function test_the_onset_ignores_a_trainer_under_ai_train_no() {
+		$daily = array(
+			'2026-09-21' => array( 'oai-searchbot' => array( 'requests' => 30, 'blocked' => 0, 'passed' => 30 ) ),
+			'2026-09-22' => array( 'gptbot' => array( 'requests' => 24, 'blocked' => 24, 'passed' => 0 ) ),
+		);
+
+		$onset = Conflicts::onset(
+			$daily,
+			'edge-blocks-openai',
+			array( 'oai-searchbot' => 'OpenAI', 'gptbot' => 'OpenAI' ),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() )
+		);
+
+		$this->assertSame( '', $onset['at'] );
+	}
+
+	public function test_the_spoof_sample_leaves_out_a_crawler_the_owner_blocks() {
+		$catalog = array(
+			'oai-searchbot' => array( 'OAI-SearchBot', 'OpenAI', 'ai' ),
+			'gptbot'        => array( 'GPTBot', 'OpenAI', 'ai' ),
+		);
+		$rows = SpoofCheck::sample_rows(
+			array(
+				array( 'ip' => '154.58.229.44', 'ua' => 'Mozilla/5.0 (compatible; OAI-SearchBot/1.3; +https://openai.com/searchbot)', 'requests' => 1 ),
+				array( 'ip' => '34.123.166.90', 'ua' => 'Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)', 'requests' => 7 ),
+			),
+			$catalog,
+			array( 'OpenAI' => true ),
+			$this->heera_policy()
+		);
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( '154.58.229.44', $rows[0]['ip'] );
+	}
+
+	public function test_the_last_days_blocking_is_counted_per_operator_without_the_owners_blocks() {
+		$out = SpoofCheck::recent_blocked(
+			array(
+				array( 'ua' => 'oai-searchbot', 'operator' => 'OpenAI' ),
+				array( 'ua' => 'chatgpt-user', 'operator' => 'OpenAI' ),
+				array( 'ua' => 'gptbot', 'operator' => 'OpenAI' ),
+				array( 'ua' => 'perplexitybot', 'operator' => 'Perplexity' ),
+			),
+			$this->heera_policy(),
+			array(
+				'oai-searchbot' => array( 'blocked' => 1, 'passed' => 24 ),
+				'gptbot'        => array( 'blocked' => 7, 'passed' => 0 ),
+				'perplexitybot' => array( 'blocked' => 0, 'passed' => 17 ),
+			)
+		);
+
+		$this->assertSame( array( 'OpenAI' => 1, 'Perplexity' => 0 ), $out );
+	}
+
+	/**
+	 * ⛔⛔ A SMALL SAMPLE IS NOT AN INCOMPLETE ONE. Every blocked request of the
+	 * day was proven fake — just fewer than ten, because the scanner was fading.
+	 * The flat floor kept the warning up exactly as the campaign died.
+	 */
+	public function test_proving_all_of_a_quiet_days_blocking_fake_stands_the_warning_down() {
+		$now = 1790173469;
+		$this->assertTrue( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 1, 'verified' => 0, 'spoofed' => 1, 'unknown' => 0, 'recent' => 1 ),
+			$now
+		) );
+	}
+
+	/** The floor still guards the real risk: a sample that covers only part of the day's blocking. */
+	public function test_a_sample_smaller_than_the_days_blocking_keeps_the_warning() {
+		$now = 1790173469;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 8, 'verified' => 0, 'spoofed' => 8, 'unknown' => 0, 'recent' => 30 ),
+			$now
+		) );
+	}
+
+	/** A quiet day proven fake still needs nothing genuine in it. */
+	public function test_a_quiet_day_with_one_verified_block_keeps_the_warning() {
+		$now = 1790173469;
+		$this->assertFalse( SpoofCheck::stands_down(
+			array( 'at' => $now, 'sampled' => 2, 'verified' => 1, 'spoofed' => 1, 'unknown' => 0, 'recent' => 2 ),
+			$now
+		) );
+	}
+
 	public function test_blocked_sources_normalizes_the_graphql_shape() {
 		$GLOBALS['_af_http_queue'][] = array(
 			'response' => array( 'code' => 200 ),

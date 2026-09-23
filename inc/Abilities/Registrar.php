@@ -603,6 +603,7 @@ final class Registrar {
 									'blocked'  => self::i( 'warn only: requests the edge turned away in the window.' ),
 									'requests' => self::i( 'warn only: requests that operator made in the window.' ),
 									'passed'   => self::i( 'info only: training-crawler requests the edge let through.' ),
+									'recent'   => self::i( 'Of `blocked` (warn) or `passed` (info), how many happened in the last day — what keeps the conflict current. A week of blocking with 1 here is history plus one request.' ),
 								)
 							),
 							'checked' => array_merge(
@@ -634,6 +635,7 @@ final class Registrar {
 									'blocked'  => self::i(),
 									'requests' => self::i(),
 									'passed'   => self::i(),
+									'recent'   => self::i(),
 								)
 							),
 							'checked'    => self::obj(

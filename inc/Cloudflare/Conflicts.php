@@ -78,10 +78,6 @@ final class Conflicts {
 		$days     = max( 1, (int) $days );
 		$ai_input = ! isset( $policy['ai_input'] ) || false !== $policy['ai_input'];
 		$ai_train = ! isset( $policy['ai_train'] ) || false !== $policy['ai_train'];
-		// The owner's block list stores UA names as typed ("GPTBot"); crawler rows
-		// carry lowercase tokens ("gptbot"). Compare case-insensitively or a
-		// deliberate block would never be recognised as one.
-		$owner_blocked = array_map( 'strtolower', array_map( 'strval', isset( $policy['blocked_agents'] ) ? (array) $policy['blocked_agents'] : array() ) );
 
 		// ── The edge is turning away a crawler the owner allows ────────────────
 		// The threshold runs PER CRAWLER, the message per operator. Bot Fight Mode
@@ -93,14 +89,7 @@ final class Conflicts {
 			$per_operator = array();
 			foreach ( $crawlers as $c ) {
 				$token = strtolower( (string) $c['ua'] );
-				if ( in_array( $token, $owner_blocked, true ) ) {
-					continue; // The owner blocks this crawler on purpose — the edge agreeing is not a conflict.
-				}
-				// Same reasoning one level up: with ai-train=no declared, the edge
-				// blocking a TRAINING crawler (e.g. Cloudflare's Training policy set
-				// to Block) is the owner's wish being enforced — even for a trainer
-				// the owner never named. Reading fetchers stay warn-eligible.
-				if ( ! $ai_train && in_array( $token, self::TRAINERS, true ) ) {
+				if ( self::blocking_is_owners_wish( $token, $policy ) ) {
 					continue;
 				}
 				$blocked  = (int) $c['blocked'];
@@ -116,10 +105,11 @@ final class Conflicts {
 					continue;
 				}
 				if ( ! isset( $per_operator[ $op ] ) ) {
-					$per_operator[ $op ] = array( 'blocked' => 0, 'requests' => 0 );
+					$per_operator[ $op ] = array( 'blocked' => 0, 'requests' => 0, 'recent' => 0 );
 				}
 				$per_operator[ $op ]['blocked']  += $blocked;
 				$per_operator[ $op ]['requests'] += $requests;
+				$per_operator[ $op ]['recent']   += null !== $recent ? (int) $recent[ $token ]['blocked'] : 0;
 			}
 
 			foreach ( $per_operator as $op => $sums ) {
@@ -131,20 +121,35 @@ final class Conflicts {
 						__( 'Cloudflare is blocking %s, but your policy says allow', 'agentimus' ),
 						$op
 					),
-					'body'  => sprintf(
-						/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days. */
-						__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers in the last %4$d days — including some in the last day. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
-						number_format_i18n( $sums['blocked'] ),
-						number_format_i18n( $sums['requests'] ),
-						$op,
-						$days
-					),
+					// ⛔ HOW MANY IN THE LAST DAY, NOT "SOME". The week makes a
+					// conflict significant, the last day only keeps it current — and
+					// on heera.it (2026-09-23) "including some in the last day" was
+					// ONE request, a probe for /wp-config.php, under 84 blocks that
+					// were a week old. The owner weighs the warning by that number.
+					'body'  => null !== $recent
+						? sprintf(
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days, 5: blocked request count in the last day. */
+							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers in the last %4$d days — %5$s of them in the last day. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
+							number_format_i18n( $sums['blocked'] ),
+							number_format_i18n( $sums['requests'] ),
+							$op,
+							$days,
+							number_format_i18n( $sums['recent'] )
+						)
+						: sprintf(
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days. */
+							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers in the last %4$d days. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
+							number_format_i18n( $sums['blocked'] ),
+							number_format_i18n( $sums['requests'] ),
+							$op,
+							$days
+						),
 					'link'  => 'bots',
 					// ⭐ THE NUMBERS, BESIDE THE PROSE THAT USES THEM. Every other
 					// consumer — the findings row, the weekly digest — needs the
 					// same two figures in a shorter sentence, and re-parsing them
 					// back out of $body would make the copy above load-bearing.
-					'counts' => array( 'blocked' => (int) $sums['blocked'], 'requests' => (int) $sums['requests'] ),
+					'counts' => array( 'blocked' => (int) $sums['blocked'], 'requests' => (int) $sums['requests'], 'recent' => (int) $sums['recent'] ),
 				);
 			}
 		}
@@ -173,19 +178,60 @@ final class Conflicts {
 					'id'    => 'train-not-enforced',
 					'level' => 'info',
 					'title' => __( 'Cloudflare is letting training crawlers through', 'agentimus' ),
-					'body'  => sprintf(
-						/* translators: 1: request count, 2: number of days. */
-						__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests in the last %2$d days, including some in the last day. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
-						number_format_i18n( $passes ),
-						$days
-					),
+					'body'  => null !== $recent
+						? sprintf(
+							/* translators: 1: request count, 2: number of days, 3: request count in the last day. */
+							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests in the last %2$d days, %3$s of them in the last day. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
+							number_format_i18n( $passes ),
+							$days,
+							number_format_i18n( $recent_passes )
+						)
+						: sprintf(
+							/* translators: 1: request count, 2: number of days. */
+							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests in the last %2$d days. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
+							number_format_i18n( $passes ),
+							$days
+						),
 					'link'  => 'ai-crawlers',
-					'counts' => array( 'passed' => (int) $passes ),
+					'counts' => array( 'passed' => (int) $passes, 'recent' => (int) $recent_passes ),
 				);
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Whether the edge blocking this crawler is what the owner ASKED for — so
+	 * the block is agreement, never evidence of a conflict.
+	 *
+	 * Two ways the owner asks: naming the crawler on their own block list, or
+	 * declaring ai-train=no, which makes the edge blocking any TRAINING crawler
+	 * (e.g. Cloudflare's Training policy set to Block) the owner's wish being
+	 * enforced — even for a trainer they never named. Reading fetchers stay
+	 * warn-eligible.
+	 *
+	 * ⛔⛔ ONE RULE FOR EVERY READER OF A WARN CONFLICT. {@see detect()} always
+	 * skipped these crawlers, but {@see onset()} and the spoof check did not, so
+	 * on heera.it (2026-09-23) "Cloudflare is blocking OpenAI" was dated from
+	 * the day GPTBot — which he blocks on purpose — was blocked 24 times, and
+	 * seven of the eight requests the spoof check sampled were GPTBot's.
+	 *
+	 * @param string $token  Crawler token (any case).
+	 * @param array  $policy The same declarations {@see detect()} takes.
+	 * @return bool
+	 */
+	public static function blocking_is_owners_wish( $token, array $policy ) {
+		$token = strtolower( (string) $token );
+		// The owner's block list stores UA names as typed ("GPTBot"); crawler rows
+		// carry lowercase tokens ("gptbot"). Compare case-insensitively or a
+		// deliberate block would never be recognised as one.
+		$owner_blocked = array_map( 'strtolower', array_map( 'strval', isset( $policy['blocked_agents'] ) ? (array) $policy['blocked_agents'] : array() ) );
+		if ( in_array( $token, $owner_blocked, true ) ) {
+			return true;
+		}
+		$ai_train = ! isset( $policy['ai_train'] ) || false !== $policy['ai_train'];
+		return ! $ai_train && in_array( $token, self::TRAINERS, true );
 	}
 
 	/**
@@ -228,16 +274,18 @@ final class Conflicts {
 	 * @param array  $daily    Day => ua => { requests, blocked, passed }, oldest first ({@see Table::daily()}).
 	 * @param string $id       The conflict id to date.
 	 * @param array  $operators ua => operator name, for the per-operator rollup a warn conflict uses.
+	 * @param array  $policy   The declarations {@see detect()} takes — a crawler the owner
+	 *                         wants blocked is left out of the rollup here too.
 	 * @return array{at:string,bounded:bool} at = 'Y-m-d' (UTC) or '' when the condition holds on no day at all.
 	 */
-	public static function onset( array $daily, $id, array $operators = array() ) {
+	public static function onset( array $daily, $id, array $operators = array(), array $policy = array() ) {
 		if ( ! $daily ) {
 			return array( 'at' => '', 'bounded' => false );
 		}
 		ksort( $daily );
 		$days = array_keys( $daily );
 
-		$holds = static function ( $day ) use ( $daily, $id, $operators ) {
+		$holds = static function ( $day ) use ( $daily, $id, $operators, $policy ) {
 			$rows = (array) $daily[ $day ];
 			if ( 'train-not-enforced' === $id ) {
 				$passed = 0;
@@ -257,7 +305,7 @@ final class Conflicts {
 			$sums = array( 'blocked' => 0, 'requests' => 0 );
 			foreach ( $rows as $ua => $t ) {
 				$op = isset( $operators[ $ua ] ) ? (string) $operators[ $ua ] : '';
-				if ( '' === $op || self::operator_slug( $op ) !== $want ) {
+				if ( '' === $op || self::operator_slug( $op ) !== $want || self::blocking_is_owners_wish( (string) $ua, $policy ) ) {
 					continue;
 				}
 				$sums['blocked']  += (int) $t['blocked'];

@@ -67,11 +67,12 @@ final class Summary {
 		} );
 
 		$signal    = (array) $core->get( 'content_signal', array() );
-		$conflicts = Conflicts::detect( $crawlers, array(
+		$policy    = array(
 			'ai_input'       => ! isset( $signal['ai_input'] ) || false !== $signal['ai_input'],
 			'ai_train'       => ! isset( $signal['ai_train'] ) || false !== $signal['ai_train'],
 			'blocked_agents' => $owner_blocked,
-		), $days, Table::recent( 24 ) );
+		);
+		$conflicts = Conflicts::detect( $crawlers, $policy, $days, Table::recent( 24 ) );
 
 		// Dismissals: first forget the ones whose conflict is no longer firing
 		// (that situation ended — a recurrence must show again). The ones the
@@ -173,7 +174,7 @@ final class Summary {
 			// a derived start ("since the 26th"), a run older than everything we
 			// kept ("for at least N days" — we do not know when it began), and no
 			// history at all ("first seen today" — all we can honestly report).
-			$onset               = Conflicts::onset( $daily, $id, $operators );
+			$onset               = Conflicts::onset( $daily, $id, $operators, $policy );
 			$conflict['since']   = 0;
 			$conflict['sinceOf'] = 'unknown';
 			if ( '' !== $onset['at'] && ! $onset['bounded'] ) {

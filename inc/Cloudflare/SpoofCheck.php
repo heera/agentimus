@@ -84,11 +84,13 @@ final class SpoofCheck {
 			) );
 		}
 		$signal    = (array) $core->get( 'content_signal', array() );
-		$conflicts = Conflicts::detect( $crawlers, array(
+		$policy    = array(
 			'ai_input'       => ! isset( $signal['ai_input'] ) || false !== $signal['ai_input'],
 			'ai_train'       => ! isset( $signal['ai_train'] ) || false !== $signal['ai_train'],
 			'blocked_agents' => array_map( 'strtolower', array_map( 'strval', (array) $core->get( 'blocked_trainers', array() ) ) ),
-		), 7, Table::recent( 24 ) );
+		);
+		$recent    = Table::recent( 24 );
+		$conflicts = Conflicts::detect( $crawlers, $policy, 7, $recent );
 
 		$wanted = array();
 		foreach ( $conflicts as $conflict ) {
@@ -122,29 +124,80 @@ final class SpoofCheck {
 			return;
 		}
 
-		$rows = array();
-		foreach ( (array) $out['rows'] as $row ) {
+		$rows = self::sample_rows( (array) $out['rows'], $catalog, $wanted, $policy );
+
+		// How much blocking the conflict's own crawlers saw in the same last day,
+		// read at the same moment as the sample — what lets
+		// {@see stands_down()} tell a small sample from an incomplete one.
+		$recent_by_op = self::recent_blocked( $crawlers, $policy, $recent );
+
+		$checks = self::classify( $rows, array( BotVerifier::class, 'claim_verdict' ) );
+		foreach ( $checks as $op => $tally ) {
+			$checks[ $op ]['at']     = $now;
+			$checks[ $op ]['recent'] = isset( $recent_by_op[ $op ] ) ? $recent_by_op[ $op ] : 0;
+		}
+		$cloudflare->note_spoof_checks( $checks );
+	}
+
+	/**
+	 * The blocked-source rows that belong to a firing conflict: a known AI
+	 * crawler, of an operator a warn conflict accuses, and not one the owner
+	 * wants blocked.
+	 *
+	 * ⛔ Only the traffic the conflict is ABOUT. A crawler the owner blocks on
+	 * purpose never fed the warning ({@see Conflicts::detect()}), so its blocked
+	 * requests are no evidence either way — on heera.it (2026-09-23) seven of
+	 * the eight sampled "OpenAI" requests were GPTBot, which he blocks.
+	 *
+	 * @param array $rows    Client::blocked_sources() rows { ip, ua, requests }.
+	 * @param array $catalog Catalog::known() — token => [ name, operator ].
+	 * @param array $wanted  operator => true, the operators a warn conflict accuses.
+	 * @param array $policy  The declarations {@see Conflicts::detect()} takes.
+	 * @return array<int,array{ip:string,ua:string,operator:string,requests:int}>
+	 */
+	public static function sample_rows( array $rows, array $catalog, array $wanted, array $policy ) {
+		$out = array();
+		foreach ( $rows as $row ) {
 			$token = Module::crawler_token( (string) $row['ua'] );
 			if ( '' === $token || ! isset( $catalog[ $token ] ) ) {
 				continue;
 			}
 			$op = (string) $catalog[ $token ][1];
-			if ( ! isset( $wanted[ $op ] ) ) {
+			if ( ! isset( $wanted[ $op ] ) || Conflicts::blocking_is_owners_wish( $token, $policy ) ) {
 				continue;
 			}
-			$rows[] = array(
+			$out[] = array(
 				'ip'       => (string) $row['ip'],
 				'ua'       => (string) $row['ua'],
 				'operator' => $op,
 				'requests' => (int) $row['requests'],
 			);
 		}
+		return $out;
+	}
 
-		$checks = self::classify( $rows, array( BotVerifier::class, 'claim_verdict' ) );
-		foreach ( $checks as $op => $tally ) {
-			$checks[ $op ]['at'] = $now;
+	/**
+	 * Per operator, the requests the edge blocked in the last day from the
+	 * crawlers a warn conflict counts — every crawler of that operator except
+	 * the ones the owner wants blocked ({@see Conflicts::blocking_is_owners_wish()}).
+	 *
+	 * @param array $crawlers Rows with { ua, operator }.
+	 * @param array $policy   The declarations {@see Conflicts::detect()} takes.
+	 * @param array $recent   ua => { blocked, passed } ({@see Table::recent()}).
+	 * @return array<string,int> operator => blocked requests.
+	 */
+	public static function recent_blocked( array $crawlers, array $policy, array $recent ) {
+		$out = array();
+		foreach ( $crawlers as $c ) {
+			$ua = strtolower( (string) $c['ua'] );
+			$op = (string) $c['operator'];
+			if ( '' === $op || Conflicts::blocking_is_owners_wish( $ua, $policy ) ) {
+				continue;
+			}
+			$out[ $op ] = ( isset( $out[ $op ] ) ? $out[ $op ] : 0 )
+				+ ( isset( $recent[ $ua ]['blocked'] ) ? (int) $recent[ $ua ]['blocked'] : 0 );
 		}
-		$cloudflare->note_spoof_checks( $checks );
+		return $out;
 	}
 
 	/**
@@ -203,7 +256,18 @@ final class SpoofCheck {
 	 * fact whatever noise rides beside it. And a sample that is mostly
 	 * undetermined keeps it too — "could not say" is not "not them".
 	 *
-	 * @param mixed $check A stored tally { at, sampled, verified, spoofed, unknown }.
+	 * ⛔⛔ THE VOLUME FLOOR GUARDS AGAINST AN INCOMPLETE SAMPLE, NOT A SMALL
+	 * ONE. The sample covers one day; the conflict counts seven. As a scanner
+	 * fades, the day's blocking shrinks under {@see Conflicts::MIN_BLOCKED}
+	 * while the week stays over it — so a flat floor re-armed the warning
+	 * exactly as the campaign died. On heera.it (2026-09-23) every one of the
+	 * day's blocked "OpenAI" requests was proven fake and the card still said
+	 * Cloudflare was blocking OpenAI. When the check also recorded how much
+	 * blocking the conflict's crawlers saw that same day (`recent`), proving at
+	 * least that many fake is proving all of it, and that is enough.
+	 * Without `recent` (a tally stored before it existed) the flat floor stands.
+	 *
+	 * @param mixed $check A stored tally { at, sampled, verified, spoofed, unknown, recent? }.
 	 * @param int   $now   Current unix time (injected for tests).
 	 * @return bool
 	 */
@@ -215,10 +279,12 @@ final class SpoofCheck {
 		$sampled  = isset( $check['sampled'] ) ? (int) $check['sampled'] : 0;
 		$verified = isset( $check['verified'] ) ? (int) $check['verified'] : 0;
 		$spoofed  = isset( $check['spoofed'] ) ? (int) $check['spoofed'] : 0;
+		$recent   = isset( $check['recent'] ) ? (int) $check['recent'] : 0;
+		$floor    = $recent > 0 ? min( Conflicts::MIN_BLOCKED, $recent ) : Conflicts::MIN_BLOCKED;
 		return $at > 0
 			&& ( $now - $at ) <= self::FRESH_SECONDS
 			&& 0 === $verified
-			&& $spoofed >= Conflicts::MIN_BLOCKED
+			&& $spoofed >= $floor
 			&& $sampled > 0
 			&& $spoofed >= $sampled * self::MIN_SPOOFED_SHARE;
 	}
