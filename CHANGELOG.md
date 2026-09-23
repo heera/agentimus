@@ -4,6 +4,11 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.51.5
+* Fixed: the notice that Cloudflare is letting training crawlers through counted every request carrying a training crawler's name that Cloudflare did not block. That included crawlers reading your robots.txt, which is where your ai-train=no line lives, and requests your server turned away with an error. On a site where Cloudflare already stops the training crawlers, it could report hundreds of requests and ask you to block them, when not one page had been served. It now counts only requests that received a page, and dates the notice from the first day one did. Right after updating, the count can read low for a few days while new hours are collected; it never reads high.
+* Changed: read-edge-traffic reports a `served` count for each crawler: the requests that received a page, not counting robots.txt.
+* Fixed: asked about a single day, the Cloudflare warnings read "in the last 1 days" and then repeated the day's count. They now say "in the last day", once.
+
 ## 1.51.4
 * Fixed: the Request Log could warn that Cloudflare was blocking an AI company your policy allows when it was really stopping impostors using that company's name. The warning checks the blocked requests against the company's own published addresses and steps down to a note when they all come from somewhere else, but it needed at least ten fakes from the last day, so as an impersonation campaign faded, the warning came back on its last few requests. Once every request blocked that day is proven fake, the warning now steps down however few there were.
 * Fixed: a crawler you block on purpose (on your own block list, or a training crawler while your robots.txt says ai-train=no) could still shape a Cloudflare warning about its company. Its blocks set the day the warning said it started, and its requests were counted in the impostor check. Both now leave it out, as the warning itself always did.
