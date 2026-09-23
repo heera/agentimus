@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** @var string Schema version — bump on any structural change. */
-	const VERSION = '1';
+	const VERSION = '2';
 
 	/** @var string Option recording the installed schema version. */
 	const VERSION_OPTION = 'agentimus_edge_db_version';
@@ -74,6 +74,7 @@ final class Table {
 			cached int(10) unsigned NOT NULL DEFAULT 0,
 			origin int(10) unsigned NOT NULL DEFAULT 0,
 			blocked int(10) unsigned NOT NULL DEFAULT 0,
+			served int(10) unsigned NOT NULL DEFAULT 0,
 			bytes bigint(20) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			UNIQUE KEY hour_ua (hour_at,ua),
@@ -83,7 +84,7 @@ final class Table {
 		// Verify the columns actually exist before recording the version — dbDelta
 		// can silently skip an ADD COLUMN on a drifted schema, and stamping the
 		// version anyway would break every query forever.
-		foreach ( array( 'hour_at', 'ua', 'requests', 'cached', 'origin', 'blocked', 'bytes' ) as $column ) {
+		foreach ( array( 'hour_at', 'ua', 'requests', 'cached', 'origin', 'blocked', 'served', 'bytes' ) as $column ) {
 			$found = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM $table LIKE %s", $column ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own prefix helper.
 			if ( null === $found ) {
 				return;
@@ -98,7 +99,7 @@ final class Table {
 	 * (each poll recomputes the whole window from Cloudflare, so adding would
 	 * double-count).
 	 *
-	 * @param array $rows Rows shaped { hour_at, ua, requests, cached, origin, blocked, bytes }.
+	 * @param array $rows Rows shaped { hour_at, ua, requests, cached, origin, blocked, served, bytes }.
 	 * @return void
 	 */
 	public static function upsert( array $rows ) {
@@ -110,21 +111,22 @@ final class Table {
 		$values = array();
 		foreach ( $rows as $row ) {
 			$values[] = $wpdb->prepare(
-				'(%s,%s,%d,%d,%d,%d,%d)',
+				'(%s,%s,%d,%d,%d,%d,%d,%d)',
 				(string) $row['hour_at'],
 				(string) $row['ua'],
 				(int) $row['requests'],
 				(int) $row['cached'],
 				(int) $row['origin'],
 				(int) $row['blocked'],
+				(int) $row['served'],
 				(int) $row['bytes']
 			);
 		}
 		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- every tuple prepared above; table name is our own.
-			"INSERT INTO $table (hour_at,ua,requests,cached,origin,blocked,bytes) VALUES " . implode( ',', $values ) . '
+			"INSERT INTO $table (hour_at,ua,requests,cached,origin,blocked,served,bytes) VALUES " . implode( ',', $values ) . '
 			ON DUPLICATE KEY UPDATE
 				requests = VALUES(requests), cached = VALUES(cached), origin = VALUES(origin),
-				blocked = VALUES(blocked), bytes = VALUES(bytes)'
+				blocked = VALUES(blocked), served = VALUES(served), bytes = VALUES(bytes)'
 		);
 	}
 
@@ -145,7 +147,7 @@ final class Table {
 	 * Per-crawler totals over the last N days, busiest first.
 	 *
 	 * @param int $days Window length in days.
-	 * @return array<int,array{ua:string,requests:int,cached:int,origin:int,blocked:int,bytes:int}>
+	 * @return array<int,array{ua:string,requests:int,cached:int,origin:int,blocked:int,served:int,bytes:int}>
 	 */
 	public static function summary( $days ) {
 		global $wpdb;
@@ -154,7 +156,7 @@ final class Table {
 		$rows  = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
 			"SELECT ua,
 				SUM(requests) AS requests, SUM(cached) AS cached, SUM(origin) AS origin,
-				SUM(blocked) AS blocked, SUM(bytes) AS bytes
+				SUM(blocked) AS blocked, SUM(served) AS served, SUM(bytes) AS bytes
 			FROM $table WHERE hour_at >= %s GROUP BY ua ORDER BY requests DESC",
 			$since
 		), ARRAY_A );
@@ -167,6 +169,7 @@ final class Table {
 				'cached'   => (int) $row['cached'],
 				'origin'   => (int) $row['origin'],
 				'blocked'  => (int) $row['blocked'],
+				'served'   => (int) $row['served'],
 				'bytes'    => (int) $row['bytes'],
 			);
 		}
@@ -178,14 +181,14 @@ final class Table {
 	 * read the conflicts use, next to summary()'s "how big was it this week".
 	 *
 	 * @param int $hours Window length in hours.
-	 * @return array<string,array{blocked:int,passed:int}> Keyed by crawler token.
+	 * @return array<string,array{blocked:int,passed:int,served:int}> Keyed by crawler token.
 	 */
 	public static function recent( $hours ) {
 		global $wpdb;
 		$table = self::name();
 		$since = gmdate( 'Y-m-d H:i:s', time() - ( max( 1, (int) $hours ) * HOUR_IN_SECONDS ) );
 		$rows  = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
-			"SELECT ua, SUM(blocked) AS blocked, SUM(cached) + SUM(origin) AS passed
+			"SELECT ua, SUM(blocked) AS blocked, SUM(cached) + SUM(origin) AS passed, SUM(served) AS served
 			FROM $table WHERE hour_at >= %s GROUP BY ua",
 			$since
 		), ARRAY_A );
@@ -195,6 +198,7 @@ final class Table {
 			$out[ (string) $row['ua'] ] = array(
 				'blocked' => (int) $row['blocked'],
 				'passed'  => (int) $row['passed'],
+				'served'  => (int) $row['served'],
 			);
 		}
 		return $out;
@@ -217,7 +221,7 @@ final class Table {
 	 * the caller must be free to tell those apart.
 	 *
 	 * @param int $days How far back to read.
-	 * @return array<string,array<string,array{requests:int,blocked:int,passed:int}>>
+	 * @return array<string,array<string,array{requests:int,blocked:int,passed:int,served:int}>>
 	 *         day (Y-m-d, UTC) => ua => totals.
 	 */
 	public static function daily( $days ) {
@@ -227,7 +231,7 @@ final class Table {
 		$rows  = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table.
 			"SELECT DATE(hour_at) AS day, ua,
 				SUM(requests) AS requests, SUM(blocked) AS blocked,
-				SUM(cached) + SUM(origin) AS passed
+				SUM(cached) + SUM(origin) AS passed, SUM(served) AS served
 			FROM $table WHERE hour_at >= %s GROUP BY day, ua ORDER BY day ASC",
 			$since
 		), ARRAY_A );
@@ -238,6 +242,7 @@ final class Table {
 				'requests' => (int) $row['requests'],
 				'blocked'  => (int) $row['blocked'],
 				'passed'   => (int) $row['passed'],
+				'served'   => (int) $row['served'],
 			);
 		}
 		return $out;

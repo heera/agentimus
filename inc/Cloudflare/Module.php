@@ -155,12 +155,20 @@ final class Module {
 		while ( $since < $now ) {
 			$until = min( $since + self::CHUNK_SECONDS, $now );
 			$out   = $this->client->hourly_traffic( $token, $zone, $since, $until );
+			if ( ! isset( $out['error'] ) ) {
+				$robots = $this->client->robots_fetches( $token, $zone, $since, $until );
+				// Without the robots reads, `served` would count them as pages — so
+				// the hour is not stored half-known; it waits for the next poll.
+				if ( isset( $robots['error'] ) ) {
+					$out = $robots;
+				}
+			}
 			if ( isset( $out['error'] ) ) {
 				// Keep the last good data; the panel shows the numbers' age and this note.
 				$this->settings->record_poll( (string) $out['error'] );
 				return;
 			}
-			Table::upsert( self::aggregate( (array) $out['rows'] ) );
+			Table::upsert( self::aggregate( (array) $out['rows'], (array) $robots['rows'] ) );
 			$since = $until;
 		}
 
@@ -185,10 +193,17 @@ final class Module {
 	 *  - cached  : served from Cloudflare's cache;
 	 *  - origin  : everything else — the request reached this server.
 	 *
-	 * @param array $raw Rows from Client::hourly_traffic().
+	 * Across those buckets, `served` counts the requests that got a page: a 2xx
+	 * the edge let through, less the /robots.txt reads. ⛔ Passing the edge is
+	 * not taking content — a trainer reading robots.txt is reading the very line
+	 * that says no, and a scanner wearing a trainer's name that the origin
+	 * answers 403 or 404 took nothing. The training notice counts this.
+	 *
+	 * @param array $raw    Rows from Client::hourly_traffic().
+	 * @param array $robots Rows from Client::robots_fetches() for the same window.
 	 * @return array<int,array> Rows shaped for Table::upsert().
 	 */
-	public static function aggregate( array $raw ) {
+	public static function aggregate( array $raw, array $robots = array() ) {
 		$cached_statuses = array( 'hit', 'stale', 'updating', 'revalidated' );
 		$buckets         = array();
 
@@ -211,6 +226,7 @@ final class Module {
 					'cached'   => 0,
 					'origin'   => 0,
 					'blocked'  => 0,
+					'served'   => 0,
 					'bytes'    => 0,
 				);
 			}
@@ -228,9 +244,31 @@ final class Module {
 			} else {
 				$buckets[ $key ]['origin'] += $n;
 			}
+			if ( ! $edge_refused && self::is_page( $row ) ) {
+				$buckets[ $key ]['served'] += $n;
+			}
+		}
+
+		foreach ( $robots as $row ) {
+			$key = self::hour_key( (string) $row['hour'] ) . '|' . self::crawler_token( (string) $row['ua'] );
+			if ( isset( $buckets[ $key ] ) && self::is_page( $row ) ) {
+				$buckets[ $key ]['served'] = max( 0, $buckets[ $key ]['served'] - (int) $row['requests'] );
+			}
 		}
 
 		return array_values( $buckets );
+	}
+
+	/**
+	 * Whether a raw row is a successful response — the edge's own status, so a
+	 * cache hit counts the same as an origin answer.
+	 *
+	 * @param array $row A raw row.
+	 * @return bool
+	 */
+	private static function is_page( array $row ) {
+		$status = (int) $row['edge_status'];
+		return $status >= 200 && $status < 300;
 	}
 
 	/**

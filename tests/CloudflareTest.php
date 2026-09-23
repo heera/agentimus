@@ -171,7 +171,7 @@ final class CloudflareTest extends TestCase {
 
 	public function test_unenforced_no_training_line_is_an_info_conflict() {
 		$out = Conflicts::detect(
-			array( $this->crawler( 'gptbot', 'OpenAI', 200, 150, 50, 0 ) ),
+			array( array_merge( $this->crawler( 'gptbot', 'OpenAI', 200, 150, 50, 0 ), array( 'served' => 200 ) ) ),
 			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
 			7
 		);
@@ -186,7 +186,7 @@ final class CloudflareTest extends TestCase {
 		$out = Conflicts::detect(
 			array(
 				$this->crawler( 'chatgpt-user', 'OpenAI', 486, 0, 274, 212 ),
-				$this->crawler( 'gptbot', 'OpenAI', 200, 150, 50, 0 ),
+				array_merge( $this->crawler( 'gptbot', 'OpenAI', 200, 150, 50, 0 ), array( 'served' => 200 ) ),
 			),
 			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
 			7
@@ -681,8 +681,8 @@ final class CloudflareTest extends TestCase {
 	/* ---- onset: when it BEGAN, not when we noticed --------------------------- */
 
 	/** A day of per-crawler totals, as Table::daily() hands them over. */
-	private function day( $ua, $requests, $blocked, $passed = 0 ) {
-		return array( $ua => array( 'requests' => $requests, 'blocked' => $blocked, 'passed' => $passed ) );
+	private function day( $ua, $requests, $blocked, $passed = 0, $served = 0 ) {
+		return array( $ua => array( 'requests' => $requests, 'blocked' => $blocked, 'passed' => $passed, 'served' => $served ) );
 	}
 
 	/**
@@ -756,8 +756,8 @@ final class CloudflareTest extends TestCase {
 	public function test_the_training_notice_is_dated_from_the_first_day_one_got_through() {
 		$daily = array(
 			'2026-08-25' => $this->day( 'gptbot', 10, 10, 0 ),   // all blocked: enforced.
-			'2026-08-26' => $this->day( 'gptbot', 10, 0, 10 ),   // through.
-			'2026-08-27' => $this->day( 'gptbot', 10, 0, 10 ),
+			'2026-08-26' => $this->day( 'gptbot', 10, 0, 10, 10 ), // through, and served pages.
+			'2026-08-27' => $this->day( 'gptbot', 10, 0, 10, 10 ),
 		);
 
 		$onset = Conflicts::onset( $daily, 'train-not-enforced' );
@@ -902,10 +902,10 @@ final class CloudflareTest extends TestCase {
 
 	public function test_the_training_notice_says_how_many_got_through_in_the_last_day() {
 		$out = Conflicts::detect(
-			array( $this->crawler( 'claudebot', 'Anthropic', 240, 0, 57, 183 ) ),
+			array( array_merge( $this->crawler( 'claudebot', 'Anthropic', 240, 0, 57, 183 ), array( 'served' => 57 ) ) ),
 			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
 			7,
-			array( 'claudebot' => array( 'blocked' => 8, 'passed' => 7 ) )
+			array( 'claudebot' => array( 'blocked' => 8, 'passed' => 7, 'served' => 7 ) )
 		);
 
 		$this->assertSame( 'train-not-enforced', $out[0]['id'] );
@@ -1059,5 +1059,179 @@ final class CloudflareTest extends TestCase {
 		$out = ( new Client() )->blocked_sources( 'tok', 'zone1', 0, 3600 );
 
 		$this->assertArrayHasKey( 'error', $out );
+	}
+
+	// ── The training notice counts pages SERVED, not names that got past ─────
+
+	/**
+	 * ⛔⛔ heera.it, 2026-09-24: "Cloudflare is letting training crawlers through
+	 * anyway — 545 requests in the last 7 days". Not one was a page. ClaudeBot
+	 * read /robots.txt (the block rule lets it, on purpose — that file is where
+	 * ai-train=no is said), and scanners wearing "Google-Extended", "cohere-ai"
+	 * and "GPTBot" probed /.env, /.ssh and /.htpasswd and got 403/404 from the
+	 * origin. They passed the edge; nothing left the site.
+	 */
+	public function test_a_robots_read_and_a_refused_probe_are_not_training_passes() {
+		$crawler = function ( $ua, $op, $requests, $origin, $blocked ) {
+			return array_merge( $this->crawler( $ua, $op, $requests, 0, $origin, $blocked ), array( 'served' => 0 ) );
+		};
+		$out = Conflicts::detect(
+			array(
+				$crawler( 'claudebot', 'Anthropic', 243, 57, 186 ),
+				$crawler( 'google-extended', 'Google', 246, 111, 135 ),
+				$crawler( 'cohere-ai', 'Cohere', 310, 167, 143 ),
+				$crawler( 'gptbot', 'OpenAI', 271, 6, 265 ),
+			),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
+			7,
+			array(
+				'claudebot' => array( 'blocked' => 11, 'passed' => 6, 'served' => 0 ),
+				'gptbot'    => array( 'blocked' => 15, 'passed' => 6, 'served' => 0 ),
+			)
+		);
+
+		$this->assertSame( array(), $out );
+	}
+
+	/** The same week's one real case: a trainer that DID get pages is still named. */
+	public function test_a_trainer_that_got_pages_is_still_a_training_pass() {
+		$out = Conflicts::detect(
+			array(
+				array_merge( $this->crawler( 'shapbot', 'Parallel', 34, 17, 17, 0 ), array( 'served' => 45 ) ),
+				array_merge( $this->crawler( 'cohere-ai', 'Cohere', 310, 0, 167, 143 ), array( 'served' => 0 ) ),
+			),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
+			7,
+			array( 'shapbot' => array( 'blocked' => 0, 'passed' => 4, 'served' => 4 ) )
+		);
+
+		$this->assertSame( 'train-not-enforced', $out[0]['id'] );
+		$this->assertStringContainsString( '45 requests in the last 7 days, 4 of them in the last day', $out[0]['body'] );
+		$this->assertSame( array( 'passed' => 45, 'recent' => 4 ), $out[0]['counts'] );
+	}
+
+	/** Dated by the same count: days of robots reads and refused probes are not the start. */
+	public function test_the_training_notice_is_dated_from_the_first_page_served() {
+		$daily = array(
+			'2026-09-16' => array( 'cohere-ai' => array( 'requests' => 40, 'blocked' => 17, 'passed' => 23, 'served' => 0 ) ),
+			'2026-09-17' => array( 'claudebot' => array( 'requests' => 20, 'blocked' => 12, 'passed' => 8, 'served' => 0 ) ),
+			'2026-09-18' => array( 'shapbot' => array( 'requests' => 6, 'blocked' => 0, 'passed' => 6, 'served' => 6 ) ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'train-not-enforced' );
+
+		$this->assertSame( '2026-09-18', $onset['at'] );
+		$this->assertFalse( $onset['bounded'] );
+	}
+
+	/**
+	 * A page served is a 2xx the edge let through, minus what went to
+	 * /robots.txt — which Cloudflare's hourly rows cannot tell apart, so the
+	 * robots reads arrive as their own rows and come off the top.
+	 */
+	public function test_aggregate_counts_served_pages_without_robots_reads_or_refusals() {
+		$rows = Module::aggregate(
+			array(
+				$this->raw( 'ClaudeBot/1.0', 'dynamic', 200, 200, 9 ),             // robots.txt reads.
+				$this->raw( 'ClaudeBot/1.0', 'unknown', 403, 0, 11 ),              // blocked at the edge.
+				$this->raw( 'cohere-ai', 'dynamic', 403, 403, 14 ),                // /.env.www — origin refused.
+				$this->raw( 'cohere-ai', 'dynamic', 404, 404, 10 ),                // /config.js — not there.
+				$this->raw( 'Mozilla/5.0; compatible; ShapBot/0.1.0', 'hit', 200, 0, 3 ),     // pages, from cache.
+				$this->raw( 'Mozilla/5.0; compatible; ShapBot/0.1.0', 'dynamic', 200, 200, 2 ), // pages, from origin.
+				$this->raw( 'Mozilla/5.0; compatible; ShapBot/0.1.0', 'dynamic', 301, 301, 1 ), // a redirect is not a page.
+			),
+			array(
+				$this->raw( 'ClaudeBot/1.0', '', 200, 200, 9 ),
+			)
+		);
+
+		$by = array();
+		foreach ( $rows as $r ) {
+			$by[ $r['ua'] ] = $r;
+		}
+		$this->assertSame( 0, $by['claudebot']['served'] );
+		$this->assertSame( 9, $by['claudebot']['origin'], 'the buckets themselves are unchanged' );
+		$this->assertSame( 0, $by['cohere-ai']['served'] );
+		$this->assertSame( 5, $by['shapbot']['served'] );
+	}
+
+	public function test_robots_fetches_normalizes_the_graphql_shape() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => json_encode( array(
+				'data' => array( 'viewer' => array( 'zones' => array( array(
+					'httpRequestsAdaptiveGroups' => array(
+						array(
+							'count'      => 9,
+							'dimensions' => array(
+								'datetimeHour'         => '2026-09-23T10:00:00Z',
+								'userAgent'            => 'ClaudeBot/1.0',
+								'edgeResponseStatus'   => 200,
+								'originResponseStatus' => 200,
+							),
+						),
+					),
+				) ) ) ),
+			) ),
+		);
+
+		$out = ( new Client() )->robots_fetches( 'tok', 'zone1', 0, 3600 );
+
+		$this->assertArrayNotHasKey( 'error', $out );
+		$this->assertSame( 'ClaudeBot/1.0', $out['rows'][0]['ua'] );
+		$this->assertSame( 200, $out['rows'][0]['edge_status'] );
+		$this->assertSame( 9, $out['rows'][0]['requests'] );
+	}
+
+	public function test_robots_fetches_missing_container_is_an_error() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => json_encode( array( 'data' => array( 'viewer' => array( 'zones' => array() ) ) ) ),
+		);
+
+		$out = ( new Client() )->robots_fetches( 'tok', 'zone1', 0, 3600 );
+
+		$this->assertArrayHasKey( 'error', $out );
+	}
+
+	// ── A one-day window reads as one day ───────────────────────────────────
+
+	/**
+	 * read-edge-traffic takes days=1..30. At days=1 the warning said "in the
+	 * last 1 days — 40 of them in the last day": a plural on one, and a clause
+	 * repeating the whole count, because the window IS the last day.
+	 */
+	public function test_a_one_day_warning_says_the_last_day_once() {
+		$out = Conflicts::detect(
+			array( $this->crawler( 'chatgpt-user', 'OpenAI', 50, 0, 10, 40 ) ),
+			array( 'ai_input' => true, 'ai_train' => true, 'blocked_agents' => array() ),
+			1,
+			array( 'chatgpt-user' => array( 'blocked' => 40, 'passed' => 10, 'served' => 10 ) )
+		);
+
+		$this->assertStringContainsString( 'turned away 40 of 50 requests from OpenAI crawlers in the last day. Your site', $out[0]['body'] );
+		$this->assertStringNotContainsString( '1 days', $out[0]['body'] );
+		$this->assertStringNotContainsString( 'of them in the last day', $out[0]['body'] );
+	}
+
+	public function test_a_one_day_training_notice_says_the_last_day_once() {
+		$out = Conflicts::detect(
+			array( array_merge( $this->crawler( 'shapbot', 'Parallel', 30, 10, 20, 0 ), array( 'served' => 30 ) ) ),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array() ),
+			1,
+			array( 'shapbot' => array( 'blocked' => 0, 'passed' => 30, 'served' => 30 ) )
+		);
+
+		$this->assertStringContainsString( 'through anyway — 30 requests in the last day. Asking', $out[0]['body'] );
+		$this->assertStringNotContainsString( '1 days', $out[0]['body'] );
+	}
+
+	/** The impostor note borrows the same phrase, so both windows are pinned here. */
+	public function test_the_window_phrase() {
+		$this->assertSame( 'in the last day', Conflicts::window( 1 ) );
+		$this->assertSame( 'in the last 7 days', Conflicts::window( 7 ) );
+		$this->assertSame( 'in the last day', Conflicts::window( 0 ), 'detect() floors the window at one day' );
 	}
 }

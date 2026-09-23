@@ -577,6 +577,7 @@ final class Registrar {
 							'cached'       => self::i(),
 							'origin'       => self::i( 'Requests that reached this server.' ),
 							'blocked'      => self::i( 'Requests the edge turned away without contacting this server.' ),
+							'served'       => self::i( 'Requests that got a page: a 2xx the edge let through, not counting /robots.txt reads. Passing the edge is not taking content — a request the origin answered 403 or 404 took nothing.' ),
 							'bytes'        => self::i(),
 							'blockedByYou' => self::b( 'Whether the owner deliberately blocks this crawler at the origin.' ),
 						)
@@ -602,7 +603,7 @@ final class Registrar {
 								array(
 									'blocked'  => self::i( 'warn only: requests the edge turned away in the window.' ),
 									'requests' => self::i( 'warn only: requests that operator made in the window.' ),
-									'passed'   => self::i( 'info only: training-crawler requests the edge let through.' ),
+									'passed'   => self::i( 'info only: training-crawler requests that got a page (see crawlers[].served) — robots.txt reads and requests the origin refused are not counted.' ),
 									'recent'   => self::i( 'Of `blocked` (warn) or `passed` (info), how many happened in the last day — what keeps the conflict current. A week of blocking with 1 here is history plus one request.' ),
 								)
 							),

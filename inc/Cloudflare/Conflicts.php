@@ -61,13 +61,13 @@ final class Conflicts {
 	 * is evidence in the recent window — so a warning retires within a day of
 	 * the owner fixing the cause, instead of shouting for a week about history.
 	 *
-	 * @param array      $crawlers Per-crawler totals: { ua, name, operator, requests, cached, origin, blocked }.
+	 * @param array      $crawlers Per-crawler totals: { ua, name, operator, requests, cached, origin, blocked, served }.
 	 * @param array      $policy   The owner's declarations:
 	 *                             - ai_input (bool)        robots Content-Signal ai-input.
 	 *                             - ai_train (bool)        robots Content-Signal ai-train.
 	 *                             - blocked_agents (array) crawler tokens the OWNER deliberately blocks.
 	 * @param int        $days     The window the totals cover, for the copy.
-	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, passed } }
+	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, passed, served } }
 	 *                             (see Table::recent()), or null to treat all
 	 *                             evidence as current.
 	 * @return array<int,array{id:string,level:string,title:string,body:string,link:string,counts:array}>
@@ -126,23 +126,23 @@ final class Conflicts {
 					// on heera.it (2026-09-23) "including some in the last day" was
 					// ONE request, a probe for /wp-config.php, under 84 blocks that
 					// were a week old. The owner weighs the warning by that number.
-					'body'  => null !== $recent
+					'body'  => null !== $recent && $days > 1
 						? sprintf(
-							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days, 5: blocked request count in the last day. */
-							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers in the last %4$d days — %5$s of them in the last day. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: the window, e.g. "in the last 7 days", 5: blocked request count in the last day. */
+							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers %4$s — %5$s of them in the last day. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
 							number_format_i18n( $sums['blocked'] ),
 							number_format_i18n( $sums['requests'] ),
 							$op,
-							$days,
+							self::window( $days ),
 							number_format_i18n( $sums['recent'] )
 						)
 						: sprintf(
-							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days. */
-							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers in the last %4$d days. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: the window, e.g. "in the last 7 days". */
+							__( 'Cloudflare turned away %1$s of %2$s requests from %3$s crawlers %4$s. Your site policy allows AI reading — so an assistant that tries to read a page gets an error, and your request log never shows it. Either allow it at Cloudflare, or accept that %3$s cannot read this site. Once the blocking stops, this warning clears by itself within a day.', 'agentimus' ),
 							number_format_i18n( $sums['blocked'] ),
 							number_format_i18n( $sums['requests'] ),
 							$op,
-							$days
+							self::window( $days )
 						),
 					'link'  => 'bots',
 					// ⭐ THE NUMBERS, BESIDE THE PROSE THAT USES THEM. Every other
@@ -154,16 +154,19 @@ final class Conflicts {
 			}
 		}
 
-		// ── ai-train=no declared, but training crawlers pass the edge freely ───
+		// ── ai-train=no declared, but training crawlers get pages anyway ───────
 		// The robots line is advisory; the edge is where it could be enforced.
+		// ⛔ Counted by PAGES SERVED, not by requests past the edge: on heera.it
+		// (2026-09-24) "545 let through" was robots.txt reads and scanners in
+		// trainers' names that the origin refused — not one page (Module::aggregate()).
 		if ( ! $ai_train ) {
 			$passes        = 0;
 			$recent_passes = 0;
 			foreach ( $crawlers as $c ) {
 				if ( in_array( (string) $c['ua'], self::TRAINERS, true ) ) {
-					$passes += (int) $c['cached'] + (int) $c['origin'];
-					if ( null !== $recent && ! empty( $recent[ (string) $c['ua'] ]['passed'] ) ) {
-						$recent_passes += (int) $recent[ (string) $c['ua'] ]['passed'];
+					$passes += isset( $c['served'] ) ? (int) $c['served'] : 0;
+					if ( null !== $recent && ! empty( $recent[ (string) $c['ua'] ]['served'] ) ) {
+						$recent_passes += (int) $recent[ (string) $c['ua'] ]['served'];
 					}
 				}
 			}
@@ -178,19 +181,19 @@ final class Conflicts {
 					'id'    => 'train-not-enforced',
 					'level' => 'info',
 					'title' => __( 'Cloudflare is letting training crawlers through', 'agentimus' ),
-					'body'  => null !== $recent
+					'body'  => null !== $recent && $days > 1
 						? sprintf(
-							/* translators: 1: request count, 2: number of days, 3: request count in the last day. */
-							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests in the last %2$d days, %3$s of them in the last day. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
+							/* translators: 1: request count, 2: the window, e.g. "in the last 7 days", 3: request count in the last day. */
+							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests %2$s, %3$s of them in the last day. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
 							number_format_i18n( $passes ),
-							$days,
+							self::window( $days ),
 							number_format_i18n( $recent_passes )
 						)
 						: sprintf(
-							/* translators: 1: request count, 2: number of days. */
-							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests in the last %2$d days. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
+							/* translators: 1: request count, 2: the window, e.g. "in the last 7 days". */
+							__( 'Your site asks AI companies not to use your content for training (the ai-train=no line in robots.txt). Cloudflare is letting training crawlers through anyway — %1$s requests %2$s. Asking is not stopping: polite crawlers obey, the rest ignore you. Cloudflare is the one who can stop them — block Training crawlers there, and this notice clears by itself within a day.', 'agentimus' ),
 							number_format_i18n( $passes ),
-							$days
+							self::window( $days )
 						),
 					'link'  => 'ai-crawlers',
 					'counts' => array( 'passed' => (int) $passes, 'recent' => (int) $recent_passes ),
@@ -199,6 +202,28 @@ final class Conflicts {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * The window a conflict's counts cover, as the phrase its sentence uses.
+	 *
+	 * ⛔ One day is "in the last day" — never "in the last 1 days" — and a
+	 * sentence covering one day leaves out its "…of them in the last day"
+	 * clause, which would only repeat the whole count.
+	 *
+	 * @param int $days Window length in days.
+	 * @return string e.g. "in the last 7 days".
+	 */
+	public static function window( $days ) {
+		$days = max( 1, (int) $days );
+		if ( 1 === $days ) {
+			return __( 'in the last day', 'agentimus' );
+		}
+		return sprintf(
+			/* translators: %s: number of days, always 2 or more. */
+			_n( 'in the last %s day', 'in the last %s days', $days, 'agentimus' ),
+			number_format_i18n( $days )
+		);
 	}
 
 	/**
@@ -271,7 +296,7 @@ final class Conflicts {
 	 *
 	 * Pure — no DB, no time() — so it unit-tests standalone, like detect().
 	 *
-	 * @param array  $daily    Day => ua => { requests, blocked, passed }, oldest first ({@see Table::daily()}).
+	 * @param array  $daily    Day => ua => { requests, blocked, passed, served }, oldest first ({@see Table::daily()}).
 	 * @param string $id       The conflict id to date.
 	 * @param array  $operators ua => operator name, for the per-operator rollup a warn conflict uses.
 	 * @param array  $policy   The declarations {@see detect()} takes — a crawler the owner
@@ -291,7 +316,7 @@ final class Conflicts {
 				$passed = 0;
 				foreach ( $rows as $ua => $t ) {
 					if ( in_array( (string) $ua, self::TRAINERS, true ) ) {
-						$passed += (int) $t['passed'];
+						$passed += isset( $t['served'] ) ? (int) $t['served'] : 0;
 					}
 				}
 				// A day's share of the weekly bar: the run is about whether the

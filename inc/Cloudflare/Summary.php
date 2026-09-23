@@ -153,12 +153,12 @@ final class Summary {
 							$op
 						);
 						$conflict['body'] = sprintf(
-							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: number of days. */
-							__( 'Cloudflare turned away %1$s of %2$s requests carrying %3$s’s crawler names in the last %4$d days — but none of the blocked traffic it checked came from %3$s’s own published addresses. Something else is wearing the name, and your edge is stopping it. The real %3$s is not being kept out, so nothing needs allowing. If verified %3$s traffic starts being refused, this becomes a warning again by itself.', 'agentimus' ),
+							/* translators: 1: blocked request count, 2: total request count, 3: AI company name, 4: the window, e.g. "in the last 7 days". */
+							__( 'Cloudflare turned away %1$s of %2$s requests carrying %3$s’s crawler names %4$s — but none of the blocked traffic it checked came from %3$s’s own published addresses. Something else is wearing the name, and your edge is stopping it. The real %3$s is not being kept out, so nothing needs allowing. If verified %3$s traffic starts being refused, this becomes a warning again by itself.', 'agentimus' ),
 							number_format_i18n( (int) $conflict['counts']['blocked'] ),
 							number_format_i18n( (int) $conflict['counts']['requests'] ),
 							$op,
-							$days
+							Conflicts::window( $days )
 						);
 					}
 				}

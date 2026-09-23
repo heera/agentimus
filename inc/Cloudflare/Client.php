@@ -214,6 +214,68 @@ final class Client {
 	}
 
 	/**
+	 * Hourly /robots.txt requests for a window, in the same row shape as
+	 * {@see hourly_traffic()}. Those rows carry no path, so a crawler reading
+	 * the file where ai-train=no is SAID looks exactly like one taking a page;
+	 * these rows are what {@see Module::aggregate()} takes back off the top.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @param int    $since   Window start, Unix UTC.
+	 * @param int    $until   Window end, Unix UTC.
+	 * @return array { rows?: array<int,array>, error?: string }
+	 */
+	public function robots_fetches( $token, $zone_id, $since, $until ) {
+		$query = 'query ($zone: String!, $since: Time!, $until: Time!) {
+			viewer {
+				zones(filter: { zoneTag: $zone }) {
+					httpRequestsAdaptiveGroups(
+						limit: ' . self::GRAPHQL_LIMIT . ',
+						filter: { datetime_geq: $since, datetime_lt: $until, requestSource: "eyeball", clientRequestPath: "/robots.txt" },
+						orderBy: [count_DESC]
+					) {
+						count
+						dimensions { datetimeHour userAgent edgeResponseStatus originResponseStatus }
+					}
+				}
+			}
+		}';
+
+		$out = $this->graphql( $token, $query, array(
+			'zone'  => (string) $zone_id,
+			'since' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $since ),
+			'until' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $until ),
+		) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+
+		// The expected container, or it's an error — never "real empty data".
+		if ( ! isset( $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] ) ) {
+			return array( 'error' => __( 'Cloudflare returned an unexpected response shape.', 'agentimus' ) );
+		}
+
+		$rows = array();
+		foreach ( (array) $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] as $g ) {
+			if ( ! isset( $g['dimensions'] ) ) {
+				continue;
+			}
+			$d      = (array) $g['dimensions'];
+			$rows[] = array(
+				'hour'          => (string) ( isset( $d['datetimeHour'] ) ? $d['datetimeHour'] : '' ),
+				'ua'            => (string) ( isset( $d['userAgent'] ) ? $d['userAgent'] : '' ),
+				'cache_status'  => '',
+				'edge_status'   => (int) ( isset( $d['edgeResponseStatus'] ) ? $d['edgeResponseStatus'] : 0 ),
+				'origin_status' => (int) ( isset( $d['originResponseStatus'] ) ? $d['originResponseStatus'] : 0 ),
+				'requests'      => (int) ( isset( $g['count'] ) ? $g['count'] : 0 ),
+				'bytes'         => 0,
+			);
+		}
+
+		return array( 'rows' => $rows );
+	}
+
+	/**
 	 * Ask Cloudflare to drop specific URLs from its cache, in batches of
 	 * {@see PURGE_BATCH} — the API's own per-call ceiling. Stops at the first
 	 * failure (the remaining batches would fail the same way) and reports it,
