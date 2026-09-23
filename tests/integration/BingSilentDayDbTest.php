@@ -50,6 +50,18 @@ final class BingSilentDayDbTest extends DbTestCase {
 		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB
 	}
 
+	/**
+	 * A date N days before today, UTC.
+	 *
+	 * ⛔ THE WINDOWED TESTS NEVER NAME A CALENDAR DAY. They read the series
+	 * through Table::window() / Summary::build(), which look back from today;
+	 * written 2026-08-25 with fixed August dates, they went red a month later
+	 * on every CI cell — the code unchanged, the dates aged out of the window.
+	 */
+	private function ago( $days ) {
+		return gmdate( 'Y-m-d', time() - $days * DAY_IN_SECONDS );
+	}
+
 	/** A day Bing reported properly. */
 	private function full( $date, $in_index = 229, $crawled = 49 ) {
 		return array(
@@ -135,14 +147,14 @@ final class BingSilentDayDbTest extends DbTestCase {
 	 */
 	public function test_a_silent_day_is_kept_so_the_gap_can_be_seen() {
 		Table::upsert( array(
-			$this->full( '2026-08-20', 228 ),
-			$this->silent( '2026-08-21' ),
-			$this->full( '2026-08-22', 230 ),
+			$this->full( $this->ago( 3 ), 228 ),
+			$this->silent( $this->ago( 2 ) ),
+			$this->full( $this->ago( 1 ), 230 ),
 		) );
 
 		$dates = array_column( Table::window( 90 ), 'date_at' );
-		$this->assertSame( array( '2026-08-20', '2026-08-21', '2026-08-22' ), $dates, 'The day keeps its place in the series.' );
-		$this->assertFalse( Table::reported( $this->row_for( '2026-08-21' ) ) );
+		$this->assertSame( array( $this->ago( 3 ), $this->ago( 2 ), $this->ago( 1 ) ), $dates, 'The day keeps its place in the series.' );
+		$this->assertFalse( Table::reported( $this->row_for( $this->ago( 2 ) ) ) );
 	}
 
 	/* -------------------------------------------------------- the screen */
@@ -161,8 +173,8 @@ final class BingSilentDayDbTest extends DbTestCase {
 	 */
 	public function test_the_headline_tiles_skip_a_day_bing_said_nothing_about() {
 		Table::upsert( array(
-			$this->full( '2026-08-22', 230, 64 ),
-			$this->silent( '2026-08-23' ),
+			$this->full( $this->ago( 2 ), 230, 64 ),
+			$this->silent( $this->ago( 1 ) ),
 		) );
 
 		$out = $this->summary();
@@ -173,8 +185,8 @@ final class BingSilentDayDbTest extends DbTestCase {
 	/** Every day travels with a flag saying whether it is a reading at all. */
 	public function test_each_day_says_whether_it_is_a_reading() {
 		Table::upsert( array(
-			$this->full( '2026-08-22', 230 ),
-			$this->silent( '2026-08-23' ),
+			$this->full( $this->ago( 2 ), 230 ),
+			$this->silent( $this->ago( 1 ) ),
 		) );
 
 		$trend = $this->summary()['trend'];
