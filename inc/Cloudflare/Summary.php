@@ -71,6 +71,7 @@ final class Summary {
 			'ai_input'       => ! isset( $signal['ai_input'] ) || false !== $signal['ai_input'],
 			'ai_train'       => ! isset( $signal['ai_train'] ) || false !== $signal['ai_train'],
 			'blocked_agents' => $owner_blocked,
+			'allowed_agents' => (array) $core->get( 'allowed_agents', array() ),
 		);
 		$conflicts = Conflicts::detect( $crawlers, $policy, $days, Table::recent( 24 ) );
 

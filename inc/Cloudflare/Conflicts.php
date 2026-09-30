@@ -66,6 +66,7 @@ final class Conflicts {
 	 *                             - ai_input (bool)        robots Content-Signal ai-input.
 	 *                             - ai_train (bool)        robots Content-Signal ai-train.
 	 *                             - blocked_agents (array) crawler tokens the OWNER deliberately blocks.
+	 *                             - allowed_agents (array) user-agent rules the OWNER allowed in the review queue.
 	 * @param int        $days     The window the totals cover, for the copy.
 	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, passed, served } }
 	 *                             (see Table::recent()), or null to treat all
@@ -163,7 +164,7 @@ final class Conflicts {
 			$passes        = 0;
 			$recent_passes = 0;
 			foreach ( $crawlers as $c ) {
-				if ( in_array( (string) $c['ua'], self::TRAINERS, true ) ) {
+				if ( self::counts_as_training( (string) $c['ua'], $policy ) ) {
 					$passes += isset( $c['served'] ) ? (int) $c['served'] : 0;
 					if ( null !== $recent && ! empty( $recent[ (string) $c['ua'] ]['served'] ) ) {
 						$recent_passes += (int) $recent[ (string) $c['ua'] ]['served'];
@@ -260,6 +261,38 @@ final class Conflicts {
 	}
 
 	/**
+	 * Whether a page served to this crawler goes against ai-train=no — a
+	 * training crawler the owner has NOT allowed.
+	 *
+	 * ⛔⛔ AN ALLOWED CRAWLER IS HIS DECISION, NOT HIS WISH IGNORED. On heera.it
+	 * (2026-10-01) "letting training crawlers through — 36" was 27 pages to
+	 * ShapBot, which he allowed in the review queue. Pages served to a crawler
+	 * he let in are that choice being honoured. Used by {@see detect()} and
+	 * {@see onset()} alike, so the count and its start date agree.
+	 *
+	 * @param string $token  Crawler token (any case).
+	 * @param array  $policy The same declarations {@see detect()} takes.
+	 * @return bool
+	 */
+	public static function counts_as_training( $token, array $policy ) {
+		$token = strtolower( (string) $token );
+		if ( ! in_array( $token, self::TRAINERS, true ) ) {
+			return false;
+		}
+		// ⛔ A trainer he blocks stays counted even if the queue allows it — the
+		// block is his statement about training; the allow only keeps it from
+		// being refused at the door (heera.it's ClaudeBot sits on both lists).
+		$blocked = array_map( 'strtolower', array_map( 'strval', isset( $policy['blocked_agents'] ) ? (array) $policy['blocked_agents'] : array() ) );
+		if ( in_array( $token, $blocked, true ) ) {
+			return true;
+		}
+		// Allow rules are stored as typed ("ShapBot"); crawler rows carry
+		// lowercase tokens — the same case-folding blocking_is_owners_wish() does.
+		$allowed = array_map( 'strtolower', array_map( 'strval', isset( $policy['allowed_agents'] ) ? (array) $policy['allowed_agents'] : array() ) );
+		return ! in_array( $token, $allowed, true );
+	}
+
+	/**
 	 * The slug an operator's warn conflict carries in its id
 	 * ("edge-blocks-<slug>"). One transform, shared with every reader that has
 	 * to recover the operator from the id — drifted copies would silently stop
@@ -315,7 +348,7 @@ final class Conflicts {
 			if ( 'train-not-enforced' === $id ) {
 				$passed = 0;
 				foreach ( $rows as $ua => $t ) {
-					if ( in_array( (string) $ua, self::TRAINERS, true ) ) {
+					if ( self::counts_as_training( (string) $ua, $policy ) ) {
 						$passed += isset( $t['served'] ) ? (int) $t['served'] : 0;
 					}
 				}

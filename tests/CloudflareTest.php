@@ -1124,6 +1124,93 @@ final class CloudflareTest extends TestCase {
 		$this->assertFalse( $onset['bounded'] );
 	}
 
+	// ── A trainer the owner ALLOWED is not a wish going unenforced ──────────
+
+	/**
+	 * ⛔⛔ heera.it, 2026-10-01: "Cloudflare is letting training crawlers
+	 * through — 36" was 27 pages to ShapBot, which he allowed in the review
+	 * queue, plus 6 to Meta-ExternalAgent and 3 to GPTBot. Serving a crawler
+	 * the owner chose to let in is his decision being honoured; without it the
+	 * week was 9, under the floor, and the notice should not stand.
+	 */
+	public function test_a_trainer_the_owner_allowed_is_not_a_training_pass() {
+		$crawler = function ( $ua, $op, $served ) {
+			return array_merge( $this->crawler( $ua, $op, $served, 0, $served, 0 ), array( 'served' => $served ) );
+		};
+		$out = Conflicts::detect(
+			array(
+				$crawler( 'shapbot', 'Parallel', 27 ),
+				$crawler( 'meta-externalagent', 'Meta', 6 ),
+				$crawler( 'gptbot', 'OpenAI', 3 ),
+			),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array(), 'allowed_agents' => array( 'ShapBot' ) ),
+			7,
+			array(
+				'shapbot'            => array( 'blocked' => 0, 'passed' => 2, 'served' => 2 ),
+				'meta-externalagent' => array( 'blocked' => 0, 'passed' => 1, 'served' => 1 ),
+			)
+		);
+
+		$this->assertSame( array(), $out );
+	}
+
+	/** The crawlers he did not allow still count, and only they do. */
+	public function test_the_training_notice_counts_only_trainers_the_owner_did_not_allow() {
+		$crawler = function ( $ua, $op, $served ) {
+			return array_merge( $this->crawler( $ua, $op, $served, 0, $served, 0 ), array( 'served' => $served ) );
+		};
+		$out = Conflicts::detect(
+			array(
+				$crawler( 'shapbot', 'Parallel', 27 ),
+				$crawler( 'meta-externalagent', 'Meta', 30 ),
+			),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array(), 'allowed_agents' => array( 'shapbot' ) ),
+			7,
+			array(
+				'shapbot'            => array( 'blocked' => 0, 'passed' => 5, 'served' => 5 ),
+				'meta-externalagent' => array( 'blocked' => 0, 'passed' => 1, 'served' => 1 ),
+			)
+		);
+
+		$this->assertSame( 'train-not-enforced', $out[0]['id'] );
+		$this->assertSame( array( 'passed' => 30, 'recent' => 1 ), $out[0]['counts'] );
+	}
+
+	/**
+	 * ⛔ A TRAINER HE BLOCKS STAYS COUNTED, even if the review queue allows it.
+	 * On heera.it ClaudeBot is on both lists: the queue allow keeps it from being
+	 * refused at the door, the trainer block says "not for training". The block
+	 * is the statement about training, so its pages are still his wish ignored.
+	 */
+	public function test_a_trainer_the_owner_blocks_counts_even_when_the_queue_allows_it() {
+		$out = Conflicts::detect(
+			array( array_merge( $this->crawler( 'claudebot', 'Anthropic', 30, 0, 30, 0 ), array( 'served' => 30 ) ) ),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array( 'claudebot' ), 'allowed_agents' => array( 'claudebot' ) ),
+			7,
+			array( 'claudebot' => array( 'blocked' => 0, 'passed' => 2, 'served' => 2 ) )
+		);
+
+		$this->assertSame( 'train-not-enforced', $out[0]['id'] );
+		$this->assertSame( array( 'passed' => 30, 'recent' => 2 ), $out[0]['counts'] );
+	}
+
+	/** Dated by the same rule: days when only an allowed trainer got pages are not the start. */
+	public function test_the_training_notice_onset_ignores_a_trainer_the_owner_allowed() {
+		$daily = array(
+			'2026-09-28' => array( 'shapbot' => array( 'requests' => 9, 'blocked' => 0, 'passed' => 9, 'served' => 9 ) ),
+			'2026-09-29' => array( 'shapbot' => array( 'requests' => 9, 'blocked' => 0, 'passed' => 9, 'served' => 9 ) ),
+			'2026-09-30' => array(
+				'shapbot' => array( 'requests' => 9, 'blocked' => 0, 'passed' => 9, 'served' => 9 ),
+				'gptbot'  => array( 'requests' => 3, 'blocked' => 0, 'passed' => 3, 'served' => 3 ),
+			),
+		);
+
+		$onset = Conflicts::onset( $daily, 'train-not-enforced', array(), array( 'allowed_agents' => array( 'ShapBot' ) ) );
+
+		$this->assertSame( '2026-09-30', $onset['at'] );
+		$this->assertFalse( $onset['bounded'] );
+	}
+
 	/**
 	 * A page served is a 2xx the edge let through, minus what went to
 	 * /robots.txt — which Cloudflare's hourly rows cannot tell apart, so the
