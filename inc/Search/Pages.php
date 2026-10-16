@@ -83,6 +83,16 @@ final class Pages {
 		}
 		self::$terms[ $url ] = null;
 
+		// Plain permalinks: every term archive lives at the site root, named
+		// only by its query ("/?tag=x", "/?cat=5").
+		$query = (string) wp_parse_url( $url, PHP_URL_QUERY );
+		if ( '' !== $query ) {
+			self::$terms[ $url ] = self::query_term( $url, $query );
+			if ( self::$terms[ $url ] ) {
+				return self::$terms[ $url ];
+			}
+		}
+
 		// Page 2 of an archive is still that archive; so is its feed.
 		$path = untrailingslashit( (string) wp_parse_url( $url, PHP_URL_PATH ) );
 		$path = (string) preg_replace( '#/(?:page/\d+|feed(?:/[a-z0-9]+)?)$#i', '', $path );
@@ -106,12 +116,64 @@ final class Pages {
 	}
 
 	/**
+	 * The term a plain-permalink archive address names, or null.
+	 *
+	 * Same proof as a pretty one: the term's own link must say the same thing.
+	 * Every argument of that link must be in the address with the same value,
+	 * at the same path — so "/?tag=x" is the tag, while "/?s=x" or a "?tag="
+	 * on some other page is not.
+	 *
+	 * @param string $url   Absolute URL.
+	 * @param string $query Its query string.
+	 * @return \WP_Term|null
+	 */
+	private static function query_term( $url, $query ) {
+		parse_str( $query, $args );
+		$path = untrailingslashit( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+
+		$candidates = array();
+		if ( isset( $args['cat'] ) && is_scalar( $args['cat'] ) ) {
+			$candidates[] = get_term( (int) $args['cat'], 'category' );
+		}
+		if ( isset( $args['taxonomy'], $args['term'] ) && is_scalar( $args['taxonomy'] ) && is_scalar( $args['term'] ) ) {
+			$candidates[] = get_term_by( 'slug', (string) $args['term'], (string) $args['taxonomy'] );
+		}
+		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $taxonomy ) {
+			$var = (string) $taxonomy->query_var;
+			if ( '' !== $var && isset( $args[ $var ] ) && is_scalar( $args[ $var ] ) ) {
+				$candidates[] = get_term_by( 'slug', (string) $args[ $var ], $taxonomy->name );
+			}
+		}
+
+		foreach ( $candidates as $term ) {
+			if ( ! $term instanceof \WP_Term || ! is_taxonomy_viewable( $term->taxonomy ) ) {
+				continue;
+			}
+			$link = get_term_link( $term );
+			if ( ! is_string( $link ) || untrailingslashit( (string) wp_parse_url( $link, PHP_URL_PATH ) ) !== $path ) {
+				continue;
+			}
+			parse_str( (string) wp_parse_url( $link, PHP_URL_QUERY ), $want );
+			if ( array() === $want ) {
+				continue;
+			}
+			foreach ( $want as $key => $value ) {
+				if ( ! isset( $args[ $key ] ) || (string) $args[ $key ] !== (string) $value ) {
+					continue 2;
+				}
+			}
+			return $term;
+		}
+		return null;
+	}
+
+	/**
 	 * What to call an engine-reported page, in every list that shows one.
 	 *
 	 * One namer for every door — the admin cards, the split rows, the agent's
 	 * reads, the Findings wins — so a page is never "Tag: x" on one screen and
-	 * "/tag/x" on the next. In order: the post's title; "Homepage" for the
-	 * site root; "<Taxonomy>: <term>" for a term archive; the path for the
+	 * "/tag/x" on the next. In order: the post's title; "<Taxonomy>: <term>"
+	 * for a term archive; "Homepage" for the site root; the path for the
 	 * rest (a gone permalink, a date archive), which is all that is known.
 	 *
 	 * @param int    $page_id Resolved post ID, or 0.
@@ -127,15 +189,16 @@ final class Pages {
 		}
 		$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
 		$path = '' !== $path ? $path : '/';
-		if ( self::is_home_path( $path ) ) {
-			return __( 'Homepage', 'agentimus' );
-		}
+		// The term first: on plain permalinks a tag page's path IS the root.
 		$term = self::term( $url );
 		if ( $term ) {
 			$tax   = get_taxonomy( $term->taxonomy );
 			$label = $tax && ! empty( $tax->labels->singular_name ) ? (string) $tax->labels->singular_name : (string) $term->taxonomy;
 			/* translators: 1: taxonomy name, e.g. "Tag"; 2: the term's name. */
 			return sprintf( __( '%1$s: %2$s', 'agentimus' ), $label, html_entity_decode( (string) $term->name, ENT_QUOTES, 'UTF-8' ) );
+		}
+		if ( self::is_home_path( $path ) ) {
+			return __( 'Homepage', 'agentimus' );
 		}
 		return $path;
 	}

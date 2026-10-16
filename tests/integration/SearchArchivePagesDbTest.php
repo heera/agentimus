@@ -124,6 +124,57 @@ final class SearchArchivePagesDbTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'archive', $page, 'an undeclared key vanishes before any agent sees it' );
 	}
 
+	/**
+	 * ⛔ CAUGHT 2026-10-16, shipped in 1.51.7: on PLAIN permalinks every term
+	 * archive lives at the site root, named only by its query ("/?tag=x"), and
+	 * the namer read the path "/" and called every one of them "Homepage".
+	 */
+	public function test_on_plain_permalinks_a_logged_tag_read_is_named_by_its_tag() {
+		$this->use_plain_permalinks();
+		$tag = self::factory()->tag->create( array( 'name' => 'navigator.locks', 'slug' => 'navigator-locks' ) );
+
+		// The address the Request Log stores for this read, then its name.
+		$this->go_to( get_term_link( $tag ) );
+		$path = \Agentimus\Activity\PageViews::address();
+		$this->assertSame( '/?tag=navigator-locks', $path );
+		$this->assertSame( 'Tag: navigator.locks', Pages::title( 0, home_url( $path ) ) );
+	}
+
+	public function test_on_plain_permalinks_categories_and_custom_terms_are_named() {
+		$this->use_plain_permalinks();
+		register_taxonomy( 'genre', 'post', array( 'public' => true, 'query_var' => 'genre', 'labels' => array( 'singular_name' => 'Genre' ) ) );
+		register_taxonomy( 'shelf', 'post', array( 'public' => true, 'query_var' => false, 'labels' => array( 'singular_name' => 'Shelf' ) ) );
+		$cat   = self::factory()->category->create( array( 'name' => 'Web' ) );
+		$genre = self::factory()->term->create( array( 'taxonomy' => 'genre', 'name' => 'Essays' ) );
+		$shelf = self::factory()->term->create( array( 'taxonomy' => 'shelf', 'name' => 'Top' ) );
+
+		$this->assertSame( 'Category: Web', Pages::title( 0, get_term_link( $cat ) ), '"?cat=<id>"' );
+		$this->assertSame( 'Genre: Essays', Pages::title( 0, get_term_link( $genre ) ), 'a custom query var' );
+		$this->assertSame( 'Shelf: Top', Pages::title( 0, get_term_link( $shelf ) ), '"?taxonomy=shelf&term=top"' );
+	}
+
+	public function test_on_plain_permalinks_the_root_is_still_the_homepage() {
+		$this->use_plain_permalinks();
+		$post = self::factory()->post->create( array( 'post_title' => 'Cross-Tab Locking' ) );
+
+		$this->assertSame( 'Homepage', Pages::title( 0, home_url( '/' ) ) );
+		$this->assertSame( 'Homepage', Pages::title( 0, home_url( '/?tag=no-such-tag' ) ), 'a term that does not exist names nothing' );
+		$this->assertSame( 'Cross-Tab Locking', Pages::title( Pages::resolve( get_permalink( $post ) ), get_permalink( $post ) ) );
+	}
+
+	public function test_a_query_on_another_page_does_not_make_it_the_tag() {
+		self::factory()->tag->create( array( 'name' => 'navigator.locks', 'slug' => 'navigator-locks' ) );
+
+		$this->assertNull( Pages::term( home_url( '/about/?tag=navigator-locks' ) ), 'the tag lives at /tag/navigator-locks' );
+		$this->assertSame( 'Tag: navigator.locks', Pages::title( 0, home_url( '/tag/navigator-locks/?utm_source=x' ) ), 'a pretty tag page with a query is still the tag' );
+	}
+
+	private function use_plain_permalinks() {
+		$this->set_permalink_structure( '' );
+		create_initial_taxonomies();
+		Pages::reset();
+	}
+
 	/** Rest::enrich() over one unmapped card — the admin card's own dressing. */
 	private function enrich( $url ) {
 		$method = new \ReflectionMethod( Rest::class, 'enrich' );
