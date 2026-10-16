@@ -15,6 +15,7 @@ namespace Agentimus\Tests\Integration;
 
 use Agentimus\Activity\PageViews;
 use Agentimus\Activity\Recorder;
+use Agentimus\Activity\Repository;
 use Agentimus\Activity\Table;
 use Agentimus\BotSignature;
 
@@ -266,5 +267,84 @@ final class PageViewsDbTest extends DbTestCase {
 			$this->rows( PageViews::LABEL ),
 			'every signed request recorded, despite the bucket being long spent'
 		);
+	}
+
+	/* -- Which page ---------------------------------------------------------- */
+
+	/** The `path` stored on every row, oldest first. */
+	private function paths(): array {
+		global $wpdb;
+		// strval: get_col() hands back an empty string as null.
+		return array_map( 'strval', $wpdb->get_col( 'SELECT path FROM ' . Table::name() . ' ORDER BY id ASC' ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/**
+	 * ⭐ The label groups every page; `path` says WHICH one. On plain permalinks
+	 * the request's path is "/" for every article, so only the post's own
+	 * permalink — "?p=12" — can name it.
+	 */
+	public function test_a_page_row_records_which_page_was_read() {
+		$this->visit_page();
+
+		$this->assertSame( array( '/?p=' . $this->post_id ), $this->paths() );
+	}
+
+	public function test_a_page_row_records_the_pretty_permalink() {
+		$this->set_permalink_structure( '/%postname%/' );
+		$slug = get_post_field( 'post_name', $this->post_id );
+
+		$this->visit_page();
+
+		$this->assertSame( array( '/' . $slug . '/' ), $this->paths() );
+	}
+
+	/**
+	 * ⛔ Nothing the CLIENT put in the query string is stored: it may carry a
+	 * token or a search, and junk parameters would split one page into many.
+	 */
+	public function test_the_clients_query_string_is_never_stored() {
+		$this->go_to( add_query_arg( array( 'token' => 'secret', 'utm_source' => 'x' ), get_permalink( $this->post_id ) ) );
+		PageViews::maybe_record();
+
+		$this->assertSame( array( '/?p=' . $this->post_id ), $this->paths() );
+	}
+
+	public function test_a_tag_archive_records_the_tags_own_address() {
+		$this->set_permalink_structure( '/%postname%/' );
+		create_initial_taxonomies(); // A taxonomy's permastruct is registered with it, so re-register under the new structure…
+		flush_rewrite_rules(); // …and rebuild the rules, or go_to() cannot route /tag/x/ at all.
+		$tag = self::factory()->tag->create( array( 'slug' => 'navigator-locks' ) );
+		wp_set_post_tags( $this->post_id, array( $tag ) );
+
+		$this->go_to( add_query_arg( 'utm_source', 'x', get_term_link( $tag ) ) );
+		PageViews::maybe_record();
+
+		$this->assertTrue( is_tag(), 'the fixture really is the tag archive' );
+		$this->assertSame( array( '/tag/navigator-locks/' ), $this->paths() );
+	}
+
+	/** ⛔ A path cut short is a link to a page that does not exist. */
+	public function test_a_path_too_long_to_keep_is_not_kept_at_all() {
+		Recorder::record( PageViews::LABEL, false, '/' . str_repeat( 'a', 300 ) );
+		Recorder::record( PageViews::LABEL, false, '/' . str_repeat( 'a', 254 ) );
+
+		$this->assertSame( array( '', '/' . str_repeat( 'a', 254 ) ), $this->paths(), 'dropped whole past 255, kept whole at it' );
+	}
+
+	/**
+	 * The log names the page the way every search surface does, and a row with
+	 * no path (another surface, or one recorded before the column) says nothing.
+	 */
+	public function test_the_log_names_the_page_and_leaves_other_rows_unnamed() {
+		Recorder::record( 'llms.txt' );
+		$this->visit_page();
+
+		$rows = Repository::log( array() )['rows'];
+
+		$this->assertSame( '/?p=' . $this->post_id, $rows[0]['path'] );
+		$this->assertSame( 'A page', $rows[0]['title'] );
+		$this->assertSame( 'llms.txt', $rows[1]['endpoint'] );
+		$this->assertSame( '', $rows[1]['path'] );
+		$this->assertSame( '', $rows[1]['title'] );
 	}
 }

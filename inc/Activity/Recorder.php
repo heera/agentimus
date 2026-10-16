@@ -88,8 +88,10 @@ final class Recorder {
 	/**
 	 * @param string $endpoint Endpoint label.
 	 * @param bool   $refused  True when the request was refused, not served.
+	 * @param string $path     Which page was read, for a label that groups many
+	 *                         addresses ({@see PageViews::address()}). '' otherwise.
 	 */
-	public static function record( $endpoint, $refused = false ) {
+	public static function record( $endpoint, $refused = false, $path = '' ) {
 		if ( ! self::enabled() ) {
 			return;
 		}
@@ -172,9 +174,13 @@ final class Recorder {
 				'network'  => substr( $network, 0, 128 ),
 				'signer'   => substr( $signer, 0, 64 ),
 				'refused'  => $refused ? 1 : 0,
+				// ⛔ Never cut short: a truncated path is a link to a page that does
+				// not exist. One too long to keep is not kept, and the row says so by
+				// having none.
+				'path'     => strlen( (string) $path ) <= 255 ? (string) $path : '',
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		if ( 2 === (int) $verdict ) {

@@ -228,6 +228,14 @@ export default {
   methods: {
     surfaceName,
     isRenamed,
+    // A stored path is percent-encoded ("/%e0%a6%95/"); show what the owner typed.
+    readablePath(path) {
+      try {
+        return decodeURIComponent(path);
+      } catch (e) {
+        return path;
+      }
+    },
     async loadFacets() {
       if (!this.api) return;
       try {
@@ -545,6 +553,19 @@ export default {
                   @mouseleave="hideUaTip"
                   @click="pivot('endpoint', r.endpoint)"
                 ><code class="ar-act-feed__ep" :title="isRenamed(r.endpoint) ? r.endpoint : null">{{ surfaceName(r.endpoint) }}</code></button>
+                <!-- WHICH page, under the group it belongs to. Named as every search
+                     surface names it (post title, "Homepage", "Tag: x"); the bubble
+                     carries the address itself. Rows from before 1.51.7 have no path
+                     and show the group alone — nothing is guessed for them. -->
+                <a
+                  v-if="r.path"
+                  class="ar-linkbtn ar-log__page"
+                  :href="r.path"
+                  target="_blank"
+                  rel="noopener"
+                  @mouseenter="showUaTip($event, readablePath(r.path), 'Opens this page in a new tab')"
+                  @mouseleave="hideUaTip"
+                ><span class="ar-log__pagename">{{ r.title || readablePath(r.path) }}</span></a>
               </td>
               <td v-if="hasNetwork" data-label="Network">
                 <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>

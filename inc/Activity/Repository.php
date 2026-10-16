@@ -13,6 +13,7 @@ use Agentimus\Settings;
 use Agentimus\Guard;
 use Agentimus\ReviewBadge;
 use Agentimus\VerifierRegistry;
+use Agentimus\Search\Pages;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -601,8 +602,37 @@ final class Repository {
 			// TRUE = turned away at the door, never served. Counts toward no read total;
 			// the row exists so a proven impostor can't be refused in silence.
 			'refused'  => ! empty( $r['refused'] ),
+			// Which page a `page` row read, site-relative. '' for every other surface
+			// (its label already IS the address) and for rows recorded before 1.51.7.
+			'path'     => isset( $r['path'] ) ? (string) $r['path'] : '',
 			'at'       => gmdate( 'c', strtotime( $r['hit_at'] . ' UTC' ) ),
 		);
+	}
+
+	/**
+	 * A log row, with its page NAMED — the post's title, "Homepage", "Tag: x" —
+	 * by the same namer every search surface uses ({@see Pages::title()}), so a
+	 * page reads the same here as on the opportunity cards. '' when the row has
+	 * no path; the path itself when the site cannot name it (a gone post).
+	 *
+	 * @param array $r Raw row.
+	 * @return array
+	 */
+	private static function named_row( array $r ) {
+		$row  = self::hit_row( $r );
+		$path = $row['path'];
+		if ( '' === $path ) {
+			$row['title'] = '';
+			return $row;
+		}
+		// The stored path is host-relative (a subdirectory install's base is part
+		// of it), so the URL is the site's own origin plus the path — never
+		// home_url( $path ), which would add the base a second time.
+		$home         = wp_parse_url( home_url( '/' ) );
+		$origin       = ( isset( $home['scheme'] ) ? $home['scheme'] : 'https' ) . '://' . ( isset( $home['host'] ) ? $home['host'] : '' ) . ( isset( $home['port'] ) ? ':' . $home['port'] : '' );
+		$url          = $origin . $path;
+		$row['title'] = Pages::title( Pages::resolve( $url ), $url );
+		return $row;
 	}
 
 	/**
@@ -843,7 +873,7 @@ final class Repository {
 		// Fetch one extra row to learn whether another page exists, without a second query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, hit_at FROM $table WHERE $page_sql ORDER BY $order_sql $tail_sql",
+				"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, path, hit_at FROM $table WHERE $page_sql ORDER BY $order_sql $tail_sql",
 				array_merge( $params, $tail_args )
 			),
 			ARRAY_A
@@ -859,7 +889,7 @@ final class Repository {
 		$last = end( $rows );
 
 		return array(
-			'rows'          => array_map( array( self::class, 'hit_row' ), $rows ),
+			'rows'          => array_map( array( self::class, 'named_row' ), $rows ),
 			'total'         => $total,
 			'perPage'       => $per_page,
 			// ⛔ A cursor ONLY in keyset mode. Handing one back from a sorted page

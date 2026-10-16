@@ -90,7 +90,45 @@ final class PageViews {
 		// Everything else — the owner-skip, flood control, the identity verdict,
 		// the signer, the row cap — is the Recorder's, unchanged and shared with
 		// every other surface. This class only decides WHETHER a page view counts.
-		Recorder::record( self::LABEL );
+		Recorder::record( self::LABEL, false, self::address() );
+	}
+
+	/**
+	 * Which page this was, as a site-relative address ("/navigator-locks/",
+	 * "/?p=12") — the `path` column beside the shared `page` label.
+	 *
+	 * ⭐ THE ADDRESS WORDPRESS RESOLVED, NOT THE ONE THE CLIENT TYPED. A post or a
+	 * term archive is stored as its own permalink, so:
+	 * - a site on plain permalinks keeps "?p=12", the only part that names the
+	 *   post (the request's path there is "/" for every article);
+	 * - page 2 of a post or an archive is still that post or archive;
+	 * - ⛔ nothing the CLIENT put in a query string is ever stored. It may carry a
+	 *   token, a search, an email from a campaign link; a crawler's junk
+	 *   parameters would also split one page into many.
+	 * Anything else (a date archive, an author page, a search) falls back to the
+	 * request's path alone, query dropped for the same reason.
+	 *
+	 * @return string '' when there is nothing to name.
+	 */
+	public static function address() {
+		$url = '';
+		$obj = get_queried_object();
+		if ( is_singular() && $obj instanceof \WP_Post ) {
+			$url = (string) get_permalink( $obj );
+		} elseif ( ( is_category() || is_tag() || is_tax() ) && $obj instanceof \WP_Term ) {
+			$link = get_term_link( $obj );
+			$url  = is_string( $link ) ? $link : '';
+		} elseif ( is_front_page() ) {
+			$url = home_url( '/' );
+		}
+		if ( '' !== $url ) {
+			$parts = wp_parse_url( $url );
+			$path  = isset( $parts['path'] ) && '' !== $parts['path'] ? $parts['path'] : '/';
+			return isset( $parts['query'] ) && '' !== $parts['query'] ? $path . '?' . $parts['query'] : $path;
+		}
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- parsed to its path and stripped of anything but URL characters below.
+		$path = (string) wp_parse_url( (string) $uri, PHP_URL_PATH );
+		return (string) preg_replace( '#[^A-Za-z0-9\-._~!$&\'()*+,;=:@/%]#', '', $path );
 	}
 
 	/**

@@ -438,6 +438,15 @@ final class Registrar {
 								. 'verdict came from DNS/ranges or nothing.'
 							),
 							'refused'  => self::b( 'True = turned away at the door, never served.' ),
+							'path'     => self::s(
+								'For endpoint "page": which page was read, as a site-relative address ("/my-post/", '
+								. 'or "/?p=12" on plain permalinks). Empty for every other endpoint, whose label is '
+								. 'already its address, and for page rows recorded before Agentimus 1.51.7.'
+							),
+							'title'    => self::s(
+								'What the site calls that page: the post title, "Homepage", "Tag: x", or the path '
+								. 'itself when nothing on the site matches it any more. Empty when path is empty.'
+							),
 							'at'       => self::s(),
 						)
 					),
