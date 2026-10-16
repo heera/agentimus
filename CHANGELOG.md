@@ -4,6 +4,11 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.51.7
+* New: the Request Log now names which page a crawler or AI assistant read. A "Page (HTML)" row shows the page's title, such as a post's name, "Home" or "Tag: PHP", as a link that opens the page. Hover it for the full title and address. Rows recorded before this update did not keep the page, so they still read "Page (HTML)".
+* Changed: only the address WordPress resolved is kept, so a link's query string, which can carry a token or a campaign tag, is never stored.
+* Changed: read-request-log returns `path` and `title` for each page row.
+
 ## 1.51.6
 * Fixed: a tag or category page in your search results was listed by its address, such as "/tag/navigator-locks", with no button and advice written for a post. It now carries its name, such as "Tag: navigator.locks", everywhere a page is listed, and its card links to the tag's edit screen.
 * Fixed: when a tag or category page split a search with a post it lists, the split row said the tag page "Earns the click" and suggested pointing the post at it. A tag page only lists posts. Its row now always offers Set this aside, and when one post is up against tag pages, that post is marked as the answer. Setting the tag page aside gives the search back to the post.

@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.51.6
+Stable tag: 1.51.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,11 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.7 =
+* New: the Request Log now names which page a crawler or AI assistant read. A "Page (HTML)" row shows the page's title, such as a post's name, "Home" or "Tag: PHP", as a link that opens the page. Hover it for the full title and address. Rows recorded before this update did not keep the page, so they still read "Page (HTML)".
+* Changed: only the address WordPress resolved is kept, so a link's query string, which can carry a token or a campaign tag, is never stored.
+* Changed: read-request-log returns `path` and `title` for each page row.
+
 = 1.51.6 =
 * Fixed: a tag or category page in your search results was listed by its address, such as "/tag/navigator-locks", with no button and advice written for a post. It now carries its name, such as "Tag: navigator.locks", everywhere a page is listed, and its card links to the tag's edit screen.
 * Fixed: when a tag or category page split a search with a post it lists, the split row said the tag page "Earns the click" and suggested pointing the post at it. A tag page only lists posts. Its row now always offers Set this aside, and when one post is up against tag pages, that post is marked as the answer. Setting the tag page aside gives the search back to the post.
@@ -399,6 +404,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.46.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.7 =
+The Request Log names the page each crawler read. Adds one column to the log table. No breaking changes.
 
 = 1.51.6 =
 Tag and category pages in your search results are named, and a tag page that splits a search with a post it lists is no longer treated as the answer. No breaking changes.

@@ -992,13 +992,13 @@ final class Admin {
 				// would teach people the card exaggerates.
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
-				// ⭐ So does a one-fix release (1.51.6) — the name and the split advice
-				// are one change to one kind of page. The `archive` field is for
-				// agents reading over MCP — the changelog carries it.
+				// ⭐ So does a one-change release (1.51.7) — the page name in the log.
+				// The query-string rule and the MCP `path`/`title` fields are for the
+				// careful reader and for agents — the changelog carries them.
 				array(
-					'icon'  => 'search',
-					'title' => 'Tag Pages Get Their Names in Search',
-					'text'  => 'A tag or category page in your search results now shows its name instead of its address. When one splits a search with a post it lists, the post is marked as the answer, and setting the tag page aside gives the search back to it.',
+					'icon'  => 'page',
+					'title' => 'The Request Log Names the Page',
+					'text'  => 'A Page (HTML) row in the Request Log now shows which page was read, by its title, as a link that opens it. Rows from before this update did not keep the page and still read Page (HTML).',
 				),
 			),
 		);
