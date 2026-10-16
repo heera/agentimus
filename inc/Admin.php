@@ -992,14 +992,13 @@ final class Admin {
 				// would teach people the card exaggerates.
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
-				// ⭐ So does a one-fix release (1.51.5) — the allowed-crawler fix folded
-				// into the same row, being the same notice. The single-day wording and
-				// the new `served` field are for agents reading over MCP — the
-				// changelog carries them.
+				// ⭐ So does a one-fix release (1.51.6) — the name and the split advice
+				// are one change to one kind of page. The `archive` field is for
+				// agents reading over MCP — the changelog carries it.
 				array(
-					'icon'  => 'shield',
-					'title' => 'The Training Notice Counts Pages Served',
-					'text'  => 'The notice that training crawlers are getting through now counts only requests that received a page. A crawler reading your robots.txt, one your server turned away, or one you allowed yourself no longer counts. It can read low for a few days after updating.',
+					'icon'  => 'search',
+					'title' => 'Tag Pages Get Their Names in Search',
+					'text'  => 'A tag or category page in your search results now shows its name instead of its address. When one splits a search with a post it lists, the post is marked as the answer, and setting the tag page aside gives the search back to it.',
 				),
 			),
 		);

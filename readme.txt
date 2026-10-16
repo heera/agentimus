@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.51.5
+Stable tag: 1.51.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,11 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.6 =
+* Fixed: a tag or category page in your search results was listed by its address, such as "/tag/navigator-locks", with no button and advice written for a post. It now carries its name, such as "Tag: navigator.locks", everywhere a page is listed, and its card links to the tag's edit screen.
+* Fixed: when a tag or category page split a search with a post it lists, the split row said the tag page "Earns the click" and suggested pointing the post at it. A tag page only lists posts. Its row now always offers Set this aside, and when one post is up against tag pages, that post is marked as the answer. Setting the tag page aside gives the search back to the post.
+* Changed: read-search-opportunities marks each page in a split search with `archive`, and names tag and category pages the way the screen does.
+
 = 1.51.5 =
 * Fixed: the notice that Cloudflare is letting training crawlers through counted every request carrying a training crawler's name that Cloudflare did not block. That included crawlers reading your robots.txt, which is where your ai-train=no line lives, and requests your server turned away with an error. On a site where Cloudflare already stops the training crawlers, it could report hundreds of requests and ask you to block them, when not one page had been served. It now counts only requests that received a page, and dates the notice from the first day one did. Right after updating, the count can read low for a few days while new hours are collected; it never reads high.
 * Fixed: the training notice also counted pages served to a training crawler you had allowed in your review queue, so letting one in on purpose kept the notice up. A crawler you allowed no longer counts, unless you also block it as a training crawler: then the block is what you asked for, and it still counts.
@@ -391,17 +396,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: the two counts of your worklist could disagree, and the probe that reads what your theme does with a picture's description had a gap in its filter.
 * Improved: on the dashboard's Today line, how each figure compares with yesterday is a small arrow at the end of its label rather than a coloured sentence beneath it. Hover it for the number; a figure that did not move says nothing at all.
 
-= 1.45.0 =
-* Fixed: a page could be told it does not answer a search it is no longer found for. That reading is measured in the background against the search the engines showed the page for at the time, and the engines move that search without anybody touching the page — so the reading beside it became an answer to a different question. Pages are read again when their search changes, and the old reading stays on screen, marked, until the new one replaces it.
-* Fixed: a day Bing reported nothing about was drawn as a drop to zero pages in the index. Bing answers for every date in its window whether or not it holds numbers for that date, so a date with nothing in it was stored and drawn as a measurement — a fall to zero and back, on a site that never left the index. Those days now keep their place in the chart as a gap you can hover, and say what they are when opened.
-* Fixed: for the same reason the "Pages in Bing's index" figure above that chart could have read zero, and the warning about Bing's crawler hitting errors could have gone quiet on a site that was still erroring. Both now read the most recent day Bing actually reported.
-* Fixed: fresh numbers from Bing could be overwritten by an empty answer, because Bing re-sends its whole window on every poll. An empty answer can no longer overwrite a reading.
-* Fixed: "Report an Issue" in the More menu had no icon, and the Report screen wore the flag drawn for it. Both have their own mark again.
-* Improved: where two searches on a page are tied for busiest, the same one wins every time — the order could vary between readings, which meant the search a page was measured against could change on its own.
-
-The most recent releases are listed here, back to 1.45.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.46.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.6 =
+Tag and category pages in your search results are named, and a tag page that splits a search with a post it lists is no longer treated as the answer. No breaking changes.
 
 = 1.51.5 =
 The Cloudflare training notice counts only pages actually served to training crawlers you have not allowed, not robots.txt reads or requests your server refused. No breaking changes.

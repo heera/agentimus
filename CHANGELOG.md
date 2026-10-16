@@ -4,6 +4,11 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.51.6
+* Fixed: a tag or category page in your search results was listed by its address, such as "/tag/navigator-locks", with no button and advice written for a post. It now carries its name, such as "Tag: navigator.locks", everywhere a page is listed, and its card links to the tag's edit screen.
+* Fixed: when a tag or category page split a search with a post it lists, the split row said the tag page "Earns the click" and suggested pointing the post at it. A tag page only lists posts. Its row now always offers Set this aside, and when one post is up against tag pages, that post is marked as the answer. Setting the tag page aside gives the search back to the post.
+* Changed: read-search-opportunities marks each page in a split search with `archive`, and names tag and category pages the way the screen does.
+
 ## 1.51.5
 * Fixed: the notice that Cloudflare is letting training crawlers through counted every request carrying a training crawler's name that Cloudflare did not block. That included crawlers reading your robots.txt, which is where your ai-train=no line lives, and requests your server turned away with an error. On a site where Cloudflare already stops the training crawlers, it could report hundreds of requests and ask you to block them, when not one page had been served. It now counts only requests that received a page, and dates the notice from the first day one did. Right after updating, the count can read low for a few days while new hours are collected; it never reads high.
 * Fixed: the training notice also counted pages served to a training crawler you had allowed in your review queue, so letting one in on purpose kept the notice up. A crawler you allowed no longer counts, unless you also block it as a training crawler: then the block is what you asked for, and it still counts.
