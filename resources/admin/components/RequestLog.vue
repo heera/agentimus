@@ -228,6 +228,12 @@ export default {
   methods: {
     surfaceName,
     isRenamed,
+    // A long title cut by HAND, not by CSS: an ellipsis can only cut between
+    // whole glyphs, so the leftover width (a space, half a "W") opened a gap
+    // between "…" and the ↗. The full title rides in the hover bubble.
+    shortTitle(t) {
+      return t.length > 24 ? `${t.slice(0, 23).trimEnd()}…` : t;
+    },
     // A stored path is percent-encoded ("/%e0%a6%95/"); show what the owner typed.
     readablePath(path) {
       try {
@@ -545,7 +551,11 @@ export default {
               </td>
               <td data-label="Address">
                 <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg>
+                <!-- A row that names its page shows the page alone: "Page (HTML)" above
+                     it said nothing the link does not. A row WITHOUT a name (recorded
+                     before 1.51.7) keeps the chip — the only thing that row can say. -->
                 <button
+                  v-if="!r.path"
                   type="button"
                   class="ar-log__pivot"
                   :aria-label="`Show only ${surfaceName(r.endpoint)}`"
@@ -553,19 +563,15 @@ export default {
                   @mouseleave="hideUaTip"
                   @click="pivot('endpoint', r.endpoint)"
                 ><code class="ar-act-feed__ep" :title="isRenamed(r.endpoint) ? r.endpoint : null">{{ surfaceName(r.endpoint) }}</code></button>
-                <!-- WHICH page, under the group it belongs to. Named as every search
-                     surface names it (post title, "Homepage", "Tag: x"); the bubble
-                     carries the address itself. Rows from before 1.51.7 have no path
-                     and show the group alone — nothing is guessed for them. -->
                 <a
-                  v-if="r.path"
+                  v-else
                   class="ar-linkbtn ar-log__page"
                   :href="r.path"
                   target="_blank"
                   rel="noopener"
-                  @mouseenter="showUaTip($event, readablePath(r.path), 'Opens this page in a new tab')"
+                  @mouseenter="showUaTip($event, r.title || readablePath(r.path), `${readablePath(r.path)} · opens in a new tab`)"
                   @mouseleave="hideUaTip"
-                ><span class="ar-log__pagename">{{ r.title || readablePath(r.path) }}</span></a>
+                ><span class="ar-log__pagename">{{ shortTitle(r.title || readablePath(r.path)) }}</span></a>
               </td>
               <td v-if="hasNetwork" data-label="Network">
                 <svg class="ar-cardico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.6 2.5 2.6 14.5 0 17-2.6-2.5-2.6-14.5 0-17z" /></svg>
