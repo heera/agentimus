@@ -19,6 +19,9 @@
 /node_modules
 /tests
 /bin
+# Agent skills are published to skill stores and read from GitHub; the plugin
+# never loads them.
+/skills
 /phpunit.xml.dist
 /phpunit-integration.xml.dist
 /composer.json
