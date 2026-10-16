@@ -1141,6 +1141,7 @@ final class Registrar {
 									'position'    => self::n(),
 									'share'       => self::n( 'This page\'s fraction of the query\'s showings (0–1).' ),
 									'winner'      => self::b( 'True on the one page that earns the click — most clicks, then the better position. Advise keeping this page as the answer and pointing the others at it, or differentiating them; never advise editing the winner.' ),
+									'archive'     => self::b( 'True when this page is a tag, category or other term archive — a list of posts, not an answer. When an archive splits a search with a post, the post is the answer whatever `winner` says: advise the owner to set the archive aside on the Search screen (set-aside-page takes post IDs, so an agent cannot), and never advise editing the post to point at the archive.' ),
 								)
 							),
 						),

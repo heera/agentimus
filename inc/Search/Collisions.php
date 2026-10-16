@@ -250,7 +250,7 @@ final class Collisions {
 				static function ( $page ) {
 					$id = (int) $page['page_id'];
 					return array(
-						'title'       => $id > 0 ? html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' ) : (string) wp_parse_url( (string) $page['url'], PHP_URL_PATH ),
+						'title'       => Pages::title( $id, (string) $page['url'] ),
 						'url'         => (string) $page['url'],
 						'postId'      => $id,
 						'editUrl'     => $id > 0 ? (string) get_edit_post_link( $id, 'raw' ) : '',
@@ -259,6 +259,10 @@ final class Collisions {
 						'position'    => (float) $page['position'],
 						'share'       => (float) $page['share'],
 						'winner'      => ! empty( $page['winner'] ),
+						// A tag or category page only lists posts. Splitting a
+						// search with a post it lists, it is never the answer,
+						// whatever the share says — both doors need to know.
+						'archive'     => 0 === $id && null !== Pages::term( (string) $page['url'] ),
 					);
 				},
 				$collision['pages']

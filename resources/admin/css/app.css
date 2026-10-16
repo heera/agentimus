@@ -3339,6 +3339,7 @@ a.ar-opp__title:hover { text-decoration: underline; }
 }
 .ar-clsn__act:hover:not(:disabled) { color: var(--ar-accent); border-color: var(--ar-accent); }
 .ar-clsn__act:disabled { opacity: 0.5; cursor: default; }
+.ar-clsn__arch { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--ar-ink-soft); }
 /* Narrow: the row stacks — page, numbers, then the verdict or the decision. */
 @container (max-width: 720px) {
   .ar-clsn__row { flex-wrap: wrap; gap: 8px 16px; }

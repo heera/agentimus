@@ -794,7 +794,7 @@ final class Findings {
 			}
 			$title = $id > 0
 				? Worklist::decode_title( get_the_title( $id ) )
-				: (string) wp_parse_url( (string) $win['page_url'], PHP_URL_PATH );
+				: Search\Pages::title( 0, (string) $win['page_url'] );
 			if ( '' === trim( $title ) ) {
 				continue; // A win we cannot name is not a win anyone can read.
 			}

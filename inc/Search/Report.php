@@ -567,7 +567,7 @@ final class Report {
 	private static function wire_page( array $page ) {
 		$id = (int) $page['page_id'];
 		return array(
-			'title'       => $id > 0 ? html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' ) : (string) wp_parse_url( (string) $page['page_url'], PHP_URL_PATH ),
+			'title'       => Pages::title( $id, (string) $page['page_url'] ),
 			'url'         => (string) $page['page_url'],
 			'postId'      => $id,
 			'impressions' => (int) $page['impressions'],
@@ -586,7 +586,7 @@ final class Report {
 	private static function wire_card( array $card ) {
 		$id = (int) $card['page_id'];
 		return array(
-			'title'       => $id > 0 ? html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' ) : (string) wp_parse_url( (string) $card['page_url'], PHP_URL_PATH ),
+			'title'       => Pages::title( $id, (string) $card['page_url'] ),
 			'url'         => (string) $card['page_url'],
 			'postId'      => $id,
 			'impressions' => (int) $card['impressions'],

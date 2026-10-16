@@ -234,7 +234,7 @@ final class Rest {
 	private function name_page( array $row ) {
 		$id = (int) $row['page_id'];
 		// Decoded, not escaped — the admin app escapes text itself.
-		$row['title']    = $id > 0 ? html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' ) : '';
+		$row['title']    = Pages::title( $id, (string) $row['page_url'] );
 		$row['edit_url'] = $id > 0 ? (string) get_edit_post_link( $id, 'raw' ) : '';
 		$path            = (string) wp_parse_url( (string) $row['page_url'], PHP_URL_PATH );
 		$row['path']     = '' !== $path ? $path : '/';
@@ -374,32 +374,17 @@ final class Rest {
 				'edit_url' => (string) get_edit_post_link( $id, 'raw' ),
 			);
 		}
-		// URL-keyed entries wear their card's name — "Homepage" for the one
-		// unmapped page we can name, the path for the rest — and offer no
-		// editor door, exactly like the card didn't.
+		// URL-keyed entries wear their card's name ({@see Pages::title()}) and
+		// offer no editor door, exactly like the card didn't.
 		foreach ( $this->set_aside_urls() as $url ) {
-			$path   = (string) wp_parse_url( $url, PHP_URL_PATH );
-			$path   = '' !== $path ? $path : '/';
 			$rows[] = array(
 				'id'       => 0,
-				'title'    => self::is_home_path( $path ) ? __( 'Homepage', 'agentimus' ) : $path,
+				'title'    => Pages::title( 0, $url ),
 				'url'      => $url,
 				'edit_url' => '',
 			);
 		}
 		return $rows;
-	}
-
-	/**
-	 * Whether a path is the site root — subdirectory installs compare against
-	 * their real home path, not "/".
-	 *
-	 * @param string $path URL path ('/' when bare).
-	 * @return bool
-	 */
-	private static function is_home_path( $path ) {
-		$home = untrailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
-		return untrailingslashit( (string) $path ) === $home;
 	}
 
 	/**
@@ -466,7 +451,7 @@ final class Rest {
 			// page happening to sit in the recency sample ({@see Score::page_flags}).
 			$card['optimize_flags'] = $this->score()->page_flags( $id );
 		} else {
-			$card['title']    = (string) wp_parse_url( (string) $card['page_url'], PHP_URL_PATH );
+			$card['title']    = Pages::title( 0, (string) $card['page_url'] );
 			$card['edit_url'] = '';
 		}
 		$path         = (string) wp_parse_url( (string) $card['page_url'], PHP_URL_PATH );
@@ -475,15 +460,22 @@ final class Rest {
 			// WHICH doorless case this is, so the card can instruct instead of
 			// shrug — and only where the instruction is true. The homepage's
 			// title really is the site title + tagline (that is what core
-			// prints for the front page); an archive or a gone permalink has
-			// no such single lever, and naming one would be a lie.
-			$is_home          = self::is_home_path( $card['path'] );
-			$card['doorless'] = $is_home ? 'home' : 'generic';
-			if ( $is_home ) {
-				// A name, not a bare "/": this is the one unmapped page whose
-				// identity the plugin actually knows.
-				$card['title']       = __( 'Homepage', 'agentimus' );
+			// prints for the front page). A term archive is built from the
+			// posts that carry the term, and its title from the term's name —
+			// so its door is the term's edit screen. A gone permalink or a
+			// date archive has no such lever, and naming one would be a lie.
+			$term = Pages::term( (string) $card['page_url'] );
+			if ( Pages::is_home_path( $card['path'] ) ) {
+				$card['doorless']    = 'home';
 				$card['general_url'] = admin_url( 'options-general.php' );
+			} elseif ( $term ) {
+				$tax                = get_taxonomy( $term->taxonomy );
+				$card['doorless']   = 'term';
+				$card['term_label'] = $tax && ! empty( $tax->labels->singular_name ) ? (string) $tax->labels->singular_name : (string) $term->taxonomy;
+				$card['term_name']  = html_entity_decode( (string) $term->name, ENT_QUOTES, 'UTF-8' );
+				$card['term_url']   = Pages::term_edit_url( (string) $card['page_url'] );
+			} else {
+				$card['doorless'] = 'generic';
 			}
 		}
 		unset( $card['all_queries'] ); // Counted in `counts`; the wire carries only what renders.

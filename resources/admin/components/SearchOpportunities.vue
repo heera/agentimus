@@ -276,6 +276,11 @@ export default {
     },
   },
   methods: {
+    // A split where every page but one is a tag or category archive: that one
+    // post is the answer, and the archives are what to set aside.
+    soleAnswer(c) {
+      return c.pages.some((p) => p.archive) && c.pages.filter((p) => !p.archive).length === 1;
+    },
     // Finished cards to the foot of their group, order otherwise untouched (the
     // server ranks by impressions and that ranking is still right within each
     // half). Copied before sorting — sort() mutates, and these arrays belong to
@@ -695,9 +700,12 @@ export default {
                        truth that fits it: the HOMEPAGE's result title really is the
                        site title + tagline (that's what core prints for the front
                        page), so it gets that instruction and a real door to
-                       Settings → General; any other doorless address (an archive, a
-                       gone permalink) has no single lever, so no lever is named. -->
+                       Settings → General; a TERM archive takes its title from the
+                       term's name, so its door is the term's edit screen; any other
+                       doorless address (a date archive, a gone permalink) has no
+                       single lever, so no lever is named. -->
                   <span v-if="card.doorless === 'home'" class="ar-opp__noeditor">This is your homepage — searchers see your site title and tagline as its title; its description comes from your theme.</span>
+                  <span v-else-if="card.doorless === 'term'" class="ar-opp__noeditor">This is the {{ card.term_label.toLowerCase() }} page for “{{ card.term_name }}” — WordPress builds it from the posts that carry it, and takes its title from the {{ card.term_label.toLowerCase() }}’s name. If one of those posts answers this search better, set this page aside.</span>
                   <span v-else-if="card.doorless" class="ar-opp__noeditor">There is no post behind this address. WordPress builds this page from other content — an archive, or an address that no longer exists — so there is no editor to open.</span>
                   <!-- A finished card keeps a door and loses the instructions.
                        Every fix link lands ON a field, so it asks for an edit —
@@ -712,6 +720,7 @@ export default {
                        and the one that reads like the front end must not. -->
                   <a v-if="card.waiting && card.open_url" :href="card.open_url" target="_blank" rel="noopener" class="ar-opp__edit">Open in editor</a>
                   <template v-if="!card.waiting">
+                    <a v-if="card.doorless === 'term' && card.term_url" :href="card.term_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit this {{ card.term_label.toLowerCase() }}</a>
                     <a v-if="card.doorless === 'home' && card.general_url" :href="card.general_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Edit site title &amp; tagline</a>
                     <a v-if="card.edit_url" :href="card.edit_url" target="_blank" rel="noopener" class="ar-opp__edit is-primary">Improve meta title &amp; description</a>
                     <a v-if="group.key === 'almost' && card.links_url" :href="card.links_url" target="_blank" rel="noopener" class="ar-opp__edit">Add internal links</a>
@@ -799,7 +808,14 @@ export default {
             <span><b>#{{ p.position }}</b>position</span>
           </span>
           <span class="ar-clsn__bar" aria-hidden="true"><i :style="{ width: Math.round(p.share * 100) + '%' }"></i></span>
-          <span v-if="p.winner" class="ar-clsn__win">Earns the click</span>
+          <!-- An ARCHIVE row always keeps its set-aside, winner or not: a tag
+               page that out-ranks the post it lists is not the answer, and
+               setting it aside hands the search back to the post. -->
+          <span v-if="p.winner && !p.archive" class="ar-clsn__win">Earns the click</span>
+          <!-- …and the one POST up against archives is the answer, whatever
+               its share: setting it aside, or pointing it at a list of posts,
+               would be advice against the only page that answers. -->
+          <span v-else-if="!p.archive && soleAnswer(c)" class="ar-clsn__win">The answer</span>
           <span v-else class="ar-clsn__acts">
             <a v-if="p.editUrl" class="ar-clsn__act" :href="p.editUrl" target="_blank" rel="noopener">Open to edit</a>
             <button
@@ -810,6 +826,10 @@ export default {
             >Set this aside</button>
           </span>
         </div>
+        <p v-if="c.pages.some((p) => p.archive)" class="ar-clsn__arch">
+          A tag or category page only lists posts — it is not the answer, even when it ranks higher.
+          Set it aside and this search counts for the post instead.
+        </p>
       </div>
 
       <p class="ar-card__note">

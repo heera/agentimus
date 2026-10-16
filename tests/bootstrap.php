@@ -289,6 +289,8 @@ namespace {
 	if ( ! function_exists( 'get_post_mime_type' ) )    { function get_post_mime_type( $id = 0 ) { return isset( $GLOBALS['_af_attachments'][ (int) $id ]['mime'] ) ? (string) $GLOBALS['_af_attachments'][ (int) $id ]['mime'] : 'image/jpeg'; } }
 	if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id = 0 ) { return isset( $GLOBALS['_af_attachments'][ (int) $id ]['meta'] ) ? (array) $GLOBALS['_af_attachments'][ (int) $id ]['meta'] : array(); } }
 	if ( ! function_exists( 'get_the_title' ) )         { function get_the_title( $p = null ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? (string) $p->post_title : ''; } }
+	if ( ! function_exists( 'get_taxonomies' ) )        { function get_taxonomies( $args = array(), $output = 'names' ) { return array( 'category' => 'category', 'post_tag' => 'post_tag' ); } }
+	if ( ! function_exists( 'get_term_by' ) )           { function get_term_by( $field, $value, $taxonomy = '' ) { return false; } }
 	if ( ! function_exists( 'get_permalink' ) )         { function get_permalink( $p = 0 ) { $p = is_object( $p ) ? $p : get_post( $p ); return 'https://example.com/?p=' . ( $p ? (int) $p->ID : 0 ); } }
 	// Singular-view surface for the Schema privacy tests (toggle via the globals).
 	if ( ! function_exists( 'is_singular' ) )           { function is_singular( $types = '' ) { return ! empty( $GLOBALS['_af_is_singular'] ); } }
