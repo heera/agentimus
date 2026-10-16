@@ -471,7 +471,7 @@ Both are stable URLs, so `send()` sets `Cache-Control: public, max-age=3600`. Co
 Agentimus serves a Markdown representation of content two ways, both gated by `enable_markdown` and served as `text/markdown`:
 
 - **Explicit `.md` URLs** — `/<slug>.md`, and `/index.md` (or a bare `/.md`) for the site index. The path is resolved back to a post via `url_to_postid()`; only posts whose type is in scope (`Content::post_types()`) are served, otherwise WordPress 404s normally.
-- **`Accept: text/markdown` negotiation** — on a resolved singular view (or the front page/archive/search, which map to the site index).
+- **`Accept: text/markdown` negotiation** — opt-in, off by default (`agentimus_negotiate_markdown`, see `Endpoints::negotiates_markdown()`); on a resolved singular view (or the front page/archive/search, which map to the site index).
 
 Because negotiated Markdown shares a URL with the HTML page, **all** Markdown responses are sent with `Cache-Control: no-store, max-age=0` and `Vary: Accept`. The current page's Markdown twin is advertised on singular, in-scope views as a Link header:
 

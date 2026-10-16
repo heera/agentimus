@@ -29,21 +29,21 @@ Only the content types you have chosen appear in these files. By default that's 
 
 **In a browser.** Most of these are just web addresses. Type your site's address followed by the path — for example `https://example.com/llms.txt` — and the file opens as plain text or JSON you can read directly. The settings screen also has a **What Your Site Covers** box with ready-made links to your `llms.txt`, `llms-full.txt` and `robots.txt`, and the **Discovery** hub lists the `/.well-known/` documents.
 
-**The one exception — the "Accept header" versions.** Some of what Agentimus serves is triggered by a request *header* rather than a distinct URL. A browser's address bar can't send that header, so to see those you use a command-line tool such as `curl`:
+**The one exception — the "Accept header" version.** A page can also answer with Markdown when it is asked for it by a request *header* rather than a distinct URL. That mode is **off by default** (see [Per-page Markdown](#per-page-markdown--the-md-address-and-the-accept-twin) for why), so on most sites this returns the normal HTML page. If you have switched it on, a browser's address bar can't send the header, so use a command-line tool such as `curl`:
 
 ```bash
-# Ask any page for its Markdown edition using the Accept header
+# Ask a page for its Markdown edition using the Accept header (only when switched on)
 curl -H "Accept: text/markdown" https://example.com/about/
 ```
 
-If you're not comfortable with the command line, you don't need it — the same Markdown is always available at the plain `.md` address described below, which any browser can open.
+You don't need it either way — the same Markdown is always available at the plain `.md` address described below, which any browser can open.
 
 ## The AI page guide — `/llms.txt`
 
 `/llms.txt` is a one-page map of your site written for AI assistants. It's the first thing many of them look for. Open `https://yoursite.com/llms.txt` and you'll see a tidy, human-readable outline:
 
 - Your site's **name and tagline** at the top.
-- A one-line note telling agents they can fetch any page as Markdown (by adding `.md` or sending the Accept header).
+- A one-line note telling agents they can fetch any page as Markdown (by adding `.md`, or by sending the Accept header where that mode is switched on).
 - A pointer to your **discovery document** (`/.well-known/discovery.json`), so an agent arriving here can find your structured machine profile.
 - An **About** block drawn from your Identity settings — who you are, who the site is for, what it is *not*, and your areas of expertise.
 - A **section for each content type** you publish (Pages, Posts, and any others you've enabled), listing each item as a link with a short excerpt.
@@ -80,7 +80,7 @@ For any single page or post you've included, Agentimus can hand an assistant a c
 2. **Send the `Accept: text/markdown` header** to the normal page URL — **off by default since 1.21.2.** It answers one address with two different bodies, which is only safe if every cache in front of your site honours the "never store this" instruction Agentimus attaches to the Markdown. A common Cloudflare configuration ("Cache Everything" with an Edge TTL) overrides that instruction, stores the Markdown under the page's address, and then serves it to **human readers** — which is exactly what happened to this plugin's own author, when an AI crawler asked a freshly published post for Markdown seconds after it went live. No header can prevent that from the origin, and you would not be the one to notice: your readers would. So it's opt-in. Where your caching is sound (no CDN, or one that respects `no-store`), switch it on with one line in your theme or an mu-plugin: `add_filter( 'agentimus_negotiate_markdown', '__return_true' );`
 
 
-The home page and archives have a Markdown twin too: `https://example.com/index.md` (or the Accept header on your front page) returns the same site map as `/llms.txt`.
+The home page and archives have a Markdown twin too: `https://example.com/index.md` (or, where switched on, the Accept header on your front page) returns the same site map as `/llms.txt`.
 
 Each page's Markdown starts with a small header — the title, and for posts the date, author and categories — followed by the page's canonical link, a **Topics** line (if you've set topics for that page), and then the body converted faithfully from HTML to Markdown, preserving headings, lists, links, quotes and code.
 

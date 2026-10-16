@@ -29,7 +29,7 @@ as the signed-in user, permission-checked and audited. Lightweight, no SEO bloat
 |---|---|
 | Link index | `/llms.txt` |
 | Full-text edition | `/llms-full.txt` |
-| Markdown delivery | `/<slug>.md` or `Accept: text/markdown` |
+| Markdown delivery | `/<slug>.md`; `Accept: text/markdown` on the page URL is opt-in (`agentimus_negotiate_markdown` filter, off by default — a CDN caches one answer per URL) |
 | Structured data | JSON-LD `WebSite` + `Person`/`Organization` + `BlogPosting` + `BreadcrumbList` (defers to SEO plugins) |
 | Topics for AI | Per-page topics → JSON-LD `keywords` + `about` DefinedTerm entities (with optional Wikidata `sameAs` via the `agentimus_topic_links` filter) + a `Topics:` line in `/<slug>.md`; static (editor) or derived from tags & categories |
 | AI description | Per-page one-line summary → JSON-LD `description` + the `/<slug>.md` lead + an authoritative `<meta name="description">` (replaces the theme's, defers to an SEO plugin); editor-set, falling back to the excerpt or a ~30-word content summary. A settings sub-toggle can limit it to the JSON-LD + `.md` surfaces only |

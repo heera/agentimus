@@ -132,7 +132,7 @@ The two options involved are `agentimus_rewrite_version` (the signature) and `ag
 
 | Class | Responsibility |
 |:------|:---------------|
-| `Endpoints` | Front controller for `/llms.txt`, `/llms-full.txt`, Markdown delivery (`.md` URLs and `Accept: text/markdown`), the robots.txt content-signal rules, AI-usage (TDM) headers, and discovery `Link` headers. Owns routing, response headers, and caching policy. |
+| `Endpoints` | Front controller for `/llms.txt`, `/llms-full.txt`, Markdown delivery (`.md` URLs, and opt-in `Accept: text/markdown`), the robots.txt content-signal rules, AI-usage (TDM) headers, and discovery `Link` headers. Owns routing, response headers, and caching policy. |
 | `LlmsText` | Pure content assembly for the llms.txt index and the llms-full.txt full-text edition (and the home/archive Markdown view). `Endpoints` owns an instance and serves what it produces. |
 | `Markdown` | HTML → Markdown rendering by walking the DOM (so nested lists, links inside emphasis, and code blocks survive) for the per-page `.md` twins. |
 | `Schema` | JSON-LD output: a sitewide WebSite + Person/Organization entity, plus BlogPosting + BreadcrumbList (and FAQPage) on singular views. Defers entirely when a schema-emitting SEO plugin is active. |

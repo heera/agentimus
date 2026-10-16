@@ -76,7 +76,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 
 **Content — clean, machine-readable output**
 
-* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL. An `Accept: text/markdown` mode also exists.
+* **Markdown delivery** — request any page as clean markdown by appending `.md` to its URL. An `Accept: text/markdown` mode also exists for sites with no CDN or page cache in front; it is off by default.
 * **/llms.txt** & **/llms-full.txt** — an [llmstxt.org](https://llmstxt.org) index of your pages, topics and recent posts, plus a full-text edition an agent ingests in one request.
 * **JSON-LD** — WebSite + Person/Organization, plus BlogPosting and BreadcrumbList on posts. **Defers to Yoast, Rank Math, SEOPress, AIOSEO and The SEO Framework**, so never duplicate schema.
 * **Topics for AI** — say what each post is about in plain words; they become the JSON-LD `keywords` and a line in the page's `.md`. Type your own or fill them from tags and categories. Nothing shows on the page.
