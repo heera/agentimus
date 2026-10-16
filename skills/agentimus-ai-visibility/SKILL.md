@@ -1,5 +1,5 @@
 ---
-name: ai-visibility-check
+name: agentimus-ai-visibility
 description: Check how well any website can be found, read and quoted by AI assistants (ChatGPT, Claude, Perplexity, Gemini, Copilot). Use when someone asks whether AI can see their site, why AI assistants don't cite or mention them, how to get into AI answers, or for an AEO / GEO / llms.txt / AI-readiness audit. Works on any public site with plain web fetches; if the Agentimus MCP tools are connected, uses the site's own live data instead.
 license: GPL-2.0-or-later
 metadata:
@@ -8,7 +8,7 @@ metadata:
     version: 1.0.0
 ---
 
-# AI visibility check
+# Agentimus AI Visibility Check
 
 Audit one website for the things that decide whether AI assistants can find it,
 read it, trust it and quote it. Report what passes, what to fix first, and how.
