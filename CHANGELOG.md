@@ -4,6 +4,9 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.51.8
+* Fixed: on a site with plain permalinks (addresses like "/?p=123"), the Request Log called every tag and category page "Homepage", because such a page lives at the site root. It now shows the tag or category name, such as "Tag: PHP". The same fix names these pages correctly in your search results.
+
 ## 1.51.7
 * New: the Request Log now names which page a crawler or AI assistant read. A "Page (HTML)" row shows the page's title, such as a post's name, "Home" or "Tag: PHP", as a link that opens the page. Hover it for the full title and address. Rows recorded before this update did not keep the page, so they still read "Page (HTML)".
 * Changed: only the address WordPress resolved is kept, so a link's query string, which can carry a token or a campaign tag, is never stored.

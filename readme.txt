@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.51.7
+Stable tag: 1.51.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.8 =
+* Fixed: on a site with plain permalinks (addresses like "/?p=123"), the Request Log called every tag and category page "Homepage", because such a page lives at the site root. It now shows the tag or category name, such as "Tag: PHP". The same fix names these pages correctly in your search results.
+
 = 1.51.7 =
 * New: the Request Log now names which page a crawler or AI assistant read. A "Page (HTML)" row shows the page's title, such as a post's name, "Home" or "Tag: PHP", as a link that opens the page. Hover it for the full title and address. Rows recorded before this update did not keep the page, so they still read "Page (HTML)".
 * Changed: only the address WordPress resolved is kept, so a link's query string, which can carry a token or a campaign tag, is never stored.
@@ -404,6 +407,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.46.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.8 =
+On sites with plain permalinks, tag and category pages are named correctly instead of "Homepage". No breaking changes.
 
 = 1.51.7 =
 The Request Log names the page each crawler read. Adds one column to the log table. No breaking changes.

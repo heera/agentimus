@@ -992,13 +992,12 @@ final class Admin {
 				// would teach people the card exaggerates.
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
-				// ⭐ So does a one-change release (1.51.7) — the page name in the log.
-				// The query-string rule and the MCP `path`/`title` fields are for the
-				// careful reader and for agents — the changelog carries them.
+				// ⭐ So does a one-fix release (1.51.8) — plain-permalink term pages
+				// named in the log and the search screens.
 				array(
 					'icon'  => 'page',
-					'title' => 'The Request Log Names the Page',
-					'text'  => 'A Page (HTML) row in the Request Log now shows which page was read, by its title, as a link that opens it. Rows from before this update did not keep the page and still read Page (HTML).',
+					'title' => 'Tag Pages Named on Plain Permalinks',
+					'text'  => 'On a site with plain permalinks, the Request Log called every tag and category page Homepage. It now shows the tag or category name, here and in your search results.',
 				),
 			),
 		);
