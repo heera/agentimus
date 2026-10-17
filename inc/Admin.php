@@ -992,12 +992,13 @@ final class Admin {
 				// would teach people the card exaggerates.
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
-				// ⭐ So does a one-fix release (1.51.8) — plain-permalink term pages
-				// named in the log and the search screens.
+				// ⭐ So does a one-fix release (1.51.9) — a scanner's probes no longer
+				// raise the Cloudflare warning. ⛔ No company is named: the release
+				// text names no specific bot (his ruling, 1.51.3 and 1.51.4).
 				array(
-					'icon'  => 'page',
-					'title' => 'Tag Pages Named on Plain Permalinks',
-					'text'  => 'On a site with plain permalinks, the Request Log called every tag and category page Homepage. It now shows the tag or category name, here and in your search results.',
+					'icon'  => 'shield',
+					'title' => 'Scanners No Longer Trip the Cloudflare Warning',
+					'text'  => 'A scanner that used an AI crawler\'s name to look for secret files like .env could make it look as if Cloudflare was blocking that company. Those requests are now counted apart, and only real blocks raise the warning.',
 				),
 			),
 		);

@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.51.8
+Stable tag: 1.51.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.51.9 =
+* Fixed: the Cloudflare warning "Cloudflare is blocking [company], but your policy says allow" could fire when Cloudflare was only stopping a scanner that used an AI crawler's name to look for secret files such as ".env". A blocked request for a file no reader asks for is now counted as a probe and no longer counts toward that warning. The edge numbers still show every blocked request, and the first update re-checks the last three days, so a warning raised by a scanner clears at once.
+
 = 1.51.8 =
 * Fixed: on a site with plain permalinks (addresses like "/?p=123"), the Request Log called every tag and category page "Homepage", because such a page lives at the site root. It now shows the tag or category name, such as "Tag: PHP". The same fix names these pages correctly in your search results.
 
@@ -407,6 +410,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.46.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.51.9 =
+The Cloudflare warning no longer counts scanners that use an AI crawler's name to look for secret files. Adds one column to the edge table. No breaking changes.
 
 = 1.51.8 =
 On sites with plain permalinks, tag and category pages are named correctly instead of "Homepage". No breaking changes.
