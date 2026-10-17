@@ -299,7 +299,7 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 == Changelog ==
 
 = 1.51.9 =
-* Fixed: the Cloudflare warning "Cloudflare is blocking [company], but your policy says allow" could fire when Cloudflare was only stopping a scanner that used an AI crawler's name to look for secret files such as ".env". A blocked request for a file no reader asks for is now counted as a probe and no longer counts toward that warning. The edge numbers still show every blocked request, and the first update re-checks the last three days, so a warning raised by a scanner clears at once.
+* Fixed: the Cloudflare warning "Cloudflare is blocking [company], but your policy says allow" could fire when Cloudflare was only stopping a scanner that used an AI crawler's name to look for secret files such as ".env". A blocked request for a file no reader asks for is now counted as a probe and no longer counts toward that warning. The edge numbers still show every blocked request, and the first update re-checks the last three days, so a warning a scanner raised in that time clears the next time the numbers update.
 
 = 1.51.8 =
 * Fixed: on a site with plain permalinks (addresses like "/?p=123"), the Request Log called every tag and category page "Homepage", because such a page lives at the site root. It now shows the tag or category name, such as "Tag: PHP". The same fix names these pages correctly in your search results.
