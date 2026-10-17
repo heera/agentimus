@@ -163,6 +163,7 @@ namespace {
 	if ( ! function_exists( '_get_cron_array' ) )       { function _get_cron_array() { return isset( $GLOBALS['_af_cron'] ) ? $GLOBALS['_af_cron'] : array(); } }
 	if ( ! function_exists( 'wp_doing_cron' ) )         { function wp_doing_cron() { return ! empty( $GLOBALS['_af_doing_cron'] ); } }
 	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( wp_strip_all_tags( (string) $s ) ); } }
+	if ( ! function_exists( 'sanitize_title' ) )        { function sanitize_title( $t ) { return trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $t ) ), '-' ); } }
 	if ( ! function_exists( 'sanitize_file_name' ) )    { function sanitize_file_name( $n ) { return preg_replace( '/[^A-Za-z0-9._\-]/', '', (string) $n ); } }
 	if ( ! function_exists( 'sanitize_email' ) )        { function sanitize_email( $e ) { $e = trim( (string) $e ); return filter_var( $e, FILTER_VALIDATE_EMAIL ) ? $e : ''; } }
 	if ( ! function_exists( 'esc_url_raw' ) )           { function esc_url_raw( $u, $p = null ) { return trim( (string) $u ); } }

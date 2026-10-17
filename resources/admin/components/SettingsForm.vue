@@ -51,11 +51,14 @@ export default {
     servicesDirty: { type: Boolean, default: false },
     servicesSaving: { type: Boolean, default: false },
     servicesSaved: { type: Boolean, default: false },
+    projectsDirty: { type: Boolean, default: false },
+    projectsSaving: { type: Boolean, default: false },
+    projectsSaved: { type: Boolean, default: false },
     resetting: { type: Boolean, default: false },
     defaults: { type: Object, default: () => ({}) },
     llmsFullEstimate: { type: Object, default: () => ({}) },
   },
-  emits: ['save-profile', 'save-services', 'reset', 'reopen-wizard', 'clients-changed', 'flash', 'navigate'],
+  emits: ['save-profile', 'save-services', 'save-projects', 'reset', 'reopen-wizard', 'clients-changed', 'flash', 'navigate'],
   data() {
     return {
       // Which settings group the sub-nav is showing. One group is visible at a
@@ -63,6 +66,10 @@ export default {
       // Identity leads — the highest-signal section, and where a new owner starts.
       group: 'identity',
       clientManagerOpen: false,
+      // Services and projects fold to one line while their list is empty — most
+      // sites list neither — and open when the owner asks to add one.
+      servicesOpen: false,
+      projectsOpen: false,
       // The default-share-image picker: the live thumbnail (seeded from the
       // bootstrap, replaced on pick) and the wp.media frame, built lazily.
       socialThumb: this.socialImageUrl,
@@ -329,12 +336,15 @@ export default {
           expertise: [],
           same_as: [],
           services: [],
+          projects: [],
         };
       }
-      // Older saved settings predate services — make sure it's always an array.
-      if (!Array.isArray(this.settings.identity.services)) {
-        this.settings.identity.services = [];
-      }
+      // Older saved settings predate services and projects — make sure each is an array.
+      ['services', 'projects'].forEach((key) => {
+        if (!Array.isArray(this.settings.identity[key])) {
+          this.settings.identity[key] = [];
+        }
+      });
       return this.settings.identity;
     },
     security() {
@@ -832,6 +842,10 @@ export default {
       this.showReset = false;
       this.$emit('reset');
     },
+    openServices() {
+      this.servicesOpen = true;
+      this.addService();
+    },
     addService() {
       // A row needs a name to be saved, so don't stack unsaveable blank rows —
       // fill the empty one already on screen before adding another.
@@ -842,11 +856,31 @@ export default {
     },
     removeService(index) {
       this.identity.services.splice(index, 1);
+      // An emptied list folds back to its one line.
+      this.servicesOpen = this.identity.services.length > 0;
       // A removal is intentional and complete — persist it immediately rather than
       // waiting for an explicit Save (which only the add/edit flow needs). The
       // parent's servicesDirty guard makes this a no-op when nothing actually
       // changed vs the saved state (e.g. removing an unsaved or blank row).
       this.$emit('save-services');
+    },
+    openProjects() {
+      this.projectsOpen = true;
+      this.addProject();
+    },
+    addProject() {
+      // Same rule as services: fill the blank row on screen before adding another.
+      if (this.identity.projects.some((p) => !(p.name || '').trim())) {
+        return;
+      }
+      this.identity.projects.push({ name: '', description: '', url: '', repo: '', download: '', version: '' });
+    },
+    removeProject(index) {
+      this.identity.projects.splice(index, 1);
+      // An emptied list folds back to its one line.
+      this.projectsOpen = this.identity.projects.length > 0;
+      // Persist a removal at once, as removeService does.
+      this.$emit('save-projects');
     },
     addTrainer(name) {
       if (!Array.isArray(this.settings.blocked_trainers)) this.settings.blocked_trainers = [];
@@ -1673,7 +1707,14 @@ export default {
       </section>
 
       <!-- Services ----------------------------------------------------- -->
-      <section id="ar-sec-services" class="ar-card">
+      <section v-if="!identity.services.length && !servicesOpen" id="ar-sec-services" class="ar-card ar-card--folded">
+        <div class="ar-card__head ar-card__head--inline">
+          <h2 class="ar-card__title">Services</h2>
+          <p class="ar-card__fold-note">Offer work people can hire you for?</p>
+          <button type="button" class="ar-svc__add" @click="openServices">+ Add a service</button>
+        </div>
+      </section>
+      <section v-else id="ar-sec-services" class="ar-card">
         <h2 class="ar-card__title">Services</h2>
         <p class="ar-card__lead">
           What you can be hired for — each becomes a Schema.org <code>Service</code> linked to you as
@@ -1716,6 +1757,85 @@ export default {
           <span v-else class="ar-id-foot__status">Saved</span>
           <button type="button" class="ar-btn" :disabled="servicesSaving || !servicesDirty" @click="$emit('save-services')">
             {{ servicesSaving ? 'Saving…' : 'Save services' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- Projects ----------------------------------------------------- -->
+      <section v-if="!identity.projects.length && !projectsOpen" id="ar-sec-projects" class="ar-card ar-card--folded">
+        <div class="ar-card__head ar-card__head--inline">
+          <h2 class="ar-card__title">Projects</h2>
+          <p class="ar-card__fold-note">Made a plugin, app or library?</p>
+          <button type="button" class="ar-svc__add" @click="openProjects">+ Add a project</button>
+        </div>
+      </section>
+      <section v-else id="ar-sec-projects" class="ar-card">
+        <h2 class="ar-card__title">Projects</h2>
+        <p class="ar-card__lead">
+          Software you made — a plugin, an app, an open-source library. Each becomes a Schema.org
+          <code>SoftwareApplication</code> with you as the author, and is listed in llms.txt and discovery.json,
+          so AI assistants can answer “who made this?” and link the right download. Optional; leave empty if
+          you don't make software.
+        </p>
+
+        <div v-for="(project, i) in identity.projects" :key="i" class="ar-svc">
+          <button type="button" class="ar-svc__x" aria-label="Remove project" v-tip="`Remove project`" @click="removeProject(i)">×</button>
+          <div class="ar-svc__row">
+            <input
+              v-model="project.name"
+              type="text"
+              class="ar-input ar-svc__name"
+              placeholder="Project name (e.g. My Plugin)"
+              aria-label="Project name"
+            />
+            <input
+              v-model="project.version"
+              type="text"
+              class="ar-input ar-svc__url"
+              placeholder="Version (optional)"
+              aria-label="Project version"
+            />
+          </div>
+          <input
+            v-model="project.description"
+            type="text"
+            class="ar-input"
+            placeholder="One line on what it does (optional)"
+            aria-label="Project description"
+          />
+          <div class="ar-svc__row">
+            <input
+              v-model="project.url"
+              type="url"
+              class="ar-input ar-svc__url"
+              placeholder="Home page https://… (optional)"
+              aria-label="Project home page"
+            />
+            <input
+              v-model="project.repo"
+              type="url"
+              class="ar-input ar-svc__url"
+              placeholder="Source code https://… (optional)"
+              aria-label="Project source code"
+            />
+            <input
+              v-model="project.download"
+              type="url"
+              class="ar-input ar-svc__url"
+              placeholder="Download https://… (optional)"
+              aria-label="Project download"
+            />
+          </div>
+        </div>
+        <button type="button" class="ar-svc__add" @click="addProject">+ Add a project</button>
+
+        <div v-if="identity.projects.length || projectsDirty" class="ar-id-foot">
+          <span v-if="projectsSaving" class="ar-id-foot__status">Saving…</span>
+          <span v-else-if="projectsDirty" class="ar-id-foot__status is-dirty">Unsaved changes</span>
+          <span v-else-if="projectsSaved" class="ar-id-foot__status is-saved">Saved ✓</span>
+          <span v-else class="ar-id-foot__status">Saved</span>
+          <button type="button" class="ar-btn" :disabled="projectsSaving || !projectsDirty" @click="$emit('save-projects')">
+            {{ projectsSaving ? 'Saving…' : 'Save projects' }}
           </button>
         </div>
       </section>

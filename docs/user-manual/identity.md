@@ -10,10 +10,13 @@ Everything you type here is copied, word for word, into the machine-readable fil
 
 ## Where to find it
 
-In your WordPress admin, open the Agentimus screen and click the **Identity** tab. It is the first tab and the one Agentimus opens on, because it is where a new site should start. You will see two cards:
+In your WordPress admin, open the Agentimus screen and click the **Identity** tab. It is the first tab and the one Agentimus opens on, because it is where a new site should start. You will see three cards:
 
 - **Identity** — who you are (entity type, name, profile sentence, and so on).
 - **Services** — what you can be hired for.
+- **Projects** — software you made.
+
+Services and Projects are optional, so until you add one, each card is a single line with its own **+ Add** link.
 
 ## Why this section matters most
 
@@ -121,6 +124,19 @@ Click **+ Add a service** for each one, fill it in, then click **Save services**
 
 Services are only ever what *you* declare here. Agentimus never guesses services from your page content.
 
+## Projects
+
+The **Projects** card is for software you made: a plugin, an app, an open-source library. This is optional — leave it empty if you don't make software. Each project has six parts:
+
+- **Name** (required) — e.g. *My Plugin*
+- **Version** (optional) — the current release, e.g. *2.4.1*
+- **Description** (optional) — one line on what it does
+- **Home page**, **Source code** and **Download** (optional) — links to its main page, its repository and where to get it
+
+Click **+ Add a project** for each one, fill it in, then click **Save projects**. (A project with no name is ignored, and removing a project saves immediately.) Each project becomes a Schema.org `SoftwareApplication` entry with you as the author, a line in the "## Projects" section of `llms.txt`, and an entry under `projects` in `discovery.json`. An assistant can then answer "who made this?" and point to the right download.
+
+Keep the version current when you release: an assistant repeats whatever version you give it.
+
 ## Where every field ends up
 
 Here is the full map of how each Identity field flows into the three machine surfaces Agentimus publishes. This is what an assistant actually reads.
@@ -137,6 +153,7 @@ Here is the full map of how each Identity field flows into the three machine sur
 | Profile URLs | `sameAs` | — | `same_as` |
 | Contact email | — (kept private) | — | `contacts` (mailto) + seeds `security.txt` |
 | Services | `Service` node(s) | — | — |
+| Projects | `SoftwareApplication` node(s) | "## Projects" list | `projects` |
 
 A filled-in identity produces structured data on your pages that looks roughly like this:
 
@@ -180,7 +197,7 @@ There are three different save behaviours in this section, so it helps to know w
 
 - **The profile block** (entity type, name, role, profile sentence, what-you're-not, audience, contact email) saves together when you click **Save profile**. The button shows "Unsaved changes" until you do, so nothing is committed by accident.
 - **Expertise topics** and **Profile URLs** save automatically each time you add or remove a tag.
-- **Services** save when you click **Save services**; removing a service saves on its own.
+- **Services** and **Projects** each save when you click their own Save button; removing one saves on its own.
 
 ## When the structured data ships (and when it doesn't)
 
@@ -208,3 +225,4 @@ Filling in all three lifts your Trusted rung — and your overall AEO/GEO score 
 8. Add three to five **Expertise topics** (they save as you type).
 9. Add your **Profile URLs** — LinkedIn, GitHub, X, and so on (they save as you type).
 10. Add any **Services** you offer and click **Save services**.
+11. Add any **Projects** you made and click **Save projects**.

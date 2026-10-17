@@ -112,6 +112,24 @@ If you have listed any services on the Identity page, each becomes a `Service` n
 
 Notice `provider` points back to your identity node by its `@id` rather than repeating your name — more on that below.
 
+### Software you made
+
+Projects you list on the Identity page each become a `SoftwareApplication` node on the front page, with you as the `author`. Like services, they are opt-in. The repository goes in `sameAs`, because it is the same software seen from its source.
+
+```json
+{
+  "@type": "SoftwareApplication",
+  "@id": "https://example.com/#project-my-plugin",
+  "name": "My Plugin",
+  "author": { "@id": "https://example.com/#identity" },
+  "description": "Adds a booking form to any page.",
+  "softwareVersion": "2.4.1",
+  "url": "https://example.com/my-plugin/",
+  "downloadUrl": "https://wordpress.org/plugins/my-plugin/",
+  "sameAs": "https://github.com/example/my-plugin"
+}
+```
+
 ## The per-page nodes
 
 On a single post or page, Agentimus adds nodes that describe *that* page.

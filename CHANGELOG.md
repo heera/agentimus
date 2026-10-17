@@ -4,6 +4,10 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.52.0
+* New: a Projects list under Settings → Identity, for software you made, such as a plugin, an app or an open-source library. Each project takes a name, a one-line description, a version, and links to its home page, source code and download. Agentimus publishes it three ways: as Schema.org `SoftwareApplication` data on your home page, naming you as the author; as a "Projects" section in llms.txt and llms-full.txt; and under `identity.projects` in discovery.json. AI assistants can then answer "who made this?" and link the right download. Projects are optional: until you add one, nothing changes.
+* Changed: the Services and Projects cards under Settings → Identity are one line until you add something to them.
+
 ## 1.51.9
 * Fixed: the Cloudflare warning "Cloudflare is blocking [company], but your policy says allow" could fire when Cloudflare was only stopping a scanner that used an AI crawler's name to look for secret files such as ".env". A blocked request for a file no reader asks for is now counted as a probe and no longer counts toward that warning. The edge numbers still show every blocked request, and the first update re-checks the last three days, so a warning a scanner raised in that time clears the next time the numbers update.
 

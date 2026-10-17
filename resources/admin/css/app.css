@@ -3560,6 +3560,19 @@ a.ar-opp__title:hover { text-decoration: underline; }
   vertical-align: 3px;
 }
 
+/* A folded card: an optional section with nothing in it reads as one line —
+   title, a short question, and the action that opens it. */
+.ar-card--folded .ar-card__head { justify-content: flex-start; }
+.ar-card--folded .ar-card__title { margin: 0; }
+.ar-card__fold-note {
+  flex: 1 1 auto;
+  margin: 0;
+  font-family: var(--ar-serif);
+  font-size: 15px;
+  color: var(--ar-ink-soft);
+}
+.ar-card--folded .ar-svc__add { margin: 0; }
+
 /* ---- Toggles ------------------------------------------------------------ */
 .ar-toggle {
   display: flex; align-items: flex-start; gap: 14px;

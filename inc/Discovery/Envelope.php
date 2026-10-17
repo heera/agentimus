@@ -428,7 +428,43 @@ final class Envelope {
 		if ( '' !== $audience ) {
 			$identity['audience'] = $audience;
 		}
+		$projects = $this->projects();
+		if ( ! empty( $projects ) ) {
+			$identity['projects'] = $projects;
+		}
 		return $identity;
+	}
+
+	/**
+	 * The software the owner listed as theirs, each row with only the fields they
+	 * filled. Additive like `not_description`: a site that lists none keeps the
+	 * document it had.
+	 *
+	 * @return array[]
+	 */
+	private function projects() {
+		$out = array();
+		foreach ( (array) $this->settings->identity( 'projects', array() ) as $project ) {
+			$name = is_array( $project ) && isset( $project['name'] ) ? $this->clean( $project['name'] ) : '';
+			if ( '' === $name ) {
+				continue;
+			}
+			$row = array( 'name' => $name );
+			foreach ( array( 'description', 'version' ) as $field ) {
+				$value = isset( $project[ $field ] ) ? $this->clean( $project[ $field ] ) : '';
+				if ( '' !== $value ) {
+					$row[ $field ] = $value;
+				}
+			}
+			foreach ( array( 'url', 'repo', 'download' ) as $field ) {
+				$link = isset( $project[ $field ] ) ? esc_url_raw( (string) $project[ $field ] ) : '';
+				if ( '' !== $link ) {
+					$row[ $field ] = $link;
+				}
+			}
+			$out[] = $row;
+		}
+		return $out;
 	}
 
 	/**

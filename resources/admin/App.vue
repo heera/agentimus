@@ -42,6 +42,11 @@ import SupportDialog from './components/SupportDialog.vue';
 // gentle interval. Polling (not SSE/WebSockets) on purpose — it works on any
 // shared host without holding a PHP-FPM worker open per admin tab.
 const ACTIVITY_POLL_MS = 15000;
+// The identity lists that save on their own card's button, and the fields of a row.
+const IDENTITY_LISTS = {
+  services: ['name', 'description', 'url'],
+  projects: ['name', 'description', 'url', 'repo', 'download', 'version'],
+};
 // Per-admin viewing preference (their own browser), not a site setting — it only
 // governs how often this screen re-fetches, never what the site exposes.
 const LIVE_PREF_KEY = 'agentimus:liveUpdates';
@@ -225,6 +230,8 @@ export default {
       profileSaved: false,
       servicesSaving: false,
       servicesSaved: false,
+      projectsSaving: false,
+      projectsSaved: false,
       savingSettings: false,
       notices: [],
       ringReady: false,
@@ -281,18 +288,13 @@ export default {
         (k) => (cur[k] || '') !== (saved[k] || ''),
       );
     },
-    // Services have their OWN card and Save button (not autosaved, not part of the
-    // profile block). Compare only meaningful (named) rows so a blank scaffolding
-    // row never marks the card dirty — it isn't saved anyway.
+    // Services and projects each have their OWN card and Save button (not autosaved,
+    // not part of the profile block).
     servicesDirty() {
-      const saved = JSON.parse(this.savedSnapshot).identity || {};
-      const cur = this.settings.identity || {};
-      const named = (arr) => JSON.stringify(
-        (Array.isArray(arr) ? arr : [])
-          .filter((s) => s && (s.name || '').trim())
-          .map((s) => ({ name: (s.name || '').trim(), description: (s.description || '').trim(), url: (s.url || '').trim() })),
-      );
-      return named(cur.services) !== named(saved.services);
+      return this.identityListDirty('services');
+    },
+    projectsDirty() {
+      return this.identityListDirty('projects');
     },
     // A signature of every AUTOSAVED field. When it changes we debounce-autosave.
     // Derived (the WHOLE settings object minus the fields that save via the Identity
@@ -305,7 +307,7 @@ export default {
       const id = s.identity || {};
       // These are saved on the Identity card, not on every change, so they must NOT
       // trigger autosave (kept identical to autosaveInstant's exclusion list + services).
-      ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email', 'services'].forEach(
+      ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email', 'services', 'projects'].forEach(
         (k) => { delete id[k]; },
       );
       s.identity = id;
@@ -1238,36 +1240,57 @@ export default {
         this.profileSaving = false;
       }
     },
-    // Persist the services list (its own card + Save button). Freezes the in-progress
-    // profile draft to its saved values — the profile owns its own Save — then adopts
-    // the stored services back so blank rows the sanitiser dropped disappear.
-    async saveServices() {
-      if (this.servicesSaving || !this.servicesDirty) {
+    // Whether an identity list differs from its saved copy. Compares only named rows
+    // so a blank scaffolding row never marks the card dirty — it isn't saved anyway.
+    identityListDirty(key) {
+      const saved = JSON.parse(this.savedSnapshot).identity || {};
+      const cur = this.settings.identity || {};
+      const named = (arr) => JSON.stringify(
+        (Array.isArray(arr) ? arr : [])
+          .filter((row) => row && (row.name || '').trim())
+          .map((row) => Object.fromEntries(IDENTITY_LISTS[key].map((f) => [f, (row[f] || '').trim()]))),
+      );
+      return named(cur[key]) !== named(saved[key]);
+    },
+    saveServices() {
+      return this.saveIdentityList('services');
+    },
+    saveProjects() {
+      return this.saveIdentityList('projects');
+    },
+    // Persist one identity list (its own card + Save button). Freezes the in-progress
+    // profile draft and the OTHER list to their saved values — each owns its own
+    // Save — then adopts the stored list back so blank rows the sanitiser dropped
+    // disappear.
+    async saveIdentityList(key) {
+      if (this[`${key}Saving`] || !this.identityListDirty(key)) {
         return;
       }
-      this.servicesSaving = true;
+      this[`${key}Saving`] = true;
       try {
         const savedId = (JSON.parse(this.savedSnapshot).identity) || {};
         const payload = JSON.parse(JSON.stringify(this.settings));
-        ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email'].forEach((k) => {
+        const frozen = ['entity_type', 'name', 'role', 'about', 'not_description', 'audience', 'contact_email']
+          .concat(Object.keys(IDENTITY_LISTS).filter((k) => k !== key));
+        frozen.forEach((k) => {
           if (payload.identity) payload.identity[k] = savedId[k];
         });
         const res = await this.api.saveSettings(payload);
         // Config-gap findings judge these very settings — catch the badge up quietly.
         this.silentRefreshFindings();
-        const storedServices = (res.settings && res.settings.identity && Array.isArray(res.settings.identity.services))
-          ? res.settings.identity.services : [];
-        if (this.settings.identity) this.settings.identity.services = storedServices;
+        const stored = (res.settings && res.settings.identity && Array.isArray(res.settings.identity[key]))
+          ? res.settings.identity[key] : [];
+        if (this.settings.identity) this.settings.identity[key] = stored;
         this.savedSnapshot = JSON.stringify(res.settings);
         this.readiness = res.readiness || this.readiness;
         if (res.score) this.aeo = res.score; // Keep the rail card live with the save.
-        this.servicesSaved = true;
-        clearTimeout(this._svcSavedTimer);
-        this._svcSavedTimer = setTimeout(() => { this.servicesSaved = false; }, 2500);
+        this[`${key}Saved`] = true;
+        clearTimeout(this[`_${key}SavedTimer`]);
+        this[`_${key}SavedTimer`] = setTimeout(() => { this[`${key}Saved`] = false; }, 2500);
       } catch (e) {
         this.flash('error', e.message);
       } finally {
-        this.servicesSaving = false;
+        this[`${key}Saving`] = false;
       }
     },
     // Restore factory defaults. Wipes the stored option server-side, then
@@ -2330,11 +2353,15 @@ export default {
           :services-dirty="servicesDirty"
           :services-saving="servicesSaving"
           :services-saved="servicesSaved"
+          :projects-dirty="projectsDirty"
+          :projects-saving="projectsSaving"
+          :projects-saved="projectsSaved"
           :resetting="resetting"
           :defaults="defaults"
           :llms-full-estimate="llmsFullEstimate"
           @save-profile="saveProfile"
           @save-services="saveServices"
+          @save-projects="saveProjects"
           @reset="resetSettings"
           @reopen-wizard="reopenWizard"
           @clients-changed="syncBlockSettings"

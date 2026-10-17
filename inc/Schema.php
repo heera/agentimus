@@ -167,25 +167,26 @@ final class Schema {
 	 *
 	 * @param \WP_Post|null $post             Post to describe, or null for the
 	 *                                        site-level (front-page) graph.
-	 * @param bool|null     $include_services Whether to add Service nodes; defaults to
-	 *                                        true for the site graph, false for a post.
+	 * @param bool|null     $include_offerings Whether to add the Service and project
+	 *                                         (SoftwareApplication) nodes; defaults to
+	 *                                         true for the site graph, false for a post.
 	 * @param bool          $preview          Admin preview: also emit the per-post node
 	 *                                        for an unpublished (draft/pending/future/
 	 *                                        private) post. Front-end callers omit this.
 	 * @return array|null The document, or null when the graph is empty.
 	 */
-	public function build_document( $post = null, $include_services = null, $preview = false ) {
-		if ( null === $include_services ) {
-			$include_services = ( null === $post );
+	public function build_document( $post = null, $include_offerings = null, $preview = false ) {
+		if ( null === $include_offerings ) {
+			$include_offerings = ( null === $post );
 		}
 
 		$graph = array( $this->website_node(), $this->entity_node() );
 
-		// Services are an entity-level offering, so they belong alongside the site
+		// Services and projects belong to the entity, so they sit alongside the site
 		// identity — not repeated on every post.
-		if ( $include_services ) {
-			foreach ( $this->service_nodes() as $service ) {
-				$graph[] = $service;
+		if ( $include_offerings ) {
+			foreach ( array_merge( $this->service_nodes(), $this->project_nodes() ) as $offering ) {
+				$graph[] = $offering;
 			}
 		}
 
@@ -390,6 +391,56 @@ final class Schema {
 			$url = isset( $svc['url'] ) ? esc_url_raw( (string) $svc['url'] ) : '';
 			if ( '' !== $url ) {
 				$node['url'] = $url;
+			}
+			$nodes[] = $node;
+		}
+		return $nodes;
+	}
+
+	/**
+	 * `SoftwareApplication` nodes from the owner-declared projects list (opt-in;
+	 * empty unless the owner made software and listed it — never guessed from
+	 * content). Each names the site entity as its author, so an agent can answer
+	 * "who made this?" and "what has this person built?" from one graph. The
+	 * repository goes in `sameAs`: it is the same software, seen from its source.
+	 *
+	 * @return array[] Zero or more SoftwareApplication nodes.
+	 */
+	private function project_nodes() {
+		$projects = (array) $this->settings->identity( 'projects', array() );
+		$nodes    = array();
+		foreach ( $projects as $project ) {
+			if ( ! is_array( $project ) ) {
+				continue;
+			}
+			$name = isset( $project['name'] ) ? $this->clean( $project['name'] ) : '';
+			if ( '' === $name ) {
+				continue; // A nameless project is not a project.
+			}
+			$node = array(
+				'@type'  => 'SoftwareApplication',
+				'@id'    => home_url( '/#project-' . sanitize_title( $name ) ),
+				'name'   => $name,
+				'author' => array( '@id' => home_url( '/#identity' ) ),
+			);
+			$desc = isset( $project['description'] ) ? $this->clean( $project['description'] ) : '';
+			if ( '' !== $desc ) {
+				$node['description'] = $desc;
+			}
+			$version = isset( $project['version'] ) ? $this->clean( $project['version'] ) : '';
+			if ( '' !== $version ) {
+				$node['softwareVersion'] = $version;
+			}
+			$links = array(
+				'url'      => 'url',
+				'download' => 'downloadUrl',
+				'repo'     => 'sameAs',
+			);
+			foreach ( $links as $field => $property ) {
+				$link = isset( $project[ $field ] ) ? esc_url_raw( (string) $project[ $field ] ) : '';
+				if ( '' !== $link ) {
+					$node[ $property ] = $link;
+				}
 			}
 			$nodes[] = $node;
 		}

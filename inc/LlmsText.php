@@ -66,6 +66,7 @@ final class LlmsText {
 		);
 
 		$out .= $this->about_block();
+		$out .= $this->projects_block();
 
 		// A section per agent-visible post type (pages, posts, products, CPTs…).
 		foreach ( Content::index_sections() as $post_type ) {
@@ -151,6 +152,7 @@ final class LlmsText {
 		$out .= "Full-text edition: the profile below, then the complete content of each page and recent article, concatenated for ingestion in a single pass. The link-only index is at /llms.txt.\n";
 
 		$out .= $this->about_block();
+		$out .= $this->projects_block();
 
 		// Bounded generation. This runs synchronously on a PUBLIC request (a
 		// crawler can trigger a cold-cache build), so on a large site — many post
@@ -299,6 +301,35 @@ final class LlmsText {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * The `## Projects` block: one line per project the owner listed, so an agent
+	 * reading llms.txt learns what this person or company made and where its
+	 * source and download live. Empty when the owner listed none.
+	 *
+	 * @return string
+	 */
+	private function projects_block() {
+		$lines = '';
+		foreach ( (array) $this->settings->identity( 'projects', array() ) as $project ) {
+			$name = is_array( $project ) && isset( $project['name'] ) ? $this->text( $project['name'] ) : '';
+			if ( '' === $name ) {
+				continue;
+			}
+			$url     = isset( $project['url'] ) ? esc_url_raw( (string) $project['url'] ) : '';
+			$details = array_filter(
+				array(
+					isset( $project['description'] ) ? $this->text( $project['description'] ) : '',
+					! empty( $project['version'] ) ? 'Version ' . $this->text( $project['version'] ) : '',
+					! empty( $project['repo'] ) ? 'Source: ' . esc_url_raw( (string) $project['repo'] ) : '',
+					! empty( $project['download'] ) ? 'Download: ' . esc_url_raw( (string) $project['download'] ) : '',
+				)
+			);
+			$lines .= '- ' . ( '' !== $url ? '[' . $name . '](' . $url . ')' : $name )
+				. ( $details ? ': ' . implode( ' · ', $details ) : '' ) . "\n";
+		}
+		return '' !== $lines ? "\n## Projects\n\n" . $lines : '';
 	}
 
 	/**
