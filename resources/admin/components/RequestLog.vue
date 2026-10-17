@@ -11,6 +11,11 @@
  * rows mid-walk — the accepted price of every numbered admin list, and the owner's call
  * (2026-08-31) over the cursor walk this screen started with.
  *
+ * Visits view groups each visitor's requests while no more than two minutes pass
+ * between them: a burst of pages in seconds is an assistant answering a question,
+ * a trickle is a crawl. It pages with the same numbered strip as the rows: the
+ * server counts every visit, and never splits one across two pages.
+ *
  * The footer always states what the view CANNOT show: nothing older than the retention
  * window exists, and a busy site's row cap may have discarded rows inside it. A log that
  * quietly stops short reads as "that's everything".
@@ -32,6 +37,19 @@ const noFilters = () => ({
 // The filters whose control is multi-select, so a single value arriving from a
 // dashboard drill-down gets wrapped into the list shape the picker expects.
 const LIST_FILTERS = ['agent', 'endpoint', 'network', 'verdict', 'signer'];
+// Remembers Rows or Visits per browser. A convenience only: storage can be
+// blocked, so every read and write is guarded and Rows is the fallback.
+const VIEW_KEY = 'agentimus.requestLog.view';
+// How many things a visit names in its Read cell; the rest are "+N more", and
+// the hover lists every one.
+const VISIT_TARGETS = 4;
+const savedView = () => {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === 'visits' ? 'visits' : 'rows';
+  } catch (e) {
+    return 'rows';
+  }
+};
 
 export default {
   name: 'RequestLog',
@@ -48,6 +66,7 @@ export default {
   emits: ['flash'],
   data() {
     return {
+      VISIT_TARGETS,
       // ⭐ The five value filters are LISTS — his call, 2026-08-21. `from`/`to`/`ua`
       // stay single: a date range already IS a range, and `ua` is a prefix match.
       filters: noFilters(),
@@ -76,6 +95,14 @@ export default {
       // showing an unfiltered count.
       reqSeq: 0,
       sort: { by: 'at', dir: 'desc' },
+      // 'rows' or 'visits'. Both page by number; `visitTotal` counts visits the
+      // way `total` counts requests.
+      view: savedView(),
+      visits: [],
+      visitTotal: 0,
+      gapSeconds: 120,
+      // Which visits show their requests, by the visit's id.
+      expanded: {},
       loading: false,
       loaded: false,
       error: '',
@@ -149,17 +176,25 @@ export default {
         ? 'No network — the lookup couldn’t attribute this visitor to an organisation. Common for home broadband, small hosts and anything behind a privacy proxy.'
         : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI Access to see which organisation each one belongs to.';
     },
+    // What the empty state and the footer test: the list on screen, either kind.
+    shown() {
+      return 'visits' === this.view ? this.visits : this.rows;
+    },
+    gapMinutes() {
+      return Math.round(this.gapSeconds / 60);
+    },
     pageStart() {
       return (this.page - 1) * this.perPage;
     },
     pages() {
-      return Math.max(1, Math.ceil(this.total / this.perPage));
+      const count = 'visits' === this.view ? this.visitTotal : this.total;
+      return Math.max(1, Math.ceil(count / this.perPage));
     },
     pageFrom() {
-      return this.rows.length ? this.pageStart + 1 : 0;
+      return this.shown.length ? this.pageStart + 1 : 0;
     },
     pageTo() {
-      return this.pageStart + this.rows.length;
+      return this.pageStart + this.shown.length;
     },
     // The columns, in the order they are drawn. `key` is what the server sorts by.
     columns() {
@@ -258,7 +293,92 @@ export default {
         this.facets = { agents: [], endpoints: [], networks: [], signers: [] };
       }
     },
-    async load(page = 1) {
+    setView(view) {
+      if (view === this.view) return;
+      this.view = view;
+      try {
+        window.localStorage.setItem(VIEW_KEY, view);
+      } catch (e) {
+        // Not remembered; the switch still works for this visit.
+      }
+      this.load(1);
+    },
+    // Every reader of the log comes through here, so a filter, a pivot or a
+    // refresh lands on whichever view is showing.
+    load(page = 1) {
+      return 'visits' === this.view ? this.loadVisits(page) : this.loadRows(page);
+    },
+    async loadVisits(page = 1) {
+      if (!this.api) return;
+      if (!this.loaded) this.loadFacets();
+      this.loading = true;
+      this.error = '';
+      const seq = ++this.reqSeq;
+      try {
+        const res = await this.api.getActivityLog({
+          ...this.filters,
+          group: 'visits',
+          offset: (page - 1) * this.perPage,
+          per_page: this.perPage,
+        });
+        if (seq !== this.reqSeq) return;
+        this.visits = res.visits || [];
+        this.visitTotal = res.visitTotal || 0;
+        this.expanded = {};
+        this.total = res.total || 0;
+        this.gapSeconds = res.gapSeconds || 120;
+        this.retentionDays = res.retentionDays || 30;
+        this.verifyOn = !!res.verifyOn;
+        this.identifyOn = !!res.identifyOn;
+        this.pageViewsOn = !!res.pageViewsOn;
+        this.autoPrune = res.autoPrune !== false;
+        this.maxRows = res.maxRows || 50000;
+        this.page = page;
+        this.loaded = true;
+      } catch (e) {
+        if (seq !== this.reqSeq) return;
+        this.error = (e && e.message) || 'Unable to load the request log.';
+        this.visits = [];
+        this.visitTotal = 0;
+        this.total = 0;
+      } finally {
+        if (seq === this.reqSeq) this.loading = false;
+      }
+    },
+    // "5 requests in 40 s" — the shape that tells a question from a crawl.
+    visitSize(v) {
+      if (v.count === 1) return '1';
+      if (v.seconds < 60) return `${v.count} in ${Math.max(1, v.seconds)} s`;
+      return `${v.count} in ${Math.round(v.seconds / 60)} min`;
+    },
+    // What a visit read: the first `limit` names as one line, and how many more
+    // there are. `limit` 0 names them all (the hover).
+    visitRead(v, limit) {
+      const names = this.visitTargets(v).map((r) => (r.path ? r.title || this.readablePath(r.path) : surfaceName(r.endpoint)));
+      const shown = limit ? names.slice(0, limit) : names;
+      return { names: shown.join(', '), more: names.length - shown.length };
+    },
+    // A request's time of day; the visit's own line already carries the date.
+    clock(iso) {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    },
+    // The distinct things a visit read, in the order it read them (oldest first).
+    visitTargets(v) {
+      const seen = new Set();
+      const out = [];
+      [...v.rows].reverse().forEach((r) => {
+        const key = r.path || r.endpoint;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(r);
+      });
+      return out;
+    },
+    toggleVisit(id) {
+      this.expanded = { ...this.expanded, [id]: !this.expanded[id] };
+    },
+    async loadRows(page = 1) {
       if (!this.api) return;
       if (!this.loaded) this.loadFacets();
       this.loading = true;
@@ -421,6 +541,10 @@ export default {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
         </button>
       </div>
+      <div class="ar-rev-tabs ar-log__view" role="tablist" aria-label="Show the log as">
+        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'rows' }" role="tab" :aria-selected="view === 'rows'" @click="setView('rows')">Rows</button>
+        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'visits' }" role="tab" :aria-selected="view === 'visits'" @click="setView('visits')">Visits</button>
+      </div>
     </div>
 
     <!-- Client, endpoint and network are closed sets drawn from the log itself, so they're
@@ -481,11 +605,103 @@ export default {
 
     <!-- First load in flight: the shared skeleton, not a bare "Loading…" — same
          treatment as Endpoint Activity and Agent Access. -->
-    <CardSkeleton v-else-if="loading && !rows.length" lead="Loading the request log…" />
+    <CardSkeleton v-else-if="loading && !shown.length" lead="Loading the request log…" />
 
-    <div v-else-if="!rows.length" class="ar-log__empty">
+    <div v-else-if="!shown.length" class="ar-log__empty">
       <template v-if="hasFilters">Nothing matched those filters.</template>
       <template v-else>No requests recorded yet — the first time a crawler or an AI assistant fetches one of your AI files, its visit appears here.</template>
+    </div>
+
+    <!-- Visits as a table, in the Rows view's own columns and type: one line per
+         visit, what it read as plain text, its requests one click away. -->
+    <div v-else-if="view === 'visits'" class="ar-act-feedwrap">
+      <div class="ar-act-reqs">
+        <table class="ar-act-table ar-act-table--cards ar-log__table ar-visits">
+          <colgroup>
+            <col style="width: 18%" />
+            <col style="width: 13%" />
+            <col />
+            <col v-if="hasNetwork" style="width: 14%" />
+            <col style="width: 17%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Client</th>
+              <th scope="col">Requests</th>
+              <th scope="col">Read</th>
+              <th v-if="hasNetwork" scope="col">Network</th>
+              <th scope="col">Last request</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="v in visits" :key="v.id">
+              <tr :class="{ 'is-open': expanded[v.id] }">
+                <td class="ar-act-table__agent" data-label="Client">
+                  <button
+                    type="button"
+                    class="ar-log__pivot"
+                    :aria-label="`Show only ${v.agent}`"
+                    @mouseenter="showUaTip($event, v.ua || 'Show only this client', v.ua ? 'Click to show only this client' : '')"
+                    @mouseleave="hideUaTip"
+                    @click="pivot('agent', v.agent)"
+                  >{{ v.agent }}</button>
+                </td>
+                <td data-label="Requests">
+                  <button
+                    v-if="v.count > 1"
+                    type="button"
+                    class="ar-visit__toggle"
+                    :aria-expanded="!!expanded[v.id]"
+                    :aria-label="expanded[v.id] ? 'Hide the requests' : 'Show the requests'"
+                    @click="toggleVisit(v.id)"
+                  ><svg class="ar-visit__caret" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>{{ visitSize(v) }}<template v-if="v.partial">+</template></button>
+                  <span v-else>{{ visitSize(v) }}</span>
+                </td>
+                <td
+                  class="ar-visit__read"
+                  data-label="Read"
+                  @mouseenter="showUaTip($event, visitRead(v, 0).names, '')"
+                  @mouseleave="hideUaTip"
+                ><div class="ar-visit__readline"><span class="ar-visit__names">{{ visitRead(v, VISIT_TARGETS).names }}</span><span v-if="visitRead(v, VISIT_TARGETS).more" class="ar-visit__more">+{{ visitRead(v, VISIT_TARGETS).more }} more</span></div></td>
+                <td v-if="hasNetwork" data-label="Network">
+                  <span v-if="v.network" class="ar-act-feed__net">{{ v.network }}</span>
+                  <span v-else class="ar-log__mark is-none">unknown</span>
+                </td>
+                <td
+                  class="ar-log__seen"
+                  data-label="Last request"
+                  @mouseenter="showUaTip($event, ago(v.last), '')"
+                  @mouseleave="hideUaTip"
+                >{{ stamp(v.last) }}</td>
+              </tr>
+              <tr v-if="expanded[v.id]" class="ar-visit__detail">
+                <td :colspan="hasNetwork ? 5 : 4">
+                  <ol class="ar-visit__rows">
+                    <li v-for="(r, i) in v.rows" :key="i">
+                      <span class="ar-visit__rowat">{{ clock(r.at) }}</span>
+                      <span
+                        class="ar-log__mark"
+                        :class="statusMark(r).cls"
+                        @mouseenter="showUaTip($event, statusMark(r).tip, '')"
+                        @mouseleave="hideUaTip"
+                      >{{ statusMark(r).text }}</span>
+                      <a
+                        v-if="r.path"
+                        class="ar-linkbtn ar-log__page"
+                        :href="r.path"
+                        target="_blank"
+                        rel="noopener"
+                      ><span class="ar-log__pagename">{{ r.title || readablePath(r.path) }}</span></a>
+                      <code v-else class="ar-act-feed__ep">{{ surfaceName(r.endpoint) }}</code>
+                    </li>
+                    <li v-if="v.count > v.rows.length" class="ar-visit__more">…and {{ v.count - v.rows.length }} more</li>
+                  </ol>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div v-else class="ar-act-feedwrap">
@@ -612,9 +828,11 @@ export default {
       </div>
     </div>
 
-    <div v-if="rows.length" class="ar-log__foot">
+    <div v-if="shown.length" class="ar-log__foot">
       <p class="ar-log__count">
-        Showing <strong>{{ pageFrom }}–{{ pageTo }}</strong> of {{ total }}
+        Showing <strong>{{ pageFrom }}–{{ pageTo }}</strong> of
+        <template v-if="view === 'visits'">{{ visitTotal }} visits · {{ total }} requests</template>
+        <template v-else>{{ total }}</template>
       </p>
       <PagerBar v-if="pages > 1" :page="page" :pages="pages" :busy="loading" label="Request log pages" @go="goPage" />
     </div>
@@ -622,6 +840,11 @@ export default {
     <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
          readability. Putting max-width on the <p> itself cropped the rule short of the card. -->
     <p v-if="loaded" class="ar-log__note">
+      <!-- What a visit is, and the one thing it cannot tell apart. -->
+      <span v-if="view === 'visits'">
+        A visit is one client's requests with no more than {{ gapMinutes }} minutes between them. The log keeps no IP
+        addresses, so two people using the same assistant at the same moment from the same network show as one visit.
+      </span>
       <!-- "older requests are deleted" is only true when auto-delete is on. With it off,
            nothing expires by age and the row cap is the only thing that removes anything. -->
       <span v-if="autoPrune">

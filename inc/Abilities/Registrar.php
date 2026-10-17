@@ -420,6 +420,14 @@ final class Registrar {
 					'ua'       => self::s( 'User-agent prefix to match.' ),
 					'before'   => self::i( 'Pagination cursor: return rows with id below this (use the previous page’s "cursor").' ),
 					'per_page' => self::i( 'Rows per page (the store clamps this).' ),
+					'group'    => self::s(
+						'"visits" returns `visits` instead of `rows`: each visitor\'s requests (same agent, network '
+						. 'and user-agent) grouped while no more than gapSeconds pass between them, newest first. '
+						. 'A visit of several pages in seconds is what an assistant answering a question looks like; '
+						. 'one page at a time is a crawl. The log keeps no IP addresses, so two people using the same '
+						. 'assistant at once from one network share a visit. per_page then counts visits; page with '
+						. '"before" = the previous "cursor". Default "rows".'
+					),
 				)
 			),
 			self::obj(
@@ -479,6 +487,36 @@ final class Registrar {
 						)
 					),
 					'offset'        => self::i( 'Rows skipped before this page. Always 0 in the default (newest-first) order, which pages by cursor instead.' ),
+					'visits'        => self::arr(
+						array(
+							'id'      => self::i( 'The visit\'s newest request.' ),
+							'agent'   => self::s(),
+							'network' => self::s(),
+							'ua'      => self::s(),
+							'count'   => self::i( 'Requests in the visit (after the filters).' ),
+							'first'   => self::s( 'Its first request.' ),
+							'last'    => self::s( 'Its last request.' ),
+							'seconds' => self::i( 'From first to last request.' ),
+							'rows'    => self::arr(
+								array(
+									'endpoint' => self::s(),
+									'agent'    => self::s(),
+									'ua'       => self::s(),
+									'network'  => self::s(),
+									'verdict'  => self::i(),
+									'signer'   => self::s(),
+									'refused'  => self::b(),
+									'path'     => self::s(),
+									'title'    => self::s(),
+									'at'       => self::s(),
+								),
+								'The visit\'s requests, newest first; at most 50, the rest are counted in "count".'
+							),
+							'partial' => self::b( 'True when the read stopped inside this visit, so it may continue on the next page.' ),
+						)
+					),
+					'gapSeconds'    => self::i( 'Silence, in seconds, that ends a visit.' ),
+					'visitTotal'    => self::i( 'With group "visits": how many visits match the filters, across every page.' ),
 				)
 			),
 			function ( $input ) {
@@ -536,6 +574,9 @@ final class Registrar {
 				}
 				if ( isset( $input['per_page'] ) ) {
 					$args['per_page'] = (int) $input['per_page'];
+				}
+				if ( isset( $input['group'] ) && 'visits' === $input['group'] ) {
+					return Repository::visits( $args );
 				}
 				return Repository::log( $args );
 			},

@@ -266,6 +266,9 @@ final class Module {
 					'orderby'  => array( 'type' => 'string' ),
 					'order'    => array( 'type' => 'string' ),
 					'offset'   => array( 'type' => 'integer' ),
+					// "visits" groups each visitor's requests into visits, newest first and
+					// cursor-paged; sorting and offset do not apply. {@see Repository::visits()}
+					'group'    => array( 'type' => 'string' ),
 				),
 			)
 		);
@@ -990,7 +993,16 @@ final class Module {
 			}
 		}
 
-		return rest_ensure_response( Repository::log( $args ) );
+		$group = strtolower( trim( (string) $request->get_param( 'group' ) ) );
+		if ( '' !== $group && ! in_array( $group, array( 'rows', 'visits' ), true ) ) {
+			return new \WP_Error(
+				'agentimus_bad_group',
+				__( 'Group must be "rows" or "visits".', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		return rest_ensure_response( 'visits' === $group ? Repository::visits( $args ) : Repository::log( $args ) );
 	}
 
 	/**

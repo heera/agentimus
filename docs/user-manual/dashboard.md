@@ -235,6 +235,19 @@ Clicking a client or endpoint in the table filters the whole log onto that value
 
 Requests marked **spoofed** are tinted, so a crawler that claimed to be Googlebot and failed reverse-DNS verification stands out as you scroll.
 
+### Rows or Visits
+
+The switch at the top right of the log changes how it reads. **Rows** lists every request on its own. **Visits** groups one client's requests together while no more than **2 minutes** pass between them, so each line reads like *"Orbbot · 5 requests in 40 s"*, with the pages it read underneath. Click **Show the requests** to see each one.
+
+The difference is the point. An AI assistant answering someone's question reads several pages within seconds: one visit, many requests. A crawler indexing your site reads one page now and another later: many one-request visits. The log can't see the question itself, because no bot sends it, but the shape of the visit shows which kind of reading it was.
+
+Good to know:
+
+- **One client** means the same name, network and User-Agent. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one visit.
+- **The filters apply first.** Filter to one page and each visit counts only its requests for that page.
+- **Visits are always newest first**, and you page with **Newer** and **Older**. A visit is never split across two pages.
+- A visit lists up to 50 of its requests; a longer one says how many more it made.
+
 Two limits worth knowing, both stated at the foot of the tab:
 
 - The log holds the **last 30 days**. Older requests are *deleted*, not hidden — no screen can show them, and neither can an export.

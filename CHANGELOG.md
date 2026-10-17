@@ -6,6 +6,8 @@ file is the complete record.
 
 ## 1.52.0
 * New: a Projects list under Settings → Identity, for software you made, such as a plugin, an app or an open-source library. Each project takes a name, a one-line description, a version, and links to its home page, source code and download. Agentimus publishes it three ways: as Schema.org `SoftwareApplication` data on your home page, naming you as the author; as a "Projects" section in llms.txt and llms-full.txt; and under `identity.projects` in discovery.json. AI assistants can then answer "who made this?" and link the right download. Projects are optional: until you add one, nothing changes.
+* New: the Request Log can show visits instead of rows. Switch to **Visits** and each client's requests are grouped while no more than two minutes pass between them, such as "Orbbot · 5 requests in 40 s" with the pages it read. A burst of pages in seconds is an AI assistant answering a question; one page at a time is a crawl. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one visit. Your choice of view is remembered.
+* Changed: read-request-log takes `group: "visits"` and then returns `visits` instead of `rows`.
 * Changed: the Services and Projects cards under Settings → Identity are one line until you add something to them.
 
 ## 1.51.9

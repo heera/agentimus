@@ -693,12 +693,16 @@ final class Repository {
 		return $out;
 	}
 
-	public static function log( array $args = array() ) {
+	/**
+	 * The WHERE clause every request-log read shares: the date window and the
+	 * value filters, as SQL fragments and their bound values. One place, so the
+	 * row list and the visit list can never disagree about what a filter means.
+	 *
+	 * @param array $args See {@see log()}.
+	 * @return array{0:string[],1:array} WHERE fragments (AND-ed) and their values.
+	 */
+	private static function filter( array $args ) {
 		global $wpdb;
-		$table    = Table::name();
-		$per_page = self::clamp_limit( isset( $args['per_page'] ) ? $args['per_page'] : 50 );
-		$before   = isset( $args['before'] ) ? max( 0, (int) $args['before'] ) : 0;
-		$days     = self::retention_days();
 
 		// Nothing older than the floor exists, so asking for it would only scan. With
 		// auto-delete off there is no floor: older rows survive until the cap trims them, and
@@ -805,6 +809,16 @@ final class Repository {
 			$params[] = $wpdb->esc_like( (string) $args['ua'] ) . '%';
 		}
 
+		return array( $where, $params );
+	}
+
+	public static function log( array $args = array() ) {
+		global $wpdb;
+		$table    = Table::name();
+		$per_page = self::clamp_limit( isset( $args['per_page'] ) ? $args['per_page'] : 50 );
+		$before   = isset( $args['before'] ) ? max( 0, (int) $args['before'] ) : 0;
+		list( $where, $params ) = self::filter( $args );
+
 		$filter_sql    = implode( ' AND ', $where );
 		$filter_params = $params;
 
@@ -900,9 +914,188 @@ final class Repository {
 			// own header state from the answer rather than from what it hoped.
 			'sort'          => array( 'by' => $sort_by, 'dir' => strtolower( $sort_dir ) ),
 			'offset'        => $offset,
+		) + self::log_meta();
+	}
+
+	/**
+	 * The request log read as visits: each visitor's requests grouped while no more
+	 * than {@see Visits::GAP} seconds pass between them. Newest visit first, always —
+	 * a visit has no single value to sort by in any other column.
+	 *
+	 * Two ways to page, like the row list: `offset` (visits to skip — the numbered
+	 * pager) or `before` (the previous page's `cursor`). Either way the answer counts
+	 * every visit in `visitTotal`, from one light pass that keeps only where each
+	 * visit starts; an offset then opens the page at that visit.
+	 *
+	 * The filters are the row list's own ({@see filter()}), applied BEFORE grouping:
+	 * filter to one page and a visit counts only its requests for that page.
+	 *
+	 * Reads newest-first in chunks until the page's visits are all complete. The
+	 * scan is bounded; on the rare log where one visitor never paused, the last
+	 * visit can end at the bound and says so with `partial`.
+	 *
+	 * @param array $args The {@see log()} filters, plus before and per_page.
+	 * @return array{visits:array,total:int,perPage:int,cursor:?int,hasMore:bool,gapSeconds:int}
+	 */
+	public static function visits( array $args = array() ) {
+		global $wpdb;
+		$table    = Table::name();
+		$per_page = self::clamp_limit( isset( $args['per_page'] ) ? $args['per_page'] : 25 );
+		$before   = isset( $args['before'] ) ? max( 0, (int) $args['before'] ) : 0;
+
+		list( $where, $params ) = self::filter( $args );
+		$filter_sql             = implode( ' AND ', $where );
+
+		$heads  = self::visit_heads( $filter_sql, $params );
+		$offset = isset( $args['offset'] ) ? max( 0, (int) $args['offset'] ) : 0;
+		if ( $offset > 0 ) {
+			// Past the last visit is an empty page, not the first one again.
+			$before = isset( $heads[ $offset ] ) ? $heads[ $offset ] + 1 : 1;
+		}
+
+		$chunk  = 500;
+		$budget = 20000;
+		$pager  = new Visits( $per_page );
+		$cursor = $before;
+		$read   = 0;
+		$done   = false;
+		$seeded = false;
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
+		$total = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE $filter_sql", $params )
+		);
+
+		while ( ! $done && $read < $budget ) {
+			$page_sql    = $filter_sql . ( $cursor > 0 ? ' AND id < %d' : '' );
+			$page_params = $cursor > 0 ? array_merge( $params, array( $cursor ) ) : $params;
+			$rows        = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, endpoint, agent, ua, network, verdict, signer, refused, path, hit_at FROM $table WHERE $page_sql ORDER BY id DESC LIMIT %d",
+					array_merge( $page_params, array( $chunk ) )
+				),
+				ARRAY_A
+			);
+			if ( ! $rows ) {
+				break;
+			}
+
+			// Page two onwards: the rows just above the cursor belong to visits an
+			// earlier page showed. Read the gap's worth of them, so a row below that
+			// chains onto one is skipped rather than shown as a visit of its own.
+			if ( ! $seeded && $before > 0 ) {
+				$top  = gmdate( 'Y-m-d H:i:s', strtotime( $rows[0]['hit_at'] . ' UTC' ) + Visits::GAP );
+				$seed = (array) $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT id, agent, ua, network, hit_at FROM $table WHERE $filter_sql AND id >= %d AND hit_at <= %s ORDER BY id DESC LIMIT %d",
+						array_merge( $params, array( $before, $top, $budget ) )
+					),
+					ARRAY_A
+				);
+				foreach ( $seed as $row ) {
+					$pager->seed( $row );
+				}
+			}
+			$seeded = true;
+
+			foreach ( $rows as $row ) {
+				++$read;
+				if ( $pager->add( $row ) ) {
+					$done = true;
+					break;
+				}
+			}
+			$cursor = (int) $rows[ count( $rows ) - 1 ]['id'];
+			if ( count( $rows ) < $chunk ) {
+				break;
+			}
+		}
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		$page    = $pager->result();
+		$partial = ! $done && $read >= $budget;
+		$visits  = array();
+		foreach ( $page['visits'] as $i => $visit ) {
+			$visits[] = array(
+				'id'      => (int) $visit['head']['id'],
+				'agent'   => (string) $visit['head']['agent'],
+				'network' => (string) $visit['head']['network'],
+				'ua'      => (string) $visit['head']['ua'],
+				'count'   => (int) $visit['count'],
+				'first'   => gmdate( 'c', $visit['first'] ),
+				'last'    => gmdate( 'c', $visit['last'] ),
+				'seconds' => (int) ( $visit['last'] - $visit['first'] ),
+				'rows'    => array_map( array( self::class, 'named_row' ), $visit['rows'] ),
+				// Only the page's last visit can be cut by the scan bound.
+				'partial' => $partial && count( $page['visits'] ) - 1 === $i,
+			);
+		}
+
+		// The next page starts AT the first visit not taken, so `before` is one past it.
+		// A scan that hit its bound mid-visit resumes below the last row it read; the
+		// seed then carries that visit on, so its remaining rows are skipped, not
+		// shown again as a new visit.
+		$next = null !== $page['next'] ? $page['next'] + 1 : ( $partial ? $cursor : null );
+
+		return array(
+			'visits'     => $visits,
+			'visitTotal' => count( $heads ),
+			'total'      => $total,
+			'perPage'    => $per_page,
+			'offset'     => $offset,
+			'cursor'     => $next,
+			'hasMore'    => null !== $next,
+			'gapSeconds' => Visits::GAP,
+		) + self::log_meta();
+	}
+
+	/**
+	 * Every visit's head id under the filters, newest first — the counting pass
+	 * behind `visitTotal` and the numbered pager. Reads only the columns that say
+	 * who and when, in chunks, so the whole retained log never sits in memory.
+	 *
+	 * @param string $filter_sql WHERE fragments, AND-ed.
+	 * @param array  $params     Their values.
+	 * @return int[]
+	 */
+	private static function visit_heads( $filter_sql, array $params ) {
+		global $wpdb;
+		$table  = Table::name();
+		$chunk  = 5000;
+		$pager  = new Visits( 1, false );
+		$cursor = 0;
+
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; every value is bound via prepare().
+		do {
+			$sql  = $filter_sql . ( $cursor > 0 ? ' AND id < %d' : '' );
+			$rows = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, agent, ua, network, hit_at FROM $table WHERE $sql ORDER BY id DESC LIMIT %d",
+					array_merge( $params, $cursor > 0 ? array( $cursor ) : array(), array( $chunk ) )
+				),
+				ARRAY_A
+			);
+			foreach ( $rows as $row ) {
+				$pager->add( $row );
+			}
+			$cursor = $rows ? (int) $rows[ count( $rows ) - 1 ]['id'] : 0;
+		} while ( count( $rows ) === $chunk );
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+		return $pager->result()['visits'];
+	}
+
+	/**
+	 * What every request-log answer carries besides its rows: the limits of what
+	 * the log can show, and the switches that explain its blanks.
+	 *
+	 * @return array{retentionDays:int,autoPrune:bool,maxRows:int,verifyOn:bool,identifyOn:bool,pageViewsOn:bool}
+	 */
+	private static function log_meta() {
+		return array(
 			// So the UI can say what it cannot show. `autoPrune` decides whether
 			// `retentionDays` is a deletion horizon at all, or merely the setting's value.
-			'retentionDays' => $days,
+			'retentionDays' => self::retention_days(),
 			'autoPrune'     => self::auto_prune(),
 			'maxRows'       => self::max_rows(),
 			// So the Status column can explain a dash HONESTLY: "nothing to check
