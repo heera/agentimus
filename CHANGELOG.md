@@ -4,6 +4,10 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.52.1
+* Changed: discovery.json now declares wire-format 1.1 of the WP_Discovery Protocol. Version 1.1 adds the optional identity fields Agentimus already sends: what your site is not, its audience, and your projects. Nothing else in the document changes.
+* Fixed: discovery.json could fail the protocol's own schema in two places. A part of your site with no agent card was sent with an empty list where the schema allows only an object, so it is now left out. A tool that takes no input, such as one offered by another plugin, had its empty settings sent as lists too, and they are now sent as empty objects. Tools that check the file against the schema now pass.
+
 ## 1.52.0
 * New: a Projects list under Settings → Identity, for software you made, such as a plugin, an app or an open-source library. Each project takes a name, a one-line description, a version, and links to its home page, source code and download. Agentimus publishes it three ways: as Schema.org `SoftwareApplication` data on your home page, naming you as the author; as a "Projects" section in llms.txt and llms-full.txt; and under `identity.projects` in discovery.json. AI assistants can then answer "who made this?" and link the right download. Projects are optional: until you add one, nothing changes.
 * New: the Request Log can show visits instead of rows. Switch to **Visits** and each client's requests are grouped while no more than two minutes pass between them, such as "Orbbot · 5 requests in 40 s" with the pages it read. A burst of pages in seconds is an AI assistant answering a question; one page at a time is a crawl. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one visit. Your choice of view is remembered.

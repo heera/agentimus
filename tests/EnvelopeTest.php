@@ -50,6 +50,43 @@ final class EnvelopeTest extends TestCase {
 		$this->assertSame( self::CORE, array_keys( $this->build() ) );
 	}
 
+	public function test_the_envelope_names_wire_format_1_1() {
+		$env = $this->build();
+		$this->assertSame( '1.1', $env['spec_version'] );
+		$this->assertStringEndsWith( '/discovery/1.1/discovery.schema.json', $env['$schema'] );
+	}
+
+	public function test_a_resource_without_an_agent_card_carries_no_agent_key() {
+		Registry::instance()->register(
+			array(
+				'id'           => 'plain',
+				'title'        => 'Plain',
+				'type'         => 'content',
+				'capabilities' => array( 'content.posts.read' ),
+			)
+		);
+		$resources = array_column( $this->build()['resources'], null, 'id' );
+		$this->assertArrayNotHasKey( 'agent', $resources['plain'], 'An empty agent would encode as [] and fail the schema.' );
+		$this->assertIsArray( $resources['shop']['agent'], 'A declared agent card is kept.' );
+		$this->assertSame( 'Store Agent', $resources['shop']['agent']['name'] );
+	}
+
+	public function test_a_tool_with_no_input_schema_encodes_objects_not_lists() {
+		Registry::instance()->register(
+			array(
+				'id'    => 'quiet',
+				'title' => 'Quiet',
+				'type'  => 'content',
+				'tools' => array( array( 'name' => 'quiet/status' ) ),
+			)
+		);
+		$resources = array_column( $this->build()['resources'], null, 'id' );
+		$json      = wp_json_encode( $resources['quiet']['tools'][0] );
+		$this->assertStringContainsString( '"inputSchema":{}', $json );
+		$this->assertStringContainsString( '"outputSchema":{}', $json );
+		$this->assertStringContainsString( '"annotations":{}', $json );
+	}
+
 	public function test_per_endpoint_auth_wins_yielding_two_api_entries() {
 		$apis = $this->build()['apis'];
 		$this->assertCount( 2, $apis );

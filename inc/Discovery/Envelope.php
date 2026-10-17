@@ -22,13 +22,15 @@ defined( 'ABSPATH' ) || exit;
 final class Envelope {
 
 	/**
-	 * Frozen wire-format version of the Discovery Document — major.minor, NOT
-	 * semver. A consumer selects its parser on this exact string (spec §02), so it
-	 * stays "1.0" for the life of the 1.x wire format; additive, backward-compatible
-	 * changes do not bump it. The plugin's own release version is separate (see the
-	 * header in agentimus.php).
+	 * Wire-format version of the Discovery Document — major.minor, NOT semver. A
+	 * consumer selects its parser on this exact string (spec §02). "1.1" is the
+	 * additive minor that specified the optional identity fields this envelope
+	 * already sends (not_description, audience, projects); the spec's versioning
+	 * rule makes every new optional field a minor bump, and each version keeps
+	 * its own immutable schema URL. The plugin's own release version is separate
+	 * (see the header in agentimus.php).
 	 */
-	const SPEC_VERSION = '1.0';
+	const SPEC_VERSION = '1.1';
 
 	/**
 	 * Home of the JSON Schema. A `$schema` is fundamentally an identifier, so it
@@ -819,6 +821,12 @@ final class Envelope {
 	private function wire_resource( $resource ) {
 		$resource = $this->absolutize_resource( $resource );
 		unset( $resource['public'] );
+		// `agent` is optional and, when present, an object (an AgentCard). A
+		// resource with no agent carries an empty PHP array, which encodes as
+		// `[]` and fails the schema — so it leaves the document instead.
+		if ( empty( $resource['agent'] ) ) {
+			unset( $resource['agent'] );
+		}
 		// Each tool's `kind` (the admin's tool/document split) and `uri` (the
 		// admin's link to a document) are internal for the same reason `public`
 		// is, so they come off here rather than in normalize().
@@ -837,6 +845,14 @@ final class Envelope {
 				array_map(
 					static function ( $tool ) {
 						unset( $tool['kind'], $tool['uri'], $tool['public'] );
+						// Objects on the wire, even when empty: a tool that takes no
+						// input has an empty PHP array here, which encodes as `[]`
+						// and fails the schema. Cast, as the envelope does for trust.
+						foreach ( array( 'inputSchema', 'outputSchema', 'annotations' ) as $key ) {
+							if ( isset( $tool[ $key ] ) && array() === $tool[ $key ] ) {
+								$tool[ $key ] = (object) array();
+							}
+						}
 						return $tool;
 					},
 					$advertised
