@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.51.9
+Stable tag: 1.52.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,7 +62,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 * **Report** — what AI did on your site between any two dates: reads, visits from AI answers, and where you stand. Today, a week, or dates you pick; every block says how fresh its numbers are.
 * **Agent activity log** — which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party, with no IP logging by default.
 * **Activity to review** — a nav-bar queue surfaces clients worth a second look, with one-click **Block** or **Allow**. Nothing is blocked unless you say so.
-* **Request Log** — every recorded request, one row each. Filter by client, endpoint, network, user-agent and date to see what a single bot fetched.
+* **Request Log** — every recorded request, one row each — or grouped into visits, so an assistant answering a question stands apart from a crawl. Filter by client, endpoint, network, user-agent and date.
 * **Agent Access** — who *authenticates and acts*: assistants approved, keys created or revoked, abilities run, requests refused. A record, not a guard — it names the key, never the person.
 * **Traffic from AI** — the real visitors an AI assistant sent you, day by day, by assistant and landing page — aggregate counts only, never a row for one person, no IP. An opt-in **CDN mode** keeps counts accurate behind a cache.
 * **Edge traffic (Cloudflare, opt-in)** — what Cloudflare answered or blocked before your server saw the request: cache hits and edge blocks no server-side log can see. It warns when the edge disagrees with your policy.
@@ -86,7 +86,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 
 **Identity & contact**
 
-* **Author / site identity** — a profile sentence, expertise topics and linked profiles (`sameAs`) feed llms.txt and JSON-LD — the highest-signal lines for agent retrieval.
+* **Author / site identity** — a profile sentence, expertise topics, linked profiles (`sameAs`) and the software you made feed llms.txt and JSON-LD — the highest-signal lines for agent retrieval.
 * **security.txt** — optionally publish an RFC 9116 disclosure contact at `/.well-known/security.txt`.
 
 **Readiness report**
@@ -298,6 +298,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.52.0 =
+* New: a Projects list under Settings → Identity, for software you made, such as a plugin, an app or an open-source library. Each project takes a name, a one-line description, a version, and links to its home page, source code and download. Agentimus publishes it three ways: as Schema.org `SoftwareApplication` data on your home page, naming you as the author; as a "Projects" section in llms.txt and llms-full.txt; and under `identity.projects` in discovery.json. AI assistants can then answer "who made this?" and link the right download. Projects are optional: until you add one, nothing changes.
+* New: the Request Log can show visits instead of rows. Switch to **Visits** and each client's requests are grouped while no more than two minutes pass between them, such as "Orbbot · 5 requests in 40 s" with the pages it read. A burst of pages in seconds is an AI assistant answering a question; one page at a time is a crawl. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one visit. Your choice of view is remembered.
+* Changed: read-request-log takes `group: "visits"` and then returns `visits` instead of `rows`.
+* Changed: the Services and Projects cards under Settings → Identity are one line until you add something to them.
+
 = 1.51.9 =
 * Fixed: the Cloudflare warning "Cloudflare is blocking [company], but your policy says allow" could fire when Cloudflare was only stopping a scanner that used an AI crawler's name to look for secret files such as ".env". A blocked request for a file no reader asks for is now counted as a probe and no longer counts toward that warning. The edge numbers still show every blocked request, and the first update re-checks the last three days, so a warning a scanner raised in that time clears the next time the numbers update.
 
@@ -394,22 +400,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: the list of searches left out of the Search screen now says why each one was left out, and the figure reading "weren't people" counts machine probes alone rather than everything excluded for any reason.
 * Note: your site reads its pages once after updating, so a finding that was true all along may appear on your list.
 
-= 1.46.0 =
-* New: a connected assistant can read a page and change one passage of it instead of replacing the whole thing. It quotes the passage back exactly and that passage has to appear once — not found and found-twice are both refusals that change nothing, because a fix applied to a guess is how content gets mangled. The previous version is kept as a revision, and the saved page is read back and compared.
-* New: an assistant can describe a picture that has no description — the commonest thing wrong with content on most sites, and the one thing it previously could not do.
-* New: and it can describe the pictures inside a page, which is a different job. WordPress copies an image's description into the page when you insert it and never looks at it again, so the words a reader gets from a published page are the ones written into that page — describing the library copy changes nothing a reader sees. There is a tool for each now, and each says which copy it writes.
-* New: a way to list the pictures in your media library that carry no description at all. Search matches words, and the images needing description are exactly the ones with no words on them, so that question could not be asked before. A description that is only the file name counts as none, the same way the page checks count it.
-* Fixed: the tool for describing a picture refused the exact pages the checks were flagging. Where a description was only the file name, the check asked for it to be replaced and the tool refused it as already described — and told the assistant the checks were satisfied. Those pages could be found and never closed. The checks and the tools that fix them now share one definition of what a description is.
-* Fixed: an empty description on a captioned picture is now a finding. An empty description means "this is decoration" and that is still respected, but WordPress leaves the field empty by default, so a captioned screenshot could reach every screen reader undescribed while the row said every image had one. A caption is evidence the picture means something.
-* Fixed: that new check would never have run on anything already published — a page is read again only when the set of checks changes, and a new rule inside an existing check did not register as one. Your site re-reads its pages once after updating.
-* Fixed: captions come in three shapes and only one was understood — the block editor's, the classic editor's, and the way the same classic caption is drawn on any theme that has not opted into HTML5 markup. All three are read now.
-* Fixed: an assistant was told "this page has no featured image, add one" even on kinds of content that cannot have one. The two absences are told apart now.
-* Fixed: the two counts of your worklist could disagree, and the probe that reads what your theme does with a picture's description had a gap in its filter.
-* Improved: on the dashboard's Today line, how each figure compares with yesterday is a small arrow at the end of its label rather than a coloured sentence beneath it. Hover it for the number; a figure that did not move says nothing at all.
-
-The most recent releases are listed here, back to 1.46.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.47.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.52.0 =
+Adds a Projects list for the software you made, and a Visits view in the Request Log. No breaking changes.
 
 = 1.51.9 =
 The Cloudflare warning no longer counts scanners that use an AI crawler's name to look for secret files. Adds one column to the edge table. No breaking changes.
