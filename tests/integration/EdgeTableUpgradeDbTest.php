@@ -95,4 +95,28 @@ class EdgeTableUpgradeDbTest extends DbTestCase {
 		$daily = Table::daily( 7 );
 		$this->assertSame( 6, $daily[ gmdate( 'Y-m-d', strtotime( $hour . ' UTC' ) ) ]['shapbot']['served'] );
 	}
+
+	/**
+	 * Version 3 adds `probes` — the blocked requests that were scanners asking
+	 * for .env files. An hour stored before it reads as no probes (the old
+	 * table never told them apart), and a new poll's count reads back.
+	 */
+	public function test_the_upgrade_adds_probes_and_the_next_poll_reads_them_back() {
+		global $wpdb;
+		$table = Table::name();
+
+		Table::maybe_install();
+
+		$this->assertContains( 'probes', $wpdb->get_col( "SHOW COLUMNS FROM $table" ) ); // phpcs:ignore WordPress.DB
+		$this->assertSame( 0, Table::recent( 24 )['claudebot']['probes'] );
+
+		$hour = gmdate( 'Y-m-d H:00:00', time() - HOUR_IN_SECONDS );
+		Table::upsert( array(
+			array( 'hour_at' => $hour, 'ua' => 'claude-user', 'requests' => 30, 'cached' => 0, 'origin' => 12, 'blocked' => 18, 'probes' => 18, 'served' => 10, 'bytes' => 900 ),
+		) );
+
+		$this->assertSame( 18, Table::recent( 24 )['claude-user']['probes'] );
+		$this->assertSame( 18, array_column( Table::summary( 7 ), null, 'ua' )['claude-user']['probes'] );
+		$this->assertSame( 18, Table::daily( 7 )[ gmdate( 'Y-m-d', strtotime( $hour . ' UTC' ) ) ]['claude-user']['probes'] );
+	}
 }

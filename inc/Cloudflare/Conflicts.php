@@ -61,14 +61,14 @@ final class Conflicts {
 	 * is evidence in the recent window — so a warning retires within a day of
 	 * the owner fixing the cause, instead of shouting for a week about history.
 	 *
-	 * @param array      $crawlers Per-crawler totals: { ua, name, operator, requests, cached, origin, blocked, served }.
+	 * @param array      $crawlers Per-crawler totals: { ua, name, operator, requests, cached, origin, blocked, probes?, served }.
 	 * @param array      $policy   The owner's declarations:
 	 *                             - ai_input (bool)        robots Content-Signal ai-input.
 	 *                             - ai_train (bool)        robots Content-Signal ai-train.
 	 *                             - blocked_agents (array) crawler tokens the OWNER deliberately blocks.
 	 *                             - allowed_agents (array) user-agent rules the OWNER allowed in the review queue.
 	 * @param int        $days     The window the totals cover, for the copy.
-	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, passed, served } }
+	 * @param array|null $recent   Last-24h per-crawler map { ua => { blocked, probes?, passed, served } }
 	 *                             (see Table::recent()), or null to treat all
 	 *                             evidence as current.
 	 * @return array<int,array{id:string,level:string,title:string,body:string,link:string,counts:array}>
@@ -93,8 +93,10 @@ final class Conflicts {
 				if ( self::blocking_is_owners_wish( $token, $policy ) ) {
 					continue;
 				}
-				$blocked  = (int) $c['blocked'];
-				$requests = (int) $c['requests'];
+				// A blocked probe is no reader turned away ({@see refused()}) — and
+				// no reading attempt either, so it leaves the share's base too.
+				$blocked  = self::refused( $c );
+				$requests = (int) $c['requests'] - self::probes( $c );
 				$op       = (string) $c['operator'];
 				if ( '' === $op || $blocked < self::MIN_BLOCKED || $blocked < $requests * self::MIN_BLOCKED_SHARE ) {
 					continue;
@@ -102,7 +104,7 @@ final class Conflicts {
 				// Currency: the week made it significant, but only still-happening
 				// blocking fires — otherwise the fix already landed and the warning
 				// would just be nagging about history.
-				if ( null !== $recent && empty( $recent[ $token ]['blocked'] ) ) {
+				if ( null !== $recent && ( ! isset( $recent[ $token ] ) || 0 === self::refused( $recent[ $token ] ) ) ) {
 					continue;
 				}
 				if ( ! isset( $per_operator[ $op ] ) ) {
@@ -110,7 +112,7 @@ final class Conflicts {
 				}
 				$per_operator[ $op ]['blocked']  += $blocked;
 				$per_operator[ $op ]['requests'] += $requests;
-				$per_operator[ $op ]['recent']   += null !== $recent ? (int) $recent[ $token ]['blocked'] : 0;
+				$per_operator[ $op ]['recent']   += null !== $recent ? self::refused( $recent[ $token ] ) : 0;
 			}
 
 			foreach ( $per_operator as $op => $sums ) {
@@ -293,6 +295,29 @@ final class Conflicts {
 	}
 
 	/**
+	 * The requests the edge turned away that were a READER being refused: the
+	 * blocked count less the scanner probes in it ({@see Module::is_probe_path()}).
+	 * A row stored before probes were counted has none, and counts as before.
+	 *
+	 * @param array $row Any totals row carrying `blocked` and optionally `probes`.
+	 * @return int
+	 */
+	public static function refused( array $row ) {
+		return max( 0, ( isset( $row['blocked'] ) ? (int) $row['blocked'] : 0 ) - self::probes( $row ) );
+	}
+
+	/**
+	 * The scanner probes within a row's blocked count, never more than it.
+	 *
+	 * @param array $row Any totals row.
+	 * @return int
+	 */
+	private static function probes( array $row ) {
+		$blocked = isset( $row['blocked'] ) ? (int) $row['blocked'] : 0;
+		return min( $blocked, isset( $row['probes'] ) ? max( 0, (int) $row['probes'] ) : 0 );
+	}
+
+	/**
 	 * The slug an operator's warn conflict carries in its id
 	 * ("edge-blocks-<slug>"). One transform, shared with every reader that has
 	 * to recover the operator from the id — drifted copies would silently stop
@@ -329,7 +354,7 @@ final class Conflicts {
 	 *
 	 * Pure — no DB, no time() — so it unit-tests standalone, like detect().
 	 *
-	 * @param array  $daily    Day => ua => { requests, blocked, passed, served }, oldest first ({@see Table::daily()}).
+	 * @param array  $daily    Day => ua => { requests, blocked, probes?, passed, served }, oldest first ({@see Table::daily()}).
 	 * @param string $id       The conflict id to date.
 	 * @param array  $operators ua => operator name, for the per-operator rollup a warn conflict uses.
 	 * @param array  $policy   The declarations {@see detect()} takes — a crawler the owner
@@ -366,8 +391,8 @@ final class Conflicts {
 				if ( '' === $op || self::operator_slug( $op ) !== $want || self::blocking_is_owners_wish( (string) $ua, $policy ) ) {
 					continue;
 				}
-				$sums['blocked']  += (int) $t['blocked'];
-				$sums['requests'] += (int) $t['requests'];
+				$sums['blocked']  += self::refused( $t );
+				$sums['requests'] += (int) $t['requests'] - self::probes( $t );
 			}
 			return $sums['blocked'] >= self::MIN_BLOCKED
 				&& $sums['blocked'] >= $sums['requests'] * self::MIN_BLOCKED_SHARE;

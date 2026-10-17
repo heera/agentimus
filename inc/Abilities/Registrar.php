@@ -586,6 +586,7 @@ final class Registrar {
 							'cached'       => self::i(),
 							'origin'       => self::i( 'Requests that reached this server.' ),
 							'blocked'      => self::i( 'Requests the edge turned away without contacting this server.' ),
+							'probes'       => self::i( 'Of the blocked requests, how many asked for a file no reader fetches (a .env, a .git folder, a wp-config copy): a scanner using this crawler\'s name. Never counted as the edge turning this crawler away.' ),
 							'served'       => self::i( 'Requests that got a page: a 2xx the edge let through, not counting /robots.txt reads. Passing the edge is not taking content — a request the origin answered 403 or 404 took nothing.' ),
 							'bytes'        => self::i(),
 							'blockedByYou' => self::b( 'Whether the owner deliberately blocks this crawler at the origin.' ),

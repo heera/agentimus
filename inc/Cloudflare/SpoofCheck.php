@@ -183,7 +183,7 @@ final class SpoofCheck {
 	 *
 	 * @param array $crawlers Rows with { ua, operator }.
 	 * @param array $policy   The declarations {@see Conflicts::detect()} takes.
-	 * @param array $recent   ua => { blocked, passed } ({@see Table::recent()}).
+	 * @param array $recent   ua => { blocked, probes?, passed } ({@see Table::recent()}).
 	 * @return array<string,int> operator => blocked requests.
 	 */
 	public static function recent_blocked( array $crawlers, array $policy, array $recent ) {
@@ -195,7 +195,7 @@ final class SpoofCheck {
 				continue;
 			}
 			$out[ $op ] = ( isset( $out[ $op ] ) ? $out[ $op ] : 0 )
-				+ ( isset( $recent[ $ua ]['blocked'] ) ? (int) $recent[ $ua ]['blocked'] : 0 );
+				+ ( isset( $recent[ $ua ] ) ? Conflicts::refused( (array) $recent[ $ua ] ) : 0 );
 		}
 		return $out;
 	}

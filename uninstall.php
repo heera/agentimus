@@ -98,6 +98,7 @@ function agentimus_uninstall_site() {
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}agentimus_edge_hourly" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_cloudflare' );
 	delete_option( 'agentimus_edge_db_version' );
+	delete_option( 'agentimus_edge_probes_backfilled' );
 	delete_option( 'agentimus_edge_lock' );
 	wp_clear_scheduled_hook( 'agentimus_edge_poll' );
 

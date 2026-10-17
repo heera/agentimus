@@ -53,7 +53,7 @@ namespace Agentimus\Tests {
 		);
 
 		/** Mirror of one crawler row: Table::summary() columns + the decoration. */
-		private const CRAWLER_KEYS = array( 'ua', 'requests', 'cached', 'origin', 'blocked', 'bytes', 'name', 'operator', 'blockedByYou' );
+		private const CRAWLER_KEYS = array( 'ua', 'requests', 'cached', 'origin', 'blocked', 'probes', 'bytes', 'name', 'operator', 'blockedByYou' );
 
 		private function registered(): array {
 			$this->ensure_capture_stub();

@@ -214,6 +214,66 @@ final class Client {
 	}
 
 	/**
+	 * Hourly edge-refused requests for a window, one row per (hour, user agent,
+	 * path) — the paths {@see Module::aggregate()} needs to tell a scanner's
+	 * probe from a reader being turned away. The filter is the same "blocked"
+	 * test as {@see blocked_sources()}. The paths are read here, classified in
+	 * the poll and never stored: the table keeps only the count.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @param int    $since   Window start, Unix UTC.
+	 * @param int    $until   Window end, Unix UTC.
+	 * @return array { rows?: array<int,array{hour:string,ua:string,path:string,requests:int}>, error?: string }
+	 */
+	public function blocked_paths( $token, $zone_id, $since, $until ) {
+		$query = 'query ($zone: String!, $since: Time!, $until: Time!) {
+			viewer {
+				zones(filter: { zoneTag: $zone }) {
+					httpRequestsAdaptiveGroups(
+						limit: ' . self::GRAPHQL_LIMIT . ',
+						filter: { datetime_geq: $since, datetime_lt: $until, requestSource: "eyeball", edgeResponseStatus_in: [403, 429], originResponseStatus: 0 },
+						orderBy: [count_DESC]
+					) {
+						count
+						dimensions { datetimeHour userAgent clientRequestPath }
+					}
+				}
+			}
+		}';
+
+		$out = $this->graphql( $token, $query, array(
+			'zone'  => (string) $zone_id,
+			'since' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $since ),
+			'until' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $until ),
+		) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+
+		// The expected container, or it's an error — never "real empty data".
+		if ( ! isset( $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] ) ) {
+			return array( 'error' => __( 'Cloudflare returned an unexpected response shape.', 'agentimus' ) );
+		}
+
+		$rows = array();
+		foreach ( (array) $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] as $g ) {
+			if ( ! isset( $g['dimensions'] ) ) {
+				continue;
+			}
+			$d      = (array) $g['dimensions'];
+			$rows[] = array(
+				'hour'     => (string) ( isset( $d['datetimeHour'] ) ? $d['datetimeHour'] : '' ),
+				'ua'       => (string) ( isset( $d['userAgent'] ) ? $d['userAgent'] : '' ),
+				'path'     => (string) ( isset( $d['clientRequestPath'] ) ? $d['clientRequestPath'] : '' ),
+				'requests' => (int) ( isset( $g['count'] ) ? $g['count'] : 0 ),
+			);
+		}
+
+		return array( 'rows' => $rows );
+	}
+
+	/**
 	 * Hourly /robots.txt requests for a window, in the same row shape as
 	 * {@see hourly_traffic()}. Those rows carry no path, so a crawler reading
 	 * the file where ai-train=no is SAID looks exactly like one taking a page;

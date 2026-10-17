@@ -151,6 +151,15 @@ final class Module {
 		$latest = Table::latest_hour();
 		$since  = $latest > 0 ? $latest - self::OVERLAP_SECONDS : $now - self::BACKFILL_SECONDS;
 		$since  = max( $since, $now - self::BACKFILL_SECONDS );
+		// ⛔ An hour stored before probes were counted keeps saying "no probes"
+		// until it is re-read — and the overlap only re-reads two hours, so a
+		// scanner's morning would go on firing the warning for a day and
+		// inflating the week for seven. Once, re-read everything Cloudflare
+		// still holds; a re-read hour replaces its row.
+		$backfill = ! get_option( Table::PROBES_OPTION );
+		if ( $backfill ) {
+			$since = $now - self::BACKFILL_SECONDS;
+		}
 
 		while ( $since < $now ) {
 			$until = min( $since + self::CHUNK_SECONDS, $now );
@@ -163,16 +172,27 @@ final class Module {
 					$out = $robots;
 				}
 			}
+			if ( ! isset( $out['error'] ) ) {
+				// Same rule for the blocked paths: without them every scanner probe
+				// would be stored as a reader turned away.
+				$paths = $this->client->blocked_paths( $token, $zone, $since, $until );
+				if ( isset( $paths['error'] ) ) {
+					$out = $paths;
+				}
+			}
 			if ( isset( $out['error'] ) ) {
 				// Keep the last good data; the panel shows the numbers' age and this note.
 				$this->settings->record_poll( (string) $out['error'] );
 				return;
 			}
-			Table::upsert( self::aggregate( (array) $out['rows'], (array) $robots['rows'] ) );
+			Table::upsert( self::aggregate( (array) $out['rows'], (array) $robots['rows'], (array) $paths['rows'] ) );
 			$since = $until;
 		}
 
 		$this->settings->record_poll( '' );
+		if ( $backfill ) {
+			update_option( Table::PROBES_OPTION, 1, false );
+		}
 		Table::prune();
 
 		// With fresh hours stored, ask whether the blocked traffic behind any
@@ -199,11 +219,20 @@ final class Module {
 	 * that says no, and a scanner wearing a trainer's name that the origin
 	 * answers 403 or 404 took nothing. The training notice counts this.
 	 *
+	 * Within `blocked`, `probes` counts the requests for a path no reader asks
+	 * for ({@see is_probe_path()}). ⛔⛔ A BLOCKED PROBE IS NOT A READER TURNED
+	 * AWAY. On heera.it (2026-10-17) "Cloudflare is blocking Anthropic" and
+	 * "…You.com" were one scanner on Google Cloud asking for .env files under
+	 * both names, stopped by his own bad-paths rule — the third time after
+	 * OpenAI (08-29, 09-17). Neither company publishes addresses to check, so
+	 * the spoof check could only say "unknown"; the path says it plainly.
+	 *
 	 * @param array $raw    Rows from Client::hourly_traffic().
 	 * @param array $robots Rows from Client::robots_fetches() for the same window.
+	 * @param array $paths  Rows from Client::blocked_paths() for the same window.
 	 * @return array<int,array> Rows shaped for Table::upsert().
 	 */
-	public static function aggregate( array $raw, array $robots = array() ) {
+	public static function aggregate( array $raw, array $robots = array(), array $paths = array() ) {
 		$cached_statuses = array( 'hit', 'stale', 'updating', 'revalidated' );
 		$buckets         = array();
 
@@ -226,6 +255,7 @@ final class Module {
 					'cached'   => 0,
 					'origin'   => 0,
 					'blocked'  => 0,
+					'probes'   => 0,
 					'served'   => 0,
 					'bytes'    => 0,
 				);
@@ -256,7 +286,53 @@ final class Module {
 			}
 		}
 
+		foreach ( $paths as $row ) {
+			$key = self::hour_key( (string) $row['hour'] ) . '|' . self::crawler_token( (string) $row['ua'] );
+			if ( isset( $buckets[ $key ] ) && self::is_probe_path( (string) $row['path'] ) ) {
+				$buckets[ $key ]['probes'] += (int) $row['requests'];
+			}
+		}
+		// Two reads of the same window can disagree by a few requests; a probe
+		// count is a share of `blocked` and never more than it.
+		foreach ( $buckets as $key => $bucket ) {
+			$buckets[ $key ]['probes'] = min( $bucket['probes'], $bucket['blocked'] );
+		}
+
 		return array_values( $buckets );
+	}
+
+	/**
+	 * Whether a request path is a scanner's probe — a secret or a config file
+	 * that no reader of the site, human or AI, ever asks for.
+	 *
+	 * Deliberately narrow: hidden files and folders (/.env, /.git/config,
+	 * /.aws/credentials — every one except /.well-known/), anything ending in
+	 * .env, wp-config.* copies, database dumps and editor backups, phpinfo, and
+	 * Vite's /@fs/ file-read hole. An ordinary page, a feed or robots.txt is
+	 * never a probe. Decoded first, so /admin%2F.env is caught like /admin/.env.
+	 *
+	 * @param string $path Request path, as Cloudflare reports it.
+	 * @return bool
+	 */
+	public static function is_probe_path( $path ) {
+		$path = strtolower( (string) $path );
+		for ( $i = 0; $i < 2 && false !== strpos( $path, '%' ); $i++ ) {
+			$path = rawurldecode( $path );
+		}
+		$path = (string) strtok( $path, '?' );
+
+		foreach ( explode( '/', str_replace( '\\', '/', $path ) ) as $segment ) {
+			if ( '' === $segment || '.' === $segment || '..' === $segment || '.well-known' === $segment ) {
+				continue;
+			}
+			if ( '.' === $segment[0] || '@fs' === $segment || 0 === strpos( $segment, 'wp-config' ) || 0 === strpos( $segment, 'phpinfo' ) ) {
+				return true;
+			}
+			if ( preg_match( '/\.(env|sql|bak|swp)$/', $segment ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

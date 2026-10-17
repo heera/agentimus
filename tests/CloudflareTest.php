@@ -1321,4 +1321,162 @@ final class CloudflareTest extends TestCase {
 		$this->assertSame( 'in the last 7 days', Conflicts::window( 7 ) );
 		$this->assertSame( 'in the last day', Conflicts::window( 0 ), 'detect() floors the window at one day' );
 	}
+
+	// ── heera.it 2026-10-17: one .env scanner wearing Anthropic and You.com ─
+
+	/**
+	 * The paths Cloudflare's security events listed for the blocked
+	 * "Claude-User" and "YouBot" requests that day — all from Google Cloud,
+	 * all stopped by his own bad-paths rule — and the ones a reader asks for.
+	 */
+	public function test_a_probe_path_is_told_from_a_page() {
+		foreach ( array(
+			'/.env',
+			'/settings%2F.env',
+			'/admin%2F.env',
+			'/dist../.env',
+			'/@fs/src/.env',
+			'/api/.env/public/.env',
+			'/config/env/aws_credentials.env',
+			'/.git/config',
+			'/wp-config.php.bak',
+			'/backup.sql',
+			'/phpinfo.php',
+		) as $probe ) {
+			$this->assertTrue( Module::is_probe_path( $probe ), $probe . ' is a probe' );
+		}
+		foreach ( array(
+			'/',
+			'/php-8-0-match-expression',
+			'/blog/page/2/',
+			'/robots.txt',
+			'/feed/',
+			'/.well-known/llms.txt',
+			'/llms.txt',
+			'/wp-content/uploads/2026/10/cover.webp',
+			'/environment-variables-in-php/',
+		) as $page ) {
+			$this->assertFalse( Module::is_probe_path( $page ), $page . ' is not a probe' );
+		}
+	}
+
+	private function blocked_path( $ua, $path, $requests, $hour = '2026-10-16T20:00:00Z' ) {
+		return array( 'hour' => $hour, 'ua' => $ua, 'path' => $path, 'requests' => $requests );
+	}
+
+	public function test_aggregate_counts_the_probes_inside_blocked() {
+		$ua   = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +claudebot@anthropic.com)';
+		$hour = '2026-10-16T20:00:00Z';
+		$rows = Module::aggregate(
+			array(
+				$this->raw( $ua, 'dynamic', 200, 200, 20, 0, $hour ),
+				$this->raw( $ua, 'unknown', 403, 0, 5, 0, $hour ),
+			),
+			array(),
+			array(
+				$this->blocked_path( $ua, '/settings%2F.env', 3 ),
+				$this->blocked_path( $ua, '/@fs/.env', 1 ),
+				// A page the edge refused is still a reader turned away.
+				$this->blocked_path( $ua, '/php-8-0-match-expression', 1 ),
+			)
+		);
+
+		$this->assertSame( 'claude-user', $rows[0]['ua'] );
+		$this->assertSame( 5, $rows[0]['blocked'], 'blocked keeps every refusal — the panel still shows them' );
+		$this->assertSame( 4, $rows[0]['probes'] );
+	}
+
+	public function test_probes_never_exceed_blocked() {
+		$ua   = 'YouBot/1.0';
+		$rows = Module::aggregate(
+			array( $this->raw( $ua, 'unknown', 403, 0, 2, 0, '2026-10-16T20:00:00Z' ) ),
+			array(),
+			array( $this->blocked_path( $ua, '/.env', 3 ) )
+		);
+
+		$this->assertSame( 2, $rows[0]['probes'] );
+	}
+
+	/**
+	 * ⛔⛔ The card said "Cloudflare is blocking Anthropic — 51 of 241" when
+	 * every blocked request was a scanner asking for .env files.
+	 */
+	public function test_a_crawler_blocked_only_while_probing_is_no_conflict() {
+		$out = Conflicts::detect(
+			array(
+				array_merge( $this->crawler( 'claude-user', 'Anthropic', 241, 1, 189, 51 ), array( 'probes' => 51 ) ),
+				array_merge( $this->crawler( 'youbot', 'You.com', 111, 0, 86, 25 ), array( 'probes' => 25 ) ),
+			),
+			array( 'ai_input' => true, 'ai_train' => false, 'blocked_agents' => array( 'ClaudeBot' ) ),
+			7,
+			array(
+				'claude-user' => array( 'blocked' => 18, 'probes' => 18, 'passed' => 30 ),
+				'youbot'      => array( 'blocked' => 2, 'probes' => 2, 'passed' => 10 ),
+			)
+		);
+
+		$this->assertSame( array(), $out );
+	}
+
+	public function test_real_refusals_beside_probes_still_warn_counting_only_the_real_ones() {
+		$out = Conflicts::detect(
+			array( array_merge( $this->crawler( 'claude-user', 'Anthropic', 241, 1, 179, 61 ), array( 'probes' => 11 ) ) ),
+			array( 'ai_input' => true, 'ai_train' => true, 'blocked_agents' => array() ),
+			7,
+			array( 'claude-user' => array( 'blocked' => 9, 'probes' => 4, 'passed' => 30 ) )
+		);
+
+		$this->assertSame( 'edge-blocks-anthropic', $out[0]['id'] );
+		$this->assertSame( array( 'blocked' => 50, 'requests' => 230, 'recent' => 5 ), $out[0]['counts'] );
+		$this->assertStringContainsString( '50 of 230', $out[0]['body'] );
+	}
+
+	public function test_a_day_of_only_probes_is_no_part_of_the_onset() {
+		$daily = array(
+			'2026-10-10' => array( 'claude-user' => array( 'requests' => 40, 'blocked' => 12, 'probes' => 12, 'passed' => 28 ) ),
+			'2026-10-11' => array( 'claude-user' => array( 'requests' => 40, 'blocked' => 12, 'probes' => 0, 'passed' => 28 ) ),
+		);
+
+		$onset = Conflicts::onset( $daily, 'edge-blocks-anthropic', array( 'claude-user' => 'Anthropic' ), array( 'ai_input' => true ) );
+
+		$this->assertSame( '2026-10-11', $onset['at'] );
+	}
+
+	public function test_the_spoof_checks_day_count_leaves_probes_out() {
+		$out = SpoofCheck::recent_blocked(
+			array( array( 'ua' => 'claude-user', 'operator' => 'Anthropic' ) ),
+			array( 'ai_input' => true ),
+			array( 'claude-user' => array( 'blocked' => 18, 'probes' => 15, 'passed' => 30 ) )
+		);
+
+		$this->assertSame( array( 'Anthropic' => 3 ), $out );
+	}
+
+	public function test_blocked_paths_normalizes_the_graphql_shape() {
+		$GLOBALS['_af_http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => json_encode( array(
+				'data' => array( 'viewer' => array( 'zones' => array( array(
+					'httpRequestsAdaptiveGroups' => array(
+						array(
+							'count'      => 3,
+							'dimensions' => array(
+								'datetimeHour'      => '2026-10-16T20:00:00Z',
+								'userAgent'         => 'YouBot/1.0',
+								'clientRequestPath' => '/.env',
+							),
+						),
+					),
+				) ) ) ),
+			) ),
+		);
+
+		$out = ( new Client() )->blocked_paths( 'tok', 'zone1', 0, 3600 );
+
+		$this->assertSame(
+			array( array( 'hour' => '2026-10-16T20:00:00Z', 'ua' => 'YouBot/1.0', 'path' => '/.env', 'requests' => 3 ) ),
+			$out['rows']
+		);
+	}
 }
