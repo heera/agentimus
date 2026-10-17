@@ -992,19 +992,12 @@ final class Admin {
 				// would teach people the card exaggerates.
 				// ⭐ A security-only release gets ONE row (1.51.1): the fix is the
 				// whole release, and there is one thing an owner may want to do.
-				// ⭐ A one-fix release gets one row (1.51.9 was the last). 1.52.0 is
-				// the small-release shape: two new things, no fixes row.
-				// ⛔ The visits example names no bot: the release text names no
-				// specific bot (his ruling, 1.51.3 and 1.51.4).
+				// ⭐ A one-fix release gets ONE row (1.51.9, and again 1.52.1): the
+				// discovery file now passes its own protocol's schema.
 				array(
-					'icon'  => 'page',
-					'title' => 'Tell AI What You Made',
-					'text'  => 'Settings → Identity has a Projects list for the software you made: a plugin, an app or a library. Each one reaches llms.txt, discovery.json and your home page\'s structured data, with you as the author and a link to the right download.',
-				),
-				array(
-					'icon'  => 'clock',
-					'title' => 'Requests Grouped Into Visits',
-					'text'  => 'Switch the Request Log to Visits and each bot\'s requests are grouped while no more than two minutes pass between them. Several pages in seconds is an assistant answering someone\'s question; one page at a time is a crawl.',
+					'icon'  => 'shield',
+					'title' => 'Discovery File Passes Its Schema',
+					'text'  => 'Your discovery.json now follows version 1.1 of its protocol, which describes your projects too, and it passes that protocol\'s own checks. Two small format errors that some sites had are fixed.',
 				),
 			),
 		);
