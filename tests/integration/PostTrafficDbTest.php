@@ -384,7 +384,7 @@ final class PostTrafficDbTest extends DbTestCase {
 		$column = new \Agentimus\PostTrafficColumn( new Settings() );
 		$this->hit( 0, array( 'path' => '/an-older-row/' ) );
 
-		$this->assertStringContainsString( 'Still matching older visits', $column->columns( array() )[ \Agentimus\PostTrafficColumn::COLUMN ] );
+		$this->assertStringContainsString( 'Still matching older traffic', $column->columns( array() )[ \Agentimus\PostTrafficColumn::COLUMN ] );
 
 		PostTraffic::backfill();
 		$this->assertSame( 'Readers From AI', $column->columns( array() )[ \Agentimus\PostTrafficColumn::COLUMN ], 'the note goes once matching is done' );

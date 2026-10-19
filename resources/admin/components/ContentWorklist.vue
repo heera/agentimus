@@ -995,7 +995,7 @@ export default {
                         <p v-else class="ar-work__tquiet">Your search engine has reported no searches for this page.</p>
                       </div>
                     </div>
-                    <p v-if="d.matching" class="ar-work__tquiet">Visits logged before this update are still being matched to their pages, so these numbers may still rise.</p>
+                    <p v-if="d.matching" class="ar-work__tquiet">Traffic logged before this update is still being matched to its pages, so these numbers may still rise.</p>
                   </template>
                 </template>
               </template>

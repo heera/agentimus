@@ -544,7 +544,7 @@ final class Registrar {
 					),
 					'pageTotal'     => self::i( 'With group "pages": how many posts/pages had traffic in the range.' ),
 					'unattributed'  => self::i( 'With group "pages": bot reads of addresses that are not one post (archives, tag pages, the blog index).' ),
-					'matching'      => self::b( 'With group "pages": TRUE while older visits are still being matched to their posts — the numbers may rise.' ),
+					'matching'      => self::b( 'With group "pages": TRUE while older traffic is still being matched to its posts — the numbers may rise.' ),
 					'group'         => self::s( 'Which view this is, when not rows.' ),
 					'from'          => self::s( 'With group "pages": first day counted, Y-m-d (GMT).' ),
 					'to'            => self::s( 'With group "pages": last day counted, Y-m-d (GMT).' ),
@@ -1466,7 +1466,7 @@ final class Registrar {
 				. 'PROVEN fakes, scripts and WordPress sites left out and counted apart; `verified` says whether each bot was checked), and `search` is the '
 				. 'connected engine’s own report for the page over ITS OWN dates (null when it reported nothing, '
 				. 'or no engine is connected). `ai` and `bots` cover the last `window` days. ⚠️ When `matching` is '
-				. 'true, older visits are still being matched to their pages and the numbers may rise — say so '
+				. 'true, older traffic is still being matched to its pages and the numbers may rise — say so '
 				. 'rather than quote them as final. When `pageViews` is false, page visits are not recorded and '
 				. '`bots` counts only Markdown reads.',
 			self::obj(
@@ -1481,7 +1481,7 @@ final class Registrar {
 					'window'    => self::i( 'Days the ai and bots counts cover, today included.' ),
 					'recording' => self::b( 'Whether visits are being recorded at all. FALSE ⇒ ai and bots are not measured, whatever they read.' ),
 					'pageViews' => self::b( 'Whether bot visits to pages are recorded. FALSE ⇒ bots counts only reads of the Markdown copy.' ),
-					'matching'  => self::b( 'TRUE while visits logged before per-page counting existed are still being matched to their pages.' ),
+					'matching'  => self::b( 'TRUE while traffic logged before per-page counting existed is still being matched to its pages.' ),
 					'ai'        => self::obj(
 						array(
 							'total'    => self::i( 'Readers AI assistants sent to this page.' ),

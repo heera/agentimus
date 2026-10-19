@@ -998,7 +998,7 @@ export default {
         readers AI assistants sent you. Click a page to see each read with its time. Only the From and To
         filters apply here; without them, it covers the days named under the list.
         <template v-if="unattributed"> {{ unattributed.toLocaleString() }} bot {{ unattributed === 1 ? 'read was' : 'reads were' }} of addresses that are not one page (archives, tag pages, the blog index) and {{ unattributed === 1 ? 'is' : 'are' }} not listed.</template>
-        <template v-if="pagesMatching"> Older visits are still being matched to their pages, so these numbers may still rise.</template>
+        <template v-if="pagesMatching"> Older traffic is still being matched to its pages, so these numbers may still rise.</template>
       </span>
       <!-- What a visit is, and the one thing it cannot tell apart. -->
       <span v-if="view === 'visits'">

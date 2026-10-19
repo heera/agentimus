@@ -65,13 +65,13 @@ final class PostTrafficColumn {
 		// ⭐ Not "AI Visits": on the Request Log a visit is a BOT's, so the word meant
 		// machines there and people here. His call, 2026-10-19 — one name everywhere.
 		$label = esc_html__( 'Readers From AI', 'agentimus' );
-		// ⚠️ While older visits are still being matched to their posts these numbers
+		// ⚠️ While older traffic is still being matched to their posts these numbers
 		// are short, and climb as matching goes on — said under the heading, in
 		// words, because a column of low numbers otherwise reads as the answer.
 		// (Your Content says the same in its opened row.) Gone once matching ends.
 		if ( ! PostTraffic::backfill_done() ) {
 			$label .= '<span class="agentimus-col-note" style="display:block;font-size:11px;font-weight:400;line-height:1.4;color:#646970">'
-				. esc_html__( 'Still matching older visits; may rise', 'agentimus' )
+				. esc_html__( 'Still matching older traffic; may rise', 'agentimus' )
 				. '</span>';
 		}
 		$columns[ self::COLUMN ] = $label;
