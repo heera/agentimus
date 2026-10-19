@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.52.1
+Stable tag: 1.53.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,14 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.53.0 =
+* New: traffic for each post and page, in Your Content. Each row shows its bot reads, readers from AI and search clicks, and a new menu orders the list by any of them, so a busy page that needs work comes to the top. Open a row to see who came: a day-by-day chart of bot reads and readers from AI, each bot with its count, when it last read the page and whether it was verified, each AI assistant that sent readers, and the searches that brought people from your search engine. Proven fake bots, refused requests, scripts and command-line tools, and requests from WordPress sites (your own included) are not counted as bot reads; the page says how many were left out. Traffic logged before this update is matched to its pages in the background, and the screen says so until that is done.
+* New: the Request Log's views are now named for what they show — **Every request**, **By visitor** and a new **By page** — with a line under them saying what each one is. By page lists one line per post or page, busiest first, with its bot reads, readers from AI, the bots that read it and its last bot read, over the dates you pick. Click a page to see each of its reads with its time. Bot reads of archives, tag pages and the blog index belong to no single page, so the view says how many there were instead of listing them.
+* New: "See every read, with its time" opens the Request Log narrowed to that one page.
+* New: WordPress's own Posts and Pages lists get a sortable "Readers From AI" column, which says under its heading while older traffic is still being matched.
+* Changed: people an AI assistant sent to your site are now called "readers from AI" everywhere, instead of "AI visits". On the Request Log a visit is a bot's, so the same word used to mean machines on one screen and people on the next. Places that meant the bots now say "requests".
+* New: read-post-traffic gives a connected AI agent the same detail for one post, and read-request-log takes a `post` to list that page's reads, and `group: "pages"` for the By page view.
+
 = 1.52.1 =
 * Changed: discovery.json now declares wire-format 1.1 of the WP_Discovery Protocol. Version 1.1 adds the optional identity fields Agentimus already sends: what your site is not, its audience, and your projects. Nothing else in the document changes.
 * Fixed: discovery.json could fail the protocol's own schema in two places. A part of your site with no agent card was sent with an empty list where the schema allows only an object, so it is now left out. A tool that takes no input, such as one offered by another plugin, had its empty settings sent as lists too, and they are now sent as empty objects. Tools that check the file against the schema now pass.
@@ -395,18 +403,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: on some hosts — macOS, mainly — text in Cyrillic, Arabic, Greek or Devanagari was corrupted on its way into the search-coverage check, logging PHP warnings and letting a page that contains such text be marked as not answering a search it answers.
 * Improved: a post's structured data now carries its featured image. Machines reading the page's JSON-LD were told the headline, the author and the dates, but not the one picture the author chose for the piece — the field Google lists as recommended for articles. Emitted only when a featured image is set; nothing is borrowed from the body or the site identity to fill the gap.
 
-= 1.47.0 =
-* Fixed: on a site not written in the Latin alphabet, every page carrying a reported search was told its words answer nothing. The part that pulls the meaningful words out of a search reads Latin letters and numbers, so a search in Cyrillic, Chinese, Japanese, Arabic, Greek or Devanagari yielded nothing to look for — and that came out the far end as "none of it is on the page". The whole site sat on the list permanently and no amount of writing could clear it. A search the check cannot read is now reported as exactly that: not measured, not a failure.
-* Fixed: a URL somebody pasted into a search box, and somebody's prompt pasted in whole, were judged against your pages like real searches. Both make rows no edit can ever close. Web addresses and anything far longer than a person types are now left out, alongside the machine probes that already were.
-* New: you can set a search aside, not just a page. When a page does not answer the search it is found for, the page may be lacking — or the search was never a question your site should answer. Until now the only lever was to set the page aside, which takes good writing off the list to quiet a bad query. The row offers both now, and anything you set aside can be put back from the Search screen.
-* New: an assistant asked to check one page gets the whole verdict for it. It graded only how readable a page was, so a page flagged for not answering its search came back spotless and an assistant read it as finished. It now answers both halves and says which of the searcher's words the page never uses.
-* New: a connected assistant can set a search aside too, one at a time. It refuses any search no engine has actually reported for your site, and putting one back is always allowed.
-* Improved: the list of searches left out of the Search screen now says why each one was left out, and the figure reading "weren't people" counts machine probes alone rather than everything excluded for any reason.
-* Note: your site reads its pages once after updating, so a finding that was true all along may appear on your list.
-
-The most recent releases are listed here, back to 1.47.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.48.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.0 =
+Shows each page's traffic in Your Content, adds a By page view to the Request Log and a Readers From AI column to your posts list. No breaking changes.
 
 = 1.52.1 =
 discovery.json now declares wire-format 1.1 and passes the protocol's schema. No breaking changes.
