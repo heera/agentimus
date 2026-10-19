@@ -543,7 +543,9 @@ final class Registrar {
 						'With group "pages": one line per post/page, busiest first.'
 					),
 					'pageTotal'     => self::i( 'With group "pages": how many posts/pages had traffic in the range.' ),
-					'unattributed'  => self::i( 'With group "pages": bot reads of addresses that are not one post (archives, tag pages, the blog index).' ),
+					'unattributed'  => self::i( 'With group "pages": bot reads of addresses that are not one post (archives, tag pages, the blog index, Markdown copies read before reads named their post).' ),
+					'noAddress'     => self::i( 'With group "pages": page reads logged before the log recorded which page was read — they belong to no line.' ),
+					'knownSince'    => self::s( 'With group "pages": when not empty, the first day reads can be placed on a page at all.' ),
 					'matching'      => self::b( 'With group "pages": TRUE while older traffic is still being matched to its posts — the numbers may rise.' ),
 					'group'         => self::s( 'Which view this is, when not rows.' ),
 					'from'          => self::s( 'With group "pages": first day counted, Y-m-d (GMT).' ),
@@ -1482,6 +1484,7 @@ final class Registrar {
 					'recording' => self::b( 'Whether visits are being recorded at all. FALSE ⇒ ai and bots are not measured, whatever they read.' ),
 					'pageViews' => self::b( 'Whether bot visits to pages are recorded. FALSE ⇒ bots counts only reads of the Markdown copy.' ),
 					'matching'  => self::b( 'TRUE while traffic logged before per-page counting existed is still being matched to its pages.' ),
+					'knownSince' => self::s( 'When not empty: the first day bot reads can be placed on a page at all — reads before it were logged without their page, so `bots` covers fewer days than `window`. Say so when you quote it.' ),
 					'ai'        => self::obj(
 						array(
 							'total'    => self::i( 'Readers AI assistants sent to this page.' ),

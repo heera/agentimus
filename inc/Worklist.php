@@ -552,6 +552,9 @@ final class Worklist {
 			// The span the AI-visit and bot-read numbers on each row cover. Search
 			// carries the engine's own range on the row, because it is not this one.
 			'trafficDays'  => PostTraffic::window(),
+			// When bot reads can be placed on a page only from a later day than the
+			// window starts — the rows' tooltip says so rather than overstate the span.
+			'trafficKnownSince' => PostTraffic::known_since( gmdate( 'Y-m-d', time() - ( PostTraffic::window() - 1 ) * DAY_IN_SECONDS ) ),
 			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
 			// the whole bucket and `total` describes these rows — while an issue
 			// filter is on the two disagree ON PURPOSE, and this is the only

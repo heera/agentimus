@@ -80,7 +80,46 @@ final class PostTraffic {
 		if ( ! $id && false === strpos( $path, '?' ) ) {
 			$id = (int) url_to_postid( home_url( trailingslashit( $path ) ) );
 		}
-		return $id;
+		// ⛔ The blog index is a WordPress page, but what it shows is the post list —
+		// an archive, read live as is_home(), never as that page. Matching its address
+		// to the page gave heera.it a "Blog" line with 22 reads, 2026-10-19.
+		return $id > 0 && $id === (int) get_option( 'page_for_posts' ) ? 0 : $id;
+	}
+
+	/**
+	 * The first day bot reads can be placed on a page, when the window reaches back
+	 * before the log recorded which page was read (it did not, before 1.51.7: those
+	 * rows carry no address and belong to no post). '' when every read in the
+	 * window has its address.
+	 *
+	 * ⚠️ Without this, a post's "bot reads, last 30 days" silently covers fewer days
+	 * than it says — on heera.it, 5,453 of the window's page reads had no address.
+	 *
+	 * @param string $from First day of the window, Y-m-d.
+	 * @param string $to   Last day, Y-m-d; '' for today.
+	 * @return string Y-m-d, or ''.
+	 */
+	public static function known_since( $from, $to = '' ) {
+		global $wpdb;
+		$hits  = HitTable::name();
+		$start = $from . ' 00:00:00';
+		$end   = '' === $to ? gmdate( 'Y-m-d 00:00:00', time() + DAY_IN_SECONDS ) : gmdate( 'Y-m-d 00:00:00', strtotime( $to . ' UTC' ) + DAY_IN_SECONDS );
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- our own table; values bound.
+		$blind = $wpdb->get_var( $wpdb->prepare(
+			"SELECT 1 FROM $hits WHERE endpoint = 'page' AND path = '' AND post_id = 0 AND hit_at >= %s AND hit_at < %s LIMIT 1",
+			$start,
+			$end
+		) );
+		$first = $blind ? (string) $wpdb->get_var( $wpdb->prepare(
+			"SELECT MIN(hit_at) FROM $hits WHERE endpoint = 'page' AND ( path <> '' OR post_id > 0 ) AND hit_at >= %s AND hit_at < %s",
+			$start,
+			$end
+		) ) : '';
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		if ( $blind && '' === $first ) {
+			$first = '' === $to ? gmdate( 'Y-m-d' ) : $to; // Nothing in the window can be placed.
+		}
+		return '' === $first ? '' : substr( $first, 0, 10 );
 	}
 
 	/**
@@ -182,6 +221,7 @@ final class PostTraffic {
 			// ⚠️ Off, bot reads count only the Markdown copy — the page itself is not logged.
 			'pageViews' => Activity\PageViews::enabled(),
 			'matching'  => ! self::backfill_done(),
+			'knownSince' => self::known_since( $since ),
 			'ai'        => array( 'total' => $ai_total, 'bySource' => $by_source ),
 			'bots'      => array(
 				'total'  => $bot_total,
@@ -287,6 +327,7 @@ final class PostTraffic {
 			'recording' => false,
 			'pageViews' => false,
 			'matching'  => true,
+			'knownSince' => '',
 			'ai'        => array( 'total' => 0, 'bySource' => array() ),
 			'bots'      => array( 'total' => 0, 'byBot' => array(), 'more' => 0, 'leftOut' => 0, 'notReaders' => 0 ),
 			'daily'     => array(),
@@ -430,9 +471,12 @@ final class PostTraffic {
 	 * range, busiest first — the same reads {@see for_post()} counts, so a page's
 	 * line here, its Your Content row and its posts-list cell agree.
 	 *
-	 * ⚠️ Reads of addresses that are not one post (archives, tag pages, the blog
-	 * index, a path that names nothing) have no page to sit under. They are
-	 * counted in `unattributed` rather than silently missing from the sum.
+	 * ⚠️ Two kinds of read have no page to sit under, and they are counted apart
+	 * rather than silently missing from the sum: `unattributed` (an address that
+	 * is not one post — archives, tag pages, the blog index, a Markdown copy read
+	 * before reads named their post) and `noAddress` (page reads logged before the
+	 * log recorded which page was read — 5,453 of heera.it's 6,369 on 2026-10-19).
+	 * `knownSince` names the first day reads can be placed at all.
 	 *
 	 * @param array $args from, to (Y-m-d, inclusive; default the report window), offset, per_page.
 	 * @return array
@@ -463,7 +507,11 @@ final class PostTraffic {
 			$to
 		), ARRAY_A );
 		$unattributed = (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM $hits WHERE post_id = 0 AND hit_at >= %s AND hit_at < %s AND $reads",
+			"SELECT COUNT(*) FROM $hits WHERE post_id = 0 AND NOT ( endpoint = 'page' AND path = '' ) AND hit_at >= %s AND hit_at < %s AND $reads",
+			$range
+		) );
+		$no_address   = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM $hits WHERE post_id = 0 AND endpoint = 'page' AND path = '' AND hit_at >= %s AND hit_at < %s AND $reads",
 			$range
 		) );
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -514,6 +562,8 @@ final class PostTraffic {
 			'from'         => $from,
 			'to'           => $to,
 			'unattributed' => $unattributed,
+			'noAddress'    => $no_address,
+			'knownSince'   => self::known_since( $from, $to ),
 			'matching'     => ! self::backfill_done(),
 		);
 	}
@@ -576,11 +626,25 @@ final class PostTraffic {
 	 * @return bool Whether everything is now matched.
 	 */
 	public static function backfill( $batch = self::BACKFILL_BATCH ) {
+		global $wpdb;
+		$state = (array) get_option( self::BACKFILL_OPTION, array() );
+		// ⭐ Once: rows an earlier build matched to the blog-index page go back to
+		// "no single page" {@see post_for_path()}. Its own flag, so a site that had
+		// already finished matching still gets it.
+		if ( ! isset( $state['blog'] ) ) {
+			$index = (int) get_option( 'page_for_posts' );
+			if ( $index > 0 ) {
+				// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- our own tables; value bound.
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . HitTable::name() . ' SET post_id = 0 WHERE post_id = %d', $index ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . Referrals::name() . ' SET post_id = 0 WHERE post_id = %d', $index ) );
+				// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			}
+			$state['blog'] = 'done';
+			update_option( self::BACKFILL_OPTION, $state, false );
+		}
 		if ( self::backfill_done() ) {
 			return true;
 		}
-		global $wpdb;
-		$state = (array) get_option( self::BACKFILL_OPTION, array() );
 		$batch = max( 1, (int) $batch );
 
 		$tables = array(

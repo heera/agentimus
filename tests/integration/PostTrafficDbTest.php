@@ -451,4 +451,45 @@ final class PostTrafficDbTest extends DbTestCase {
 		$this->assertNotEmpty( $out['pages'] );
 		$this->assertNotWPError( $valid, is_wp_error( $valid ) ? $valid->get_error_message() : '' );
 	}
+
+	/* -- What cannot be placed on a page ---------------------------------------- */
+
+	/** ⛔ heera.it, 2026-10-19: the blog index came out as a page called "Blog". */
+	public function test_the_blog_index_is_never_one_page_and_earlier_matches_are_undone() {
+		$this->set_permalink_structure( '/%postname%/' );
+		$index = (int) self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_name' => 'blog' ) );
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_for_posts', $index );
+
+		$this->assertSame( 0, PostTraffic::post_for_path( '/blog/' ) );
+
+		// A row an earlier build matched to it, on a site that had finished matching.
+		$this->hit( $index, array( 'path' => '/blog/' ) );
+		update_option( PostTraffic::BACKFILL_OPTION, array( 'hits' => 'done', 'referrals' => 'done' ) );
+
+		$this->assertSame( array(), wp_list_pluck( PostTraffic::pages()['pages'], 'postId' ) );
+		$this->assertSame( 1, PostTraffic::pages()['unattributed'] );
+	}
+
+	/** ⛔ Reads logged before the log named their page cannot be placed — and the screens must say so. */
+	public function test_reads_logged_without_their_page_are_named_and_date_the_window() {
+		$id = $this->post();
+		$this->hit( 0, array( 'path' => '', 'hit_at' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ) ) );
+		$this->hit( $id, array( 'path' => '/p/', 'hit_at' => gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ) . ' 08:00:00' ) );
+		update_option( PostTraffic::BACKFILL_OPTION, array( 'hits' => 'done', 'referrals' => 'done', 'blog' => 'done' ) );
+
+		$out = PostTraffic::pages();
+
+		$this->assertSame( 1, $out['noAddress'] );
+		$this->assertSame( 0, $out['unattributed'], 'a read with no address is not an archive read' );
+		$this->assertSame( gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ), $out['knownSince'] );
+		$this->assertSame( gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS ), PostTraffic::for_post( $id )['knownSince'] );
+	}
+
+	public function test_a_window_where_every_read_has_its_page_claims_nothing() {
+		$id = $this->post();
+		$this->hit( $id, array( 'path' => '/p/' ) );
+
+		$this->assertSame( '', PostTraffic::for_post( $id )['knownSince'] );
+	}
 }

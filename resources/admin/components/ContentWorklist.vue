@@ -197,7 +197,8 @@ export default {
     },
     trafficTip() {
       const days = Number(this.data.trafficDays || 0);
-      return `Readers from AI are people an AI assistant sent you; bot reads are crawlers and agents that fetched the page or its Markdown copy, leaving out proven fakes, scripts and WordPress sites. Both cover the last ${days} ${days === 1 ? 'day' : 'days'}. Search clicks are your search engine's own report, over its own dates.`;
+      const since = this.data.trafficKnownSince ? ` Bot reads are known page by page only since ${this.dayLabel(this.data.trafficKnownSince)}; earlier reads were logged without their page.` : '';
+      return `Readers from AI are people an AI assistant sent you; bot reads are crawlers and agents that fetched the page or its Markdown copy, leaving out proven fakes, scripts and WordPress sites. Both cover the last ${days} ${days === 1 ? 'day' : 'days'}.${since} Search clicks are your search engine's own report, over its own dates.`;
     },
     filter() {
       return this.data.filter || 'fixable';
@@ -996,6 +997,9 @@ export default {
                       </div>
                     </div>
                     <p v-if="d.matching" class="ar-work__tquiet">Traffic logged before this update is still being matched to its pages, so these numbers may still rise.</p>
+                    <!-- ⚠️ The window says 30 days; the log may not know which page a bot
+                         read for all of them. Said, never left to be assumed. -->
+                    <p v-if="d.knownSince" class="ar-work__tquiet">Bot reads are known page by page only since {{ dayLabel(d.knownSince) }}. Earlier reads were logged without their page, so they are not counted here.</p>
                   </template>
                 </template>
               </template>

@@ -109,6 +109,8 @@ export default {
       pageLines: [],
       pageTotal: 0,
       unattributed: 0,
+      noAddress: 0,
+      pagesKnownSince: '',
       pagesMatching: false,
       pagesRange: { from: '', to: '' },
       gapSeconds: 120,
@@ -350,6 +352,8 @@ export default {
         this.pageLines = res.pages || [];
         this.pageTotal = res.pageTotal || 0;
         this.unattributed = res.unattributed || 0;
+        this.noAddress = res.noAddress || 0;
+        this.pagesKnownSince = res.knownSince || '';
         this.pagesMatching = !!res.matching;
         this.pagesRange = { from: res.from || '', to: res.to || '' };
         this.page = page;
@@ -380,6 +384,9 @@ export default {
       const names = (p.readBy || []).map((b) => `${b.label} ${b.hits}`);
       const more = (p.botKinds || 0) - names.length;
       return names.join(', ') + (more > 0 ? `, +${more} more` : '');
+    },
+    dayText(day) {
+      return day ? formatDate(new Date(`${day}T00:00:00Z`), true) : '';
     },
     rangeLabel() {
       const at = (d) => (d ? formatDate(new Date(`${d}T00:00:00Z`), true) : '');
@@ -998,6 +1005,7 @@ export default {
         readers AI assistants sent you. Click a page to see each read with its time. Only the From and To
         filters apply here; without them, it covers the days named under the list.
         <template v-if="unattributed"> {{ unattributed.toLocaleString() }} bot {{ unattributed === 1 ? 'read was' : 'reads were' }} of addresses that are not one page (archives, tag pages, the blog index) and {{ unattributed === 1 ? 'is' : 'are' }} not listed.</template>
+        <template v-if="noAddress"> {{ noAddress.toLocaleString() }} more {{ noAddress === 1 ? 'was' : 'were' }} logged<template v-if="pagesKnownSince"> before {{ dayText(pagesKnownSince) }}</template> without the page they read, so they can't be placed on any line.</template>
         <template v-if="pagesMatching"> Older traffic is still being matched to its pages, so these numbers may still rise.</template>
       </span>
       <!-- What a visit is, and the one thing it cannot tell apart. -->
