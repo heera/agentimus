@@ -645,7 +645,9 @@ export default {
     <!-- Client, endpoint and network are closed sets drawn from the log itself, so they're
          dropdowns: nobody should have to type "Bytespider (ByteDance)" exactly. Only the
          User-Agent is free text, because it's an unbounded string and the match is a prefix. -->
-    <div class="ar-log__filters">
+    <!-- By page keeps only the dates, so the box shrinks to one line — From, To,
+         Filter — instead of a tall panel with two small fields in it (his catch). -->
+    <div class="ar-log__filters" :class="{ 'is-dates-only': view === 'pages' }">
       <div class="ar-log__row">
         <div v-if="view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Client</span>

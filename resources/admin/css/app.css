@@ -7019,6 +7019,12 @@ a.ar-about-proto__v:hover { text-decoration: underline; }
 
 .ar-log__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 .ar-log__actions .ar-btn { padding: 9px 22px; }
+/* By page: dates only — one line, the button beside them rather than under them. */
+.ar-log__filters.is-dates-only { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.ar-log__filters.is-dates-only .ar-log__row { flex: 0 1 auto; }
+.ar-log__filters.is-dates-only .ar-log__field--date { flex: 0 1 150px; }
+.ar-log__filters.is-dates-only .ar-log__actions { margin-top: 0; }
+.ar-log__filters.is-dates-only .ar-log__actions .ar-btn { height: 40px; }
 
 /* A cell that filters the log onto its own value. Styled as text, not a button —
    the affordance is the underline on hover, so the table stays a table. */
