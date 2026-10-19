@@ -994,10 +994,23 @@ final class Admin {
 				// whole release, and there is one thing an owner may want to do.
 				// ⭐ A one-fix release gets ONE row (1.51.9, and again 1.52.1): the
 				// discovery file now passes its own protocol's schema.
+				// ⭐ 1.53.0 is three new things and no fixes row: traffic for each
+				// page, the By page view, and the posts-list column. "Readers from
+				// AI" is the name for people an AI sent, everywhere — never "visits".
 				array(
-					'icon'  => 'shield',
-					'title' => 'Discovery File Passes Its Schema',
-					'text'  => 'Your discovery.json now follows version 1.1 of its protocol, which describes your projects too, and it passes that protocol\'s own checks. Two small format errors that some sites had are fixed.',
+					'icon'  => 'page',
+					'title' => 'Traffic For Each Page',
+					'text'  => 'Open any row in Your Content to see who came: the bots that read it, the readers AI sent you, and the searches that found it. The list can be sorted by any of them.',
+				),
+				array(
+					'icon'  => 'clock',
+					'title' => 'Your Pages, Most Read First',
+					'text'  => 'The Request Log has a new By page view: your posts and pages, the most read first. Click one to see each read with its time.',
+				),
+				array(
+					'icon'  => 'link',
+					'title' => 'Readers From AI Column',
+					'text'  => 'Your Posts and Pages lists have a sortable Readers From AI column, so the posts AI sends people to rise to the top.',
 				),
 			),
 		);

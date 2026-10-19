@@ -8145,7 +8145,7 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 /* Three plain-words labels now; one wrapped onto two lines at desktop width. */
 .ar-log__view .ar-rev-tab { white-space: nowrap; }
 .ar-log__viewhint { margin: -6px 0 14px; font-size: 12.5px; color: var(--ar-ink-soft); }
-.ar-log__pagechip { margin: 12px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ar-log__pagechip { margin: 12px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); }
 .ar-log__pagechip b { color: var(--ar-ink); font-weight: 600; }
 .ar-work__tab {
   appearance: none; cursor: pointer; font: inherit; font-size: 11.5px;
@@ -10109,3 +10109,13 @@ summary.ar-linkbtn:focus-visible { text-decoration: none; background: none; }
 :where(#agentimus-app) kbd {
   background: color-mix(in srgb, currentColor 11%, transparent);
 }
+
+/* ⭐ "THIS LIST IS NARROWED" — one look on every screen, his call 2026-10-19.
+   The sentence flows as ordinary text in one item; the way out sits at the right
+   on the same line, and drops below — flush with the text — only when the line
+   is too narrow for both. It used to be a flex row of loose text nodes: the gap
+   opened around every bold word, and the button wrapped alone with the link
+   button's own inset, looking like a stray. */
+.ar-narrowed { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 24px; flex-wrap: wrap; }
+.ar-narrowed__text { flex: 1 1 320px; min-width: 0; }
+.ar-narrowed .ar-linkbtn { flex: none; margin-left: 0; padding: 0; white-space: nowrap; }

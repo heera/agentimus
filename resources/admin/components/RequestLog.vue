@@ -679,8 +679,11 @@ export default {
 
       <!-- ⭐ A filter with no control must still be visible and removable, or the
            log reads as "this is everything" while it is one page's reads. -->
-      <p v-if="filters.post && view !== 'pages'" class="ar-log__pagechip">
-        Only requests for <b>{{ postTitle || `post #${filters.post}` }}</b> — including proven fakes, refused requests, scripts and WordPress sites, which its traffic count leaves out.
+      <p v-if="filters.post && view !== 'pages'" class="ar-log__pagechip ar-narrowed">
+        <span class="ar-narrowed__text">
+          Showing only requests for <b>{{ postTitle || `post #${filters.post}` }}</b>. This includes proven fakes,
+          refused requests, scripts and WordPress sites, which the page's traffic count leaves out.
+        </span>
         <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="loading" @click="clearPost">Show every page</button>
       </p>
 

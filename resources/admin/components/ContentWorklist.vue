@@ -813,15 +813,17 @@ export default {
            4 of 30 rows is how somebody concludes the other 26 vanished — and a
            filter that comes up EMPTY has to say why, or the finding's button
            reads as a lie ("Showing the 0 pages" was heera.it's actual words). -->
-      <p v-if="picked" class="ar-work__picked">
-        <template v-if="pickFetching">Fetching those pages…</template>
-        <template v-else-if="shown.length">
-          Showing {{ shown.length === 1 ? 'the 1 page' : `the ${shown.length} pages` }} from that finding.
-        </template>
-        <template v-else>
-          The pages that finding counted aren't here any more — re-graded clean,
-          set aside, or no longer published. The finding catches up on its next check.
-        </template>
+      <p v-if="picked" class="ar-work__picked ar-narrowed">
+        <span class="ar-narrowed__text">
+          <template v-if="pickFetching">Fetching those pages…</template>
+          <template v-else-if="shown.length">
+            Showing {{ shown.length === 1 ? 'the 1 page' : `the ${shown.length} pages` }} from that finding.
+          </template>
+          <template v-else>
+            The pages that finding counted aren't here any more — re-graded clean,
+            set aside, or no longer published. The finding catches up on its next check.
+          </template>
+        </span>
         <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="showEverything">Show everything</button>
       </p>
 
@@ -830,12 +832,14 @@ export default {
            list that shows 60 rows under a chip reading 68 without a word is the
            contradiction this feature was built to avoid. The label comes from
            the server with the rows, so it can only ever describe what arrived. -->
-      <p v-else-if="data.issue" class="ar-work__picked">
+      <p v-else-if="data.issue" class="ar-work__picked ar-narrowed">
+        <span class="ar-narrowed__text">
         Showing the {{ data.total }} {{ data.total === 1 ? 'page' : 'pages' }} flagged “{{ data.issueLabel || (issue && issue.label) }}”.
         <!-- ⚠️ The count above was taken when this list was fetched. Fix one of
              them and it is one too many — said here rather than left to be
              noticed, and the row itself stays put and marked. -->
         <template v-if="fixedHere"> {{ fixedHere === 1 ? 'One of them is' : `${fixedHere} of them are` }} fixed since you opened it.</template>
+        </span>
         <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="$emit('clear-issue')">Show everything</button>
       </p>
 
