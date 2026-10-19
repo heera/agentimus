@@ -554,7 +554,7 @@ export default {
     refShareTip(hits) {
       const total = (this.refTotals && this.refTotals.window) || 0;
       if (!total) return `${hits} ${1 === hits ? 'visit' : 'visits'}`;
-      return `${hits} of ${total} AI visits · ${Math.round((hits / total) * 100)}%`;
+      return `${hits} of ${total} readers from AI · ${Math.round((hits / total) * 100)}%`;
     },
     // The styled bubble behind a trend row: the two half-window sums the arrow
     // was computed from — real numbers, not a bare percentage to guess at.
@@ -1068,17 +1068,17 @@ export default {
               <div class="ar-day-head">
                 <h2 id="ar-aiday-title" class="ar-modal__title">{{ dateLabel(aiDay.date) }}</h2>
                 <div class="ar-day-nav" role="group" aria-label="Switch day">
-                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasPrev || aiDay.loading" aria-label="Previous day with AI visits" @click="stepAiDay(-1)">
+                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasPrev || aiDay.loading" aria-label="Previous day with readers from AI" @click="stepAiDay(-1)">
                     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l-4 4 4 4" /></svg>
                   </button>
                   <SelectMenu
                     class="ar-day-picker"
                     :model-value="aiDay.date"
                     :options="aiDayOptions"
-                    aria-label="Jump to a day with AI visits"
+                    aria-label="Jump to a day with readers from AI"
                     @update:model-value="loadAiDay"
                   />
-                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasNext || aiDay.loading" aria-label="Next day with AI visits" @click="stepAiDay(1)">
+                  <button type="button" class="ar-day-nav__btn" :disabled="!aiDayHasNext || aiDay.loading" aria-label="Next day with readers from AI" @click="stepAiDay(1)">
                     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
                   </button>
                 </div>
@@ -1176,7 +1176,7 @@ export default {
              explanation belongs with the full report, which is where it lives. -->
         <p class="ar-card__lead">
           Real visitors who arrived from an AI assistant (ChatGPT, Perplexity, Gemini…). Counted on your
-          own site — no IP, nothing sent anywhere. Some AI visits can’t be detected, so read this as a
+          own site — no IP, nothing sent anywhere. Some readers from AI can’t be detected, so read this as a
           floor: at least this many.
         </p>
 

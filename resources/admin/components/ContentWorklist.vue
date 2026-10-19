@@ -16,6 +16,7 @@
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
 import PagerBar from './PagerBar.vue';
+import SelectMenu from './SelectMenu.vue';
 
 export default {
   name: 'ContentWorklist',
@@ -41,8 +42,8 @@ export default {
     // and what it does. The gear edits it; the line under the head states it.
     checkTypes: { type: Array, default: () => [] },
   },
-  components: { PagerBar },
-  emits: ['load', 'set-aside', 'dismiss-search', 'open-scope', 'clear-issue'],
+  components: { PagerBar, SelectMenu },
+  emits: ['load', 'set-aside', 'dismiss-search', 'open-scope', 'clear-issue', 'navigate'],
   data() {
     return {
       // Post IDs a finding asked for. Null means "show everything".
@@ -56,6 +57,10 @@ export default {
       // Which rows are open. Ids, not a flag on the row, so a refetch cannot
       // fold a row somebody has deliberately opened.
       opened: [],
+      // Each opened row's traffic detail, fetched on first open: id → { loading, data, error }.
+      detail: {},
+      // The chart day under the pointer, as "id:index".
+      hoverDay: '',
     };
   },
   watch: {
@@ -179,6 +184,21 @@ export default {
     // Which tab the rows on screen belong to. The SERVER decides this now —
     // it ranks and pages over every published item, so the panel can no longer
     // sort a local pile into buckets and must simply show what it was sent.
+    sort() {
+      return this.data.sort || '';
+    },
+    sortOptions() {
+      return [
+        { value: '', label: 'Most worth fixing' },
+        { value: 'ai', label: 'Most readers from AI' },
+        { value: 'bots', label: 'Most bot reads' },
+        { value: 'clicks', label: 'Most search clicks' },
+      ];
+    },
+    trafficTip() {
+      const days = Number(this.data.trafficDays || 0);
+      return `Readers from AI are people an AI assistant sent you; bot reads are crawlers and agents that fetched the page or its Markdown copy, leaving out proven fakes, scripts and WordPress sites. Both cover the last ${days} ${days === 1 ? 'day' : 'days'}. Search clicks are your search engine's own report, over its own dates.`;
+    },
     filter() {
       return this.data.filter || 'fixable';
     },
@@ -267,6 +287,59 @@ export default {
       const at = this.opened.indexOf(i.id);
       if (ev.target.open && at < 0) this.opened.push(i.id);
       if (!ev.target.open && at > -1) this.opened.splice(at, 1);
+      if (ev.target.open) this.loadDetail(i.id);
+    },
+    // Fetched when a row opens, never with the list: twenty rows of day-by-day
+    // series nobody opened would be paid for on every load. Re-read on every
+    // open, so a row left open across a refresh never shows yesterday's numbers.
+    async loadDetail(id) {
+      if (!this.api || (this.detail[id] && this.detail[id].loading)) return;
+      this.detail = { ...this.detail, [id]: { ...(this.detail[id] || {}), loading: true, error: '' } };
+      try {
+        const data = await this.api.getPostTraffic(id);
+        this.detail = { ...this.detail, [id]: { loading: false, data, error: '' } };
+      } catch (e) {
+        this.detail = { ...this.detail, [id]: { loading: false, data: null, error: e.message || 'Could not read this page’s traffic.' } };
+      }
+    },
+    // The chart: one pair of bars per day, bot reads behind AI visits, on one
+    // scale so a busy day reads as busy whichever kind it was.
+    chart(d) {
+      const days = (d && d.daily) || [];
+      const max = Math.max(1, ...days.map((x) => Math.max(x.ai, x.bots)));
+      const w = 8;
+      const h = 56;
+      return {
+        width: days.length * w,
+        height: h,
+        bars: days.map((x, n) => ({
+          x: n * w,
+          bots: Math.round((x.bots / max) * h),
+          ai: Math.round((x.ai / max) * h),
+          day: x,
+        })),
+        max,
+      };
+    },
+    dayLine(i, d) {
+      const [id, n] = String(this.hoverDay).split(':');
+      const days = (d && d.daily) || [];
+      const x = Number(id) === i.id ? days[Number(n)] : null;
+      if (!x) {
+        const days30 = days.length;
+        return `Last ${days30} ${days30 === 1 ? 'day' : 'days'} — point at a day to read it.`;
+      }
+      const when = formatDate(new Date(`${x.date}T00:00:00Z`), true);
+      return `${when}: ${this.num(x.bots)} bot ${x.bots === 1 ? 'read' : 'reads'} · ${this.num(x.ai)} ${x.ai === 1 ? 'reader' : 'readers'} from AI`;
+    },
+    dayLabel(day) {
+      return formatDate(new Date(`${day}T00:00:00Z`), true);
+    },
+    lastRead(b) {
+      return b.last ? relTimeShort(new Date(`${b.last.replace(' ', 'T')}Z`).getTime()) : '';
+    },
+    seeEveryRead(i) {
+      this.$emit('navigate', { tab: 'log', log: { post: i.id, postTitle: i.title } });
     },
     // What one engine says in the width of a glance. Never merged with the
     // other's — each keeps its own name in front of its own numbers.
@@ -367,6 +440,26 @@ export default {
       this.picked = null;
       this.extraRows = [];
       this.$emit('load', { filter: key, page: 1 });
+    },
+    // A different ORDER is a different question for the server too — the
+    // busiest page on the site may be on page four of the ranked list.
+    pickSort(sort) {
+      if ((sort || '') === this.sort) return;
+      this.$emit('load', { filter: this.filter, page: 1, sort: sort || '' });
+    },
+    // One line for a row's traffic. ⭐ An all-zero row still says so: a blank
+    // reads as "not measured", and these were measured.
+    trafficGist(i) {
+      const t = i.traffic || {};
+      const parts = [];
+      if (t.ai || this.sort === 'ai') parts.push(`${this.num(t.ai)} ${t.ai === 1 ? 'reader' : 'readers'} from AI`);
+      if (t.bots || this.sort === 'bots') parts.push(`${this.num(t.bots)} bot ${t.bots === 1 ? 'read' : 'reads'}`);
+      if (t.clicks || this.sort === 'clicks') parts.push(t.clicks === null || t.clicks === undefined ? 'no search clicks reported' : `${this.num(t.clicks)} search ${t.clicks === 1 ? 'click' : 'clicks'}`);
+      return parts.length ? parts.join(' · ') : 'none yet';
+    },
+    trafficQuiet(i) {
+      const t = i.traffic || {};
+      return !t.ai && !t.bots && !t.clicks;
     },
     goPage(n) {
       const want = Math.min(this.pages, Math.max(1, Number(n) || 1));
@@ -756,6 +849,9 @@ export default {
           :disabled="busy"
           @click="pickFilter(t.key)"
         >{{ t.label }} <span class="ar-work__tab-n">{{ t.n }}</span></button>
+        <span class="ar-work__sort">
+          <SelectMenu :model-value="sort" :options="sortOptions" :disabled="busy" aria-label="Order the list by" @update:model-value="pickSort" />
+        </span>
       </div>
 
       <!-- ⛔ The three-column spine is gone. It existed because a row was three
@@ -813,6 +909,10 @@ export default {
                     <b>{{ e.name }}</b> <span class="ar-work__eng-n">{{ engineGist(e) }}</span>
                   </span>
                 </template>
+                <span class="ar-work__sep" aria-hidden="true">·</span>
+                <span class="ar-work__eng" :class="{ 'is-quiet': trafficQuiet(i) }" v-tip="trafficTip">
+                  <b>Traffic</b> <span class="ar-work__eng-n">{{ trafficGist(i) }}</span>
+                </span>
                 </span>
               </span>
 
@@ -821,6 +921,81 @@ export default {
 
           <!-- OPENED: everything known, each engine speaking only for itself. -->
           <div v-if="isOpen(i)" class="ar-work__body">
+
+            <!-- WHO CAME. Fetched on open; every number names its span, and
+                 an empty list says it is empty rather than vanishing. -->
+            <div class="ar-work__block ar-work__traffic">
+              <div class="ar-work__bhead">
+                <h4>Who came to this page</h4>
+                <span class="ar-work__when">
+                  <template v-if="detail[i.id] && detail[i.id].data">last {{ detail[i.id].data.window }} days</template>
+                </span>
+              </div>
+              <p v-if="!detail[i.id] || (detail[i.id].loading && !detail[i.id].data)" class="ar-work__tquiet">Reading this page’s traffic…</p>
+              <p v-else-if="detail[i.id].error" class="ar-work__tquiet">{{ detail[i.id].error }}</p>
+              <template v-else-if="detail[i.id].data">
+                <template v-for="d in [detail[i.id].data]" :key="'t' + i.id">
+                  <p v-if="!d.recording" class="ar-work__tquiet">Visits are not being recorded, so there is nothing to show. Turn on “Record AI activity &amp; referrals” in Settings.</p>
+                  <template v-else>
+                    <!-- No chart when nothing came: an empty frame reads as broken, and the
+                         three lists below already say each half is empty. -->
+                    <div v-if="d.bots.total || d.ai.total" class="ar-work__tchart">
+                      <svg :viewBox="`0 0 ${chart(d).width} ${chart(d).height}`" preserveAspectRatio="none" role="img" :aria-label="`Bot reads and readers from AI per day, last ${d.window} days`">
+                        <g v-for="(b, n) in chart(d).bars" :key="b.day.date" @mouseenter="hoverDay = i.id + ':' + n" @mouseleave="hoverDay = ''">
+                          <rect :x="b.x" y="0" width="8" :height="chart(d).height" fill="transparent" />
+                          <rect v-if="b.bots" class="is-bots" :x="b.x + 1" :y="chart(d).height - b.bots" width="6" :height="b.bots" />
+                          <rect v-if="b.ai" class="is-ai" :x="b.x + 2.5" :y="chart(d).height - b.ai" width="3" :height="b.ai" />
+                        </g>
+                      </svg>
+                      <div v-if="d.daily.length" class="ar-work__taxis">
+                        <span>{{ dayLabel(d.daily[0].date) }}</span>
+                        <span>{{ dayLabel(d.daily[d.daily.length - 1].date) }}</span>
+                      </div>
+                      <div class="ar-work__tkey">
+                        <span><i class="is-bots"></i>Bot reads {{ num(d.bots.total) }}</span>
+                        <span><i class="is-ai"></i>Readers from AI {{ num(d.ai.total) }}</span>
+                        <span class="ar-work__tday">{{ dayLine(i, d) }}</span>
+                      </div>
+                    </div>
+
+                    <div class="ar-work__tcols">
+                      <div>
+                        <h5>Read by</h5>
+                        <ul v-if="d.bots.byBot.length" class="ar-work__tlist">
+                          <li v-for="b in d.bots.byBot" :key="b.label">
+                            <span>{{ b.label }} <em :class="{ 'is-ok': b.verified }">{{ b.verified ? 'verified' : 'not checked' }}</em></span>
+                            <span class="ar-work__tn">{{ num(b.hits) }}<small v-if="lastRead(b)"> · last {{ lastRead(b) }}</small></span>
+                          </li>
+                          <li v-if="d.bots.more" class="ar-work__tquiet">+{{ d.bots.more }} more</li>
+                        </ul>
+                        <p v-else class="ar-work__tquiet"><template v-if="d.pageViews">No bot has read this page in these days.</template><template v-else>Page visits are not being recorded — only reads of the Markdown copy would show here.</template></p>
+                        <p v-if="d.bots.leftOut" class="ar-work__tquiet">{{ num(d.bots.leftOut) }} more {{ d.bots.leftOut === 1 ? 'request was' : 'requests were' }} left out: proven fakes, or turned away.</p>
+                        <p v-if="d.bots.notReaders" class="ar-work__tquiet">{{ num(d.bots.notReaders) }} {{ d.bots.notReaders === 1 ? 'request' : 'requests' }} from scripts and WordPress sites (your own included) {{ d.bots.notReaders === 1 ? 'is' : 'are' }} not counted as bot reads.</p>
+                        <button v-if="d.bots.total || d.bots.leftOut || d.bots.notReaders" type="button" class="ar-linkbtn ar-linkbtn--act" @click="seeEveryRead(i)">See every read, with its time</button>
+                      </div>
+                      <div>
+                        <h5>Sent by</h5>
+                        <ul v-if="d.ai.bySource.length" class="ar-work__tlist">
+                          <li v-for="a in d.ai.bySource" :key="a.label"><span>{{ a.label }}</span><span class="ar-work__tn">{{ num(a.hits) }}</span></li>
+                        </ul>
+                        <p v-else class="ar-work__tquiet">No AI assistant has sent anyone here in these days.</p>
+                      </div>
+                      <div>
+                        <h5>Found by searching</h5>
+                        <template v-if="d.search">
+                          <ul v-if="d.search.queries && d.search.queries.length" class="ar-work__tlist">
+                            <li v-for="q in d.search.queries" :key="q.query"><span>{{ q.query }}</span><span class="ar-work__tn">{{ num(q.clicks) }} {{ q.clicks === 1 ? 'click' : 'clicks' }}</span></li>
+                          </ul>
+                          <p class="ar-work__tquiet">{{ d.search.engine }}: {{ num(d.search.clicks) }} clicks, {{ num(d.search.impressions) }} shown, average position {{ d.search.position }}, over its own dates. Rare and private searches are left out, so this can sit a little under {{ d.search.engine }}’s own total.</p>
+                        </template>
+                        <p v-else class="ar-work__tquiet">Your search engine has reported no searches for this page.</p>
+                      </div>
+                    </div>
+                    <p v-if="d.matching" class="ar-work__tquiet">Visits logged before this update are still being matched to their pages, so these numbers may still rise.</p>
+                  </template>
+                </template>
+              </template>
+            </div>
 
             <div v-if="i.focus" class="ar-work__block">
               <div class="ar-work__bhead">

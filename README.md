@@ -220,7 +220,7 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_verified_bot_domains` | filter | `( array $map ): array` | The verifiable-bot rDNS map (registry token → reverse-DNS domain suffixes), sourced from the owner-editable registry. |
 | `agentimus_verifier_registry` | filter | `( array $entries ): array` | The effective Verified-bots registry after the owner's edits — the source for both verification methods (rDNS domains and published IP-range files). |
 | `agentimus_trusted_proxies` | filter | `( string[] $cidrs ): string[]` | Trusted proxy/CDN CIDRs for real-client-IP resolution. A forwarded header is only honoured when the direct peer is a proven proxy — it can't be used to spoof a source IP. |
-| `agentimus_referral_beacon` | filter | `( bool $enabled ): bool` | Master switch for the opt-in "CDN mode" referral beacon (count AI visits in the browser). |
+| `agentimus_referral_beacon` | filter | `( bool $enabled ): bool` | Master switch for the opt-in "CDN mode" referral beacon (count readers from AI in the browser). |
 | `agentimus_markdown_cache` | filter | `( bool $cache ): bool` | Enable or disable the per-post `.md` cache (on by default). |
 | `agentimus_flagged_ip_retention_days` | filter | `( int $days ): int` | Retention window for the opt-in flagged-IP store (default ~14). |
 

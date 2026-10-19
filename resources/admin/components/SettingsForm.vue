@@ -1239,7 +1239,7 @@ export default {
           <input v-model="settings.enable_referral_beacon" type="checkbox" />
           <span class="ar-toggle__track" aria-hidden="true"></span>
           <span class="ar-toggle__text">
-            <strong>CDN mode — count AI visits in the browser</strong>
+            <strong>CDN mode — count readers from AI in the browser</strong>
             <small>Turn this on only if a full-page cache or CDN sits in front of your site — for example Cloudflare with “Cache Everything”. It counts “Traffic from AI” in the visitor’s browser, so the number survives the cache. It adds a small counting script to your pages. Some visitors block scripts like this, with an ad-blocker or a privacy browser, and are not counted. So read the total as a minimum, never as too high.</small>
           </span>
         </label>

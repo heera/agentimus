@@ -76,6 +76,9 @@ final class Module {
 		add_action( self::CRON, array( Referrals::class, 'prune' ) );
 		add_action( self::CRON, array( UnknownSources::class, 'prune' ) );
 		add_action( self::CRON, array( FlaggedIps::class, 'prune' ) );
+		// Rows logged before they carried a post are matched to one, a batch a day as a floor;
+		// any screen that reads per-post traffic also moves it along {@see \Agentimus\PostTraffic::backfill()}.
+		add_action( self::CRON, array( \Agentimus\PostTraffic::class, 'backfill' ), 20, 0 );
 		// Opting back out of IP storage purges what was kept (Settings::update fires this).
 		add_action( 'agentimus_flagged_ips_purge', array( FlaggedIps::class, 'clear' ) );
 		// Suggest privacy-policy text for the site owner — but only while the opt-in
@@ -259,6 +262,8 @@ final class Module {
 					'signer'   => array( 'type' => 'string' ),
 					// Prefix match only — see Repository::log().
 					'ua'       => array( 'type' => 'string' ),
+					// One post's reads — the hand-off from Your Content's traffic detail.
+					'post'     => array( 'type' => 'integer' ),
 					'before'   => array( 'type' => 'integer' ),
 					'per_page' => array( 'type' => 'integer' ),
 					// Sorting. 'at' (newest first) is the default and the only one
@@ -936,6 +941,11 @@ final class Module {
 			$args['ua'] = substr( $ua, 0, 255 );
 		}
 
+		$post = absint( $request->get_param( 'post' ) );
+		if ( $post > 0 ) {
+			$args['post'] = $post;
+		}
+
 		// ⚠️ Validated per TOKEN, not on the joined string: one bad entry in a
 		// list is still a typo the owner should be told about, and a silent drop
 		// would quietly widen the result set instead of narrowing it.
@@ -994,12 +1004,19 @@ final class Module {
 		}
 
 		$group = strtolower( trim( (string) $request->get_param( 'group' ) ) );
-		if ( '' !== $group && ! in_array( $group, array( 'rows', 'visits' ), true ) ) {
+		if ( '' !== $group && ! in_array( $group, array( 'rows', 'visits', 'pages' ), true ) ) {
 			return new \WP_Error(
 				'agentimus_bad_group',
-				__( 'Group must be "rows" or "visits".', 'agentimus' ),
+				__( 'Group must be "rows", "visits" or "pages".', 'agentimus' ),
 				array( 'status' => 400 )
 			);
+		}
+
+		if ( 'pages' === $group ) {
+			// ⭐ Only the dates narrow the Pages view: a page's line is the same reads
+			// its Your Content row counts, and a client or status filter would make
+			// the two disagree. The screen hides the other controls in this view.
+			return rest_ensure_response( \Agentimus\PostTraffic::pages( array_intersect_key( $args, array_flip( array( 'from', 'to', 'offset', 'per_page' ) ) ) ) );
 		}
 
 		return rest_ensure_response( 'visits' === $group ? Repository::visits( $args ) : Repository::log( $args ) );

@@ -25,14 +25,16 @@ import CardSkeleton from './CardSkeleton.vue';
 import PagerBar from './PagerBar.vue';
 import { uaTip } from '../js/uaTip.js';
 import { surfaceName, isRenamed } from '../js/surfaceNames.js';
-import { formatStamp, relTimeShort } from '../js/wpDate.js';
+import { formatDate, formatStamp, relTimeShort } from '../js/wpDate.js';
 
 // ⛔ ONE DEFINITION OF "NO FILTERS", because three copies of this literal used to
 // drift: a filter added to the initial state but missed in Clear all is one the
 // owner can set and cannot unset. A fresh object every call — the lists are
 // mutable and must never be shared between the state and a reset.
+// `post` has no control of its own: it arrives from Your Content's "See every
+// read" and shows as a removable chip naming the page.
 const noFilters = () => ({
-  from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [], signer: [],
+  from: '', to: '', agent: [], endpoint: [], network: [], ua: '', verdict: [], signer: [], post: '',
 });
 // The filters whose control is multi-select, so a single value arriving from a
 // dashboard drill-down gets wrapped into the list shape the picker expects.
@@ -45,7 +47,8 @@ const VIEW_KEY = 'agentimus.requestLog.view';
 const VISIT_TARGETS = 4;
 const savedView = () => {
   try {
-    return window.localStorage.getItem(VIEW_KEY) === 'visits' ? 'visits' : 'rows';
+    const v = window.localStorage.getItem(VIEW_KEY);
+    return 'visits' === v || 'pages' === v ? v : 'rows';
   } catch (e) {
     return 'rows';
   }
@@ -70,6 +73,8 @@ export default {
       // ⭐ The five value filters are LISTS — his call, 2026-08-21. `from`/`to`/`ua`
       // stay single: a date range already IS a range, and `ua` is a prefix match.
       filters: noFilters(),
+      // The title of the page `filters.post` narrows to, for its chip.
+      postTitle: '',
       // Distinct values seen in the retained window; fetched once, alongside the first page.
       facets: { agents: [], endpoints: [], networks: [], signers: [] },
       rows: [],
@@ -100,6 +105,12 @@ export default {
       view: savedView(),
       visits: [],
       visitTotal: 0,
+      // The Pages view: one line per post or page, the same reads Your Content counts.
+      pageLines: [],
+      pageTotal: 0,
+      unattributed: 0,
+      pagesMatching: false,
+      pagesRange: { from: '', to: '' },
       gapSeconds: 120,
       // Which visits show their requests, by the visit's id.
       expanded: {},
@@ -177,7 +188,15 @@ export default {
         : 'No network — “Identify every bot” is off, so visitors aren’t looked up. Turn it on in Settings → AI Access to see which organisation each one belongs to.';
     },
     // What the empty state and the footer test: the list on screen, either kind.
+    viewHint() {
+      return {
+        rows: 'Every request: each request a crawler or AI assistant made, newest first.',
+        visits: 'By visitor: each visitor’s requests grouped together. Several pages read within seconds usually means someone asked an AI a question; one page at a time is a crawl.',
+        pages: 'By page: your posts and pages, the most read first — how often bots read each one, and how many readers AI assistants sent you.',
+      }[this.view] || '';
+    },
     shown() {
+      if ('pages' === this.view) return this.pageLines;
       return 'visits' === this.view ? this.visits : this.rows;
     },
     gapMinutes() {
@@ -187,7 +206,7 @@ export default {
       return (this.page - 1) * this.perPage;
     },
     pages() {
-      const count = 'visits' === this.view ? this.visitTotal : this.total;
+      const count = { visits: this.visitTotal, pages: this.pageTotal }[this.view] ?? this.total;
       return Math.max(1, Math.ceil(count / this.perPage));
     },
     pageFrom() {
@@ -242,7 +261,8 @@ export default {
     // rows. The ticket in load() makes the superseded read harmless.
     preset(p) {
       if (!p) return;
-      const { seq, ...keys } = p;
+      const { seq, postTitle, ...keys } = p;
+      this.postTitle = postTitle || '';
       // ⚠️ A preset is written by whoever links here (a dashboard row sends
       // `{ verdict: '2' }`), so it arrives in the SINGLE shape. Normalise it —
       // otherwise the picker gets a string where it expects a list and shows
@@ -306,7 +326,64 @@ export default {
     // Every reader of the log comes through here, so a filter, a pivot or a
     // refresh lands on whichever view is showing.
     load(page = 1) {
+      if ('pages' === this.view) return this.loadPages(page);
       return 'visits' === this.view ? this.loadVisits(page) : this.loadRows(page);
+    },
+    // ⭐ Only the dates reach the Pages view — a client or status filter would
+    // make a page's line disagree with its Your Content row, so the screen
+    // hides those controls here rather than ignore them silently.
+    async loadPages(page = 1) {
+      if (!this.api) return;
+      if (!this.loaded) this.loadFacets();
+      this.loading = true;
+      this.error = '';
+      const seq = ++this.reqSeq;
+      try {
+        const res = await this.api.getActivityLog({
+          from: this.filters.from,
+          to: this.filters.to,
+          group: 'pages',
+          offset: (page - 1) * this.perPage,
+          per_page: this.perPage,
+        });
+        if (seq !== this.reqSeq) return;
+        this.pageLines = res.pages || [];
+        this.pageTotal = res.pageTotal || 0;
+        this.unattributed = res.unattributed || 0;
+        this.pagesMatching = !!res.matching;
+        this.pagesRange = { from: res.from || '', to: res.to || '' };
+        this.page = page;
+        this.loaded = true;
+      } catch (e) {
+        if (seq !== this.reqSeq) return;
+        this.error = (e && e.message) || 'Unable to load the request log.';
+        this.pageLines = [];
+        this.pageTotal = 0;
+      } finally {
+        if (seq === this.reqSeq) this.loading = false;
+      }
+    },
+    // A page's line opens its reads: the Rows view, narrowed to that page and to
+    // the same dates, so every row behind the number is one scroll away.
+    openPage(p) {
+      this.filters = { ...noFilters(), from: this.filters.from, to: this.filters.to, post: p.postId };
+      this.postTitle = p.title;
+      this.view = 'rows';
+      try {
+        window.localStorage.setItem(VIEW_KEY, 'rows');
+      } catch (e) {
+        // Not remembered; the switch still works for this visit.
+      }
+      this.load(1);
+    },
+    readByLine(p) {
+      const names = (p.readBy || []).map((b) => `${b.label} ${b.hits}`);
+      const more = (p.botKinds || 0) - names.length;
+      return names.join(', ') + (more > 0 ? `, +${more} more` : '');
+    },
+    rangeLabel() {
+      const at = (d) => (d ? formatDate(new Date(`${d}T00:00:00Z`), true) : '');
+      return this.pagesRange.from ? `${at(this.pagesRange.from)} – ${at(this.pagesRange.to)}` : '';
     },
     async loadVisits(page = 1) {
       if (!this.api) return;
@@ -435,6 +512,12 @@ export default {
     },
     reset() {
       this.filters = noFilters();
+      this.postTitle = '';
+      this.apply();
+    },
+    clearPost() {
+      this.filters.post = '';
+      this.postTitle = '';
       this.apply();
     },
     goPage(n) {
@@ -542,40 +625,45 @@ export default {
         </button>
       </div>
       <div class="ar-rev-tabs ar-log__view" role="tablist" aria-label="Show the log as">
-        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'rows' }" role="tab" :aria-selected="view === 'rows'" @click="setView('rows')">Rows</button>
-        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'visits' }" role="tab" :aria-selected="view === 'visits'" @click="setView('visits')">Visits</button>
+        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'rows' }" role="tab" :aria-selected="view === 'rows'" @click="setView('rows')">Every request</button>
+        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'visits' }" role="tab" :aria-selected="view === 'visits'" @click="setView('visits')">By visitor</button>
+        <button type="button" class="ar-rev-tab" :class="{ 'is-active': view === 'pages' }" role="tab" :aria-selected="view === 'pages'" @click="setView('pages')">By page</button>
       </div>
     </div>
+    <!-- ⭐ Each view named as the question it answers, his call 2026-10-19: the tab
+         names alone ("Visits", "Pages") meant nothing to someone who is not technical,
+         and "visit" also meant HUMANS on the next screen over. -->
+    <p class="ar-log__viewhint">{{ viewHint }}</p>
 
     <!-- Client, endpoint and network are closed sets drawn from the log itself, so they're
          dropdowns: nobody should have to type "Bytespider (ByteDance)" exactly. Only the
          User-Agent is free text, because it's an unbounded string and the match is a prefix. -->
     <div class="ar-log__filters">
       <div class="ar-log__row">
-        <div class="ar-log__field">
+        <div v-if="view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Client</span>
           <SelectMenu v-model="filters.agent" :options="agentOptions" multiple aria-label="Filter by client" />
         </div>
-        <div class="ar-log__field">
+        <div v-if="view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Address</span>
           <SelectMenu v-model="filters.endpoint" :options="endpointOptions" multiple mono aria-label="Filter by endpoint" />
         </div>
-        <div v-if="hasNetwork" class="ar-log__field">
+        <div v-if="hasNetwork && view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Network</span>
           <SelectMenu v-model="filters.network" :options="networkOptions" multiple mono aria-label="Filter by network" />
         </div>
-        <div class="ar-log__field">
+        <div v-if="view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Verification</span>
           <SelectMenu v-model="filters.verdict" :options="verdictOptions" multiple aria-label="Filter by verification" />
         </div>
         <!-- Unlike Network, this one shows even with an empty facet list: "has anything
              signed to me yet?" is a question the owner is entitled to ask and get no
              for, and a hidden control cannot answer it. -->
-        <div class="ar-log__field">
+        <div v-if="view !== 'pages'" class="ar-log__field">
           <span class="ar-log__label">Signature</span>
           <SelectMenu v-model="filters.signer" :options="signerOptions" multiple aria-label="Filter by signature" />
         </div>
-        <div class="ar-log__field ar-log__field--ua">
+        <div v-if="view !== 'pages'" class="ar-log__field ar-log__field--ua">
           <span class="ar-log__label">User-Agent starts with</span>
           <input v-model.trim="filters.ua" class="ar-input" type="text" placeholder="Mozilla/5.0" @keyup.enter="apply" />
         </div>
@@ -588,6 +676,13 @@ export default {
           <input v-model="filters.to" class="ar-input" type="date" aria-label="To date" />
         </div>
       </div>
+
+      <!-- ⭐ A filter with no control must still be visible and removable, or the
+           log reads as "this is everything" while it is one page's reads. -->
+      <p v-if="filters.post && view !== 'pages'" class="ar-log__pagechip">
+        Only requests for <b>{{ postTitle || `post #${filters.post}` }}</b> — including proven fakes, refused requests, scripts and WordPress sites, which its traffic count leaves out.
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" :disabled="loading" @click="clearPost">Show every page</button>
+      </p>
 
       <div class="ar-log__actions">
         <button
@@ -608,8 +703,59 @@ export default {
     <CardSkeleton v-else-if="loading && !shown.length" lead="Loading the request log…" />
 
     <div v-else-if="!shown.length" class="ar-log__empty">
-      <template v-if="hasFilters">Nothing matched those filters.</template>
+      <template v-if="view === 'pages'">No post or page was read by a bot or visited from an AI answer in these days.</template>
+      <template v-else-if="hasFilters">Nothing matched those filters.</template>
       <template v-else>No requests recorded yet — the first time a crawler or an AI assistant fetches one of your AI files, its visit appears here.</template>
+    </div>
+
+    <!-- Pages: one line per post or page, busiest first — the same counts its Your
+         Content row shows. A line opens its rows. -->
+    <div v-else-if="view === 'pages'" class="ar-act-feedwrap">
+      <div class="ar-act-reqs">
+        <table class="ar-act-table ar-act-table--cards ar-log__table ar-logpages">
+          <colgroup>
+            <col />
+            <col style="width: 11%" />
+            <col style="width: 16%" />
+            <col style="width: 26%" />
+            <col style="width: 15%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Page</th>
+              <th scope="col">Bot reads</th>
+              <th scope="col">Readers from AI</th>
+              <th scope="col">Read by</th>
+              <th scope="col">Last bot read</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in pageLines" :key="p.postId">
+              <td data-label="Page">
+                <!-- The name is in-app (it opens this page's rows); the arrow beside it
+                     leaves for the page itself — two handlers, two marks. -->
+                <button
+                  type="button"
+                  class="ar-log__pivot ar-logpages__name"
+                  @mouseenter="showUaTip($event, p.title || `#${p.postId}`, 'Click to see each read of this page')"
+                  @mouseleave="hideUaTip"
+                  @click="openPage(p)"
+                >{{ shortTitle(p.title || `#${p.postId}`) }}</button>
+                <a v-if="p.url" class="ar-linkbtn ar-logpages__open" :href="p.url" target="_blank" rel="noopener" :aria-label="`Open ${p.title} in a new tab`"></a>
+              </td>
+              <td data-label="Bot reads" class="ar-logpages__n">{{ p.bots.toLocaleString() }}</td>
+              <td data-label="Readers from AI" class="ar-logpages__n">{{ p.ai.toLocaleString() }}</td>
+              <td data-label="Read by" class="ar-logpages__by">{{ readByLine(p) || '—' }}</td>
+              <td
+                class="ar-log__seen"
+                data-label="Last bot read"
+                @mouseenter="p.last && showUaTip($event, ago(p.last), '')"
+                @mouseleave="hideUaTip"
+              >{{ p.last ? stamp(p.last) : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Visits as a table, in the Rows view's own columns and type: one line per
@@ -831,19 +977,30 @@ export default {
     <div v-if="shown.length" class="ar-log__foot">
       <p class="ar-log__count">
         Showing <strong>{{ pageFrom }}–{{ pageTo }}</strong> of
-        <template v-if="view === 'visits'">{{ visitTotal }} visits · {{ total }} requests</template>
+        <template v-if="view === 'pages'">{{ pageTotal }} {{ pageTotal === 1 ? 'page' : 'pages' }}<template v-if="rangeLabel()"> · {{ rangeLabel() }}</template></template>
+        <template v-else-if="view === 'visits'">{{ visitTotal }} {{ visitTotal === 1 ? 'group' : 'groups' }} · {{ total }} requests</template>
         <template v-else>{{ total }}</template>
       </p>
       <PagerBar v-if="pages > 1" :page="page" :pages="pages" :busy="loading" label="Request log pages" @go="goPage" />
     </div>
 
-    <!-- The rule sits on the <p>, which spans the card; the prose inside is measured for
-         readability. Putting max-width on the <p> itself cropped the rule short of the card. -->
+    <!-- The rule sits on the <p>, which spans the card, and the prose now spans it too
+         (his call, 2026-10-19). ⛔ Never cap the <p> itself: that crops the rule short of the card. -->
     <p v-if="loaded" class="ar-log__note">
+      <!-- What a page's line counts, and what it cannot: reads of addresses that
+           are not one post have no line, so their number is said here. -->
+      <span v-if="view === 'pages'">
+        Each line counts the same reads as the page's row in Your Content: bot reads of the page or its
+        Markdown copy, leaving out refused requests, proven fakes, scripts and WordPress sites, and the
+        readers AI assistants sent you. Click a page to see each read with its time. Only the From and To
+        filters apply here; without them, it covers the days named under the list.
+        <template v-if="unattributed"> {{ unattributed.toLocaleString() }} bot {{ unattributed === 1 ? 'read was' : 'reads were' }} of addresses that are not one page (archives, tag pages, the blog index) and {{ unattributed === 1 ? 'is' : 'are' }} not listed.</template>
+        <template v-if="pagesMatching"> Older visits are still being matched to their pages, so these numbers may still rise.</template>
+      </span>
       <!-- What a visit is, and the one thing it cannot tell apart. -->
       <span v-if="view === 'visits'">
-        A visit is one client's requests with no more than {{ gapMinutes }} minutes between them. The log keeps no IP
-        addresses, so two people using the same assistant at the same moment from the same network show as one visit.
+        Each line is one visitor's requests with no more than {{ gapMinutes }} minutes between them. The log keeps no IP
+        addresses, so two people using the same assistant at the same moment from the same network show as one line.
       </span>
       <!-- "older requests are deleted" is only true when auto-delete is on. With it off,
            nothing expires by age and the row cap is the only thing that removes anything. -->

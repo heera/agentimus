@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
 final class Referrals {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '1';
+	const VERSION        = '2';
 	const VERSION_OPTION = 'agentimus_referrals_db_version';
 
 	/** @var bool|null Per-request cache of the enable flag. */
@@ -223,7 +223,7 @@ final class Referrals {
 		}
 
 		$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- path is parsed out by clean_path(); query (UTM) is discarded.
-		self::count_hit( (string) $referer, (string) $utm, (string) $uri );
+		self::count_hit( (string) $referer, (string) $utm, (string) $uri, PageViews::post_id() );
 	}
 
 	/**
@@ -243,7 +243,9 @@ final class Referrals {
 		if ( ! self::beacon_enabled() ) {
 			return false;
 		}
-		return self::count_hit( (string) $referer, (string) $utm, (string) $path );
+		// The browser names a path, not a post: resolve it here, once per counted visit
+		// (rare by nature — a reader an assistant sent), never per page view.
+		return self::count_hit( (string) $referer, (string) $utm, (string) $path, null );
 	}
 
 	/**
@@ -255,10 +257,11 @@ final class Referrals {
 	 *
 	 * @param string $referer Navigation referrer.
 	 * @param string $utm     utm_source value.
-	 * @param string $uri     Raw landing URL/URI (its query string is stripped before storing).
+	 * @param string   $uri     Raw landing URL/URI (its query string is stripped before storing).
+	 * @param int|null $post_id The post landed on; null to resolve it from the path.
 	 * @return bool Whether a hit was counted.
 	 */
-	private static function count_hit( $referer, $utm, $uri ) {
+	private static function count_hit( $referer, $utm, $uri, $post_id ) {
 		// Skip the owner browsing their own site (shares the hit log's rule). Reads the
 		// cookie rather than the current user: the beacon posts to a nonce-less REST route,
 		// where WordPress has already reset the owner to "logged out". {@see Owner::skip()}.
@@ -280,7 +283,11 @@ final class Referrals {
 			UnknownSources::note( $referer, $utm );
 			return false;
 		}
-		self::increment( $source, self::clean_path( $uri ) );
+		$path = self::clean_path( $uri );
+		if ( null === $post_id ) {
+			$post_id = \Agentimus\PostTraffic::post_for_path( $path );
+		}
+		self::increment( $source, $path, (int) $post_id );
 		return true;
 	}
 
@@ -304,18 +311,21 @@ final class Referrals {
 	 * Increment the daily counter for (today UTC, source, path).
 	 *
 	 * @param string $source Canonical AI source label.
-	 * @param string $path   Landing path.
+	 * @param string $path    Landing path.
+	 * @param int    $post_id The post landed on, or 0.
 	 */
-	private static function increment( $source, $path ) {
+	private static function increment( $source, $path, $post_id = 0 ) {
 		global $wpdb;
 		$table = self::name();
 		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; values are bound via prepare().
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO $table (day, source, path, hits) VALUES (%s, %s, %s, 1) ON DUPLICATE KEY UPDATE hits = hits + 1",
+				// A row counted before its post was known keeps the post once one visit names it.
+				"INSERT INTO $table (day, source, path, post_id, hits) VALUES (%s, %s, %s, %d, 1) ON DUPLICATE KEY UPDATE hits = hits + 1, post_id = IF(post_id = 0, VALUES(post_id), post_id)",
 				gmdate( 'Y-m-d' ),
 				substr( $source, 0, 40 ),
-				$path
+				$path,
+				max( 0, (int) $post_id )
 			)
 		);
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
@@ -845,13 +855,26 @@ final class Referrals {
   day date NOT NULL,
   source varchar(40) NOT NULL DEFAULT '',
   path varchar(190) NOT NULL DEFAULT '',
+  post_id bigint(20) unsigned NOT NULL DEFAULT 0,
   hits int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY  (id),
   UNIQUE KEY uniq (day,source,path(150)),
-  KEY day (day)
+  KEY day (day),
+  KEY post_day (post_id,day)
 ) $collate;";
 
 		dbDelta( $sql );
+		// The same guard the hit log keeps {@see Table::ensure_column()}: dbDelta can skip an
+		// ADD COLUMN on a drifted table, and stamping the version anyway would leave every
+		// per-post read failing with no retry.
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the rest are literals.
+		if ( ! $wpdb->get_var( "SHOW COLUMNS FROM $table LIKE 'post_id'" ) ) {
+			$wpdb->query( "ALTER TABLE $table ADD COLUMN post_id bigint(20) unsigned NOT NULL DEFAULT 0" );
+		}
+		if ( ! $wpdb->get_var( "SHOW INDEX FROM $table WHERE Key_name = 'post_day'" ) ) {
+			$wpdb->query( "ALTER TABLE $table ADD KEY post_day (post_id,day)" );
+		}
+		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
 

@@ -621,9 +621,12 @@ final class Grades {
 	 * @param string            $issue  Only rows flagging this check id. Empty = the whole
 	 *                                  bucket, which is what every caller but the by-issue
 	 *                                  hand-off wants.
+	 * @param string            $sort   '' for the ranked order, or one of
+	 *                                  {@see PostTraffic::SORTS} — busiest first,
+	 *                                  ties falling back to the ranked order.
 	 * @return array{ids:array<int,int>,total:int}
 	 */
-	public static function page( $filter, array $types, array $aside, $page, $per, $issue = '' ) {
+	public static function page( $filter, array $types, array $aside, $page, $per, $issue = '', $sort = '' ) {
 		global $wpdb;
 
 		$per  = max( 1, (int) $per );
@@ -681,10 +684,16 @@ final class Grades {
 			$args
 		) );
 
+		// ⭐ A traffic order is the SAME bucket, re-ordered: the LEFT JOIN adds a
+		// number to each row and removes none, so `total` above still describes it.
+		// Its values are bound inside join_sql(), before this prepare() sees them.
+		$join  = in_array( (string) $sort, PostTraffic::SORTS, true ) ? PostTraffic::join_sql( (string) $sort, 'g.post_id' ) : '';
+		$order = '' === $join ? '' : 'COALESCE(pt.n, 0) DESC, ';
+
 		$ids = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table; ids cast to int, everything else bound.
-			"SELECT g.post_id FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id
+			"SELECT g.post_id FROM $table g INNER JOIN {$wpdb->posts} p ON p.ID = g.post_id$join
 			WHERE $where
-			ORDER BY g.needs_work DESC, g.stake DESC, g.post_id DESC
+			ORDER BY {$order}g.needs_work DESC, g.stake DESC, g.post_id DESC
 			LIMIT %d OFFSET %d",
 			array_merge( $args, array( $per, ( $page - 1 ) * $per ) )
 		) );

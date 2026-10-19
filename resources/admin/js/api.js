@@ -65,11 +65,14 @@ export function createApi(boot) {
     // page number have to travel with the ask.
     // `issue` narrows the same list to one check's pages — the by-issue card's
     // "Show me all 60". Empty means the whole bucket.
-    getWorklist: (filter = 'fixable', page = 1, issue = '') =>
+    getWorklist: (filter = 'fixable', page = 1, issue = '', sort = '') =>
       request(
         `/worklist?filter=${encodeURIComponent(filter)}&page=${Number(page) || 1}`
           + (issue ? `&issue=${encodeURIComponent(issue)}` : '')
+          + (sort ? `&sort=${encodeURIComponent(sort)}` : '')
       ),
+    // One post's traffic in full — the opened Your Content row.
+    getPostTraffic: (post) => request(`/post-traffic?post=${Number(post) || 0}`),
     getWorklistRows: (ids) => request(`/worklist/rows?ids=${ids.map(Number).join(',')}`),
     // { id: modified } as the screen last saw it → rebuilt rows for whatever
     // has changed since, and nothing when nothing has.

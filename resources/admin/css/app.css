@@ -7401,7 +7401,11 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
   margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--ar-line);
   font-size: 12px; line-height: 1.6; color: var(--ar-ink-faint);
 }
-.ar-log__note > span { display: block; max-width: 90ch; }
+/* Full width of the card, his call 2026-10-19. ⛔ NOT one block per statement: at
+   full width each block wrapped on its own and left a stray word on its own line
+   ("Log.", "a total."), which read as broken. One flowing paragraph instead. */
+.ar-log__note > span { display: inline; }
+.ar-log__note > span + span::before { content: " "; }
 
 /* Seven controls stop being readable well before the phone breakpoint — let them wrap
    into rows as soon as each would be squeezed under ~120px. */
@@ -8115,6 +8119,34 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
 .ar-work__idle p { margin: 0; font-size: 13px; color: var(--ar-ink-soft); }
 
 .ar-work__tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 26px; border-bottom: 1px solid var(--ar-line); background: var(--ar-surface-2); }
+/* The order sits at the far end of the tab row: same question, read another way. */
+.ar-work__sort { margin-left: auto; min-width: 190px; }
+/* An opened row's traffic: a chart, then who read, who sent, what was searched. */
+.ar-work__tchart svg { display: block; width: 100%; height: 56px; }
+.ar-work__tchart rect.is-bots, .ar-work__tkey i.is-bots { fill: var(--ar-ink-faint); background: var(--ar-ink-faint); }
+.ar-work__tchart rect.is-ai, .ar-work__tkey i.is-ai { fill: var(--ar-accent); background: var(--ar-accent); }
+.ar-work__taxis { display: flex; justify-content: space-between; margin-top: 3px; font-size: 11px; color: var(--ar-ink-faint); font-variant-numeric: tabular-nums; }
+.ar-work__tkey { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: 12px; color: var(--ar-ink-soft); }
+.ar-work__tkey i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+.ar-work__tday { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ar-work__tcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 24px; margin-top: 14px; }
+.ar-work__tcols h5 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--ar-ink); }
+.ar-work__tlist { margin: 0 0 6px; padding: 0; list-style: none; }
+.ar-work__tlist li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-top: 1px solid var(--ar-line); font-size: 12.5px; }
+.ar-work__tlist li:first-child { border-top: 0; }
+.ar-work__tlist em { font-style: normal; font-size: 11px; color: var(--ar-ink-faint); margin-left: 4px; }
+.ar-work__tlist em.is-ok { color: var(--ar-good); }
+.ar-work__tn { font-family: var(--ar-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ar-ink-soft); }
+.ar-work__tquiet { margin: 4px 0 0; font-size: 12px; color: var(--ar-ink-faint); }
+.ar-logpages__name { font-weight: 600; text-align: left; }
+.ar-logpages__open { margin-left: 6px; }
+.ar-logpages__n { font-family: var(--ar-mono); font-variant-numeric: tabular-nums; }
+.ar-logpages__by { font-size: 12.5px; color: var(--ar-ink-soft); }
+/* Three plain-words labels now; one wrapped onto two lines at desktop width. */
+.ar-log__view .ar-rev-tab { white-space: nowrap; }
+.ar-log__viewhint { margin: -6px 0 14px; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-log__pagechip { margin: 12px 0 0; font-size: 12.5px; color: var(--ar-ink-soft); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ar-log__pagechip b { color: var(--ar-ink); font-weight: 600; }
 .ar-work__tab {
   appearance: none; cursor: pointer; font: inherit; font-size: 11.5px;
   border: 1px solid var(--ar-line-strong); border-radius: 12px; padding: 3px 12px;

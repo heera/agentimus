@@ -115,7 +115,7 @@ export default {
       // Which tab and page the list is currently showing. Held here, not in the
       // panel, because the panel asks the App to fetch and the two must agree
       // about what was asked for.
-      worklistWhere: { filter: 'fixable', page: 1, issue: '' },
+      worklistWhere: { filter: 'fixable', page: 1, issue: '', sort: '' },
       worklistPreview: this.boot.worklistPreview || { published: 0, withSearch: 0, setAside: 0, searchState: '' },
       worklistLoaded: false,
       // When the list was read, and whether something has probably changed
@@ -1508,10 +1508,13 @@ export default {
       // how a list ends up showing one check's pages under the whole bucket's
       // chips, which is the contradiction this feature exists to avoid.
       const issue = where && 'issue' in where ? (where.issue || '') : this.worklistWhere.issue || '';
+      // The order outlives a tab change and a narrowing: it is how the owner
+      // chose to read the list, not part of which list it is.
+      const sort = where && 'sort' in where ? (where.sort || '') : this.worklistWhere.sort || '';
       this.refreshingWorklist = true;
       try {
-        this.worklist = await this.api.getWorklist(filter, page, issue);
-        this.worklistWhere = { filter, page, issue };
+        this.worklist = await this.api.getWorklist(filter, page, issue, sort);
+        this.worklistWhere = { filter, page, issue, sort };
         this.worklistLoaded = true;
         this.worklistAt = Date.now();
         this.worklistStale = false;
@@ -2493,7 +2496,7 @@ export default {
               <span class="ar-next__n" aria-hidden="true">2</span>
               <div class="ar-next__body">
                 <strong>Cloudflare</strong>
-                <p>If Cloudflare fronts your site, connect it under Data Sources — you’ll see which AI visitors get served, cached, or turned away before your site ever sees them.</p>
+                <p>If Cloudflare fronts your site, connect it under Data Sources — you’ll see which AI crawlers get served, cached, or turned away before your site ever sees them.</p>
               </div>
               <button type="button" class="ar-btn ar-btn--ghost ar-btn--small" @click="goTo({ tab: 'settings', anchor: 'ar-sec-cloudflare' })">Open Data Sources</button>
             </li>
@@ -2528,7 +2531,7 @@ export default {
             <strong>{{ seo.plugin ? seo.plugin.label : 'Your SEO plugin' }}</strong> handles search
             SEO on this site — titles, social cards, canonicals, schema. Agentimus stands aside
             there and adds the AI-facing layer it doesn’t: the page guide and plain-text pages
-            assistants read, the log of AI visits and identity checks, and your AI-usage signals.
+            assistants read, the log of AI requests and identity checks, and your AI-usage signals.
           </p>
         </section>
         <!-- What the site exposes — the first thing on the page, because the

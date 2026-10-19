@@ -502,7 +502,7 @@ export default {
                 <ul class="ar-wiz__welcome-points">
                   <li><strong>A machine edition of your site</strong> — llms.txt and plain-text pages, live automatically</li>
                   <li><strong>A readiness score</strong> — what AI can see and what to fix, in plain words</li>
-                  <li><strong>A request log</strong> — every AI visit to your site, named</li>
+                  <li><strong>A request log</strong> — every request an AI makes to your site, named</li>
                   <li><strong>Your rules, enforced</strong> — who may read you, who may train on you</li>
                   <li v-if="askAi.public"><strong>Proof, not promise</strong> — watch a real assistant read your site at the end</li>
                   <li v-else><strong>Assistants can work your site</strong> — with your permission, every action recorded</li>
@@ -854,7 +854,7 @@ export default {
                     <span class="ar-logline__time">{{ proofAgoLabel }}</span>
                   </div>
                   <p class="ar-card__note ar-wiz__centernote">
-                    From now on, every AI visit lands in this log — that's the Request Log tab.
+                    From now on, every request an AI makes lands in this log — that's the Request Log tab.
                   </p>
                   <div class="ar-connect">
                     <div class="ar-connect__body">

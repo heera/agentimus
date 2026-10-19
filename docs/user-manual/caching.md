@@ -79,7 +79,7 @@ Bypassing the cache (above) is the clean, complete fix. But if you'd rather leav
 
 When a full-page cache serves your pages, a reader who clicks through from ChatGPT or Perplexity gets a stored copy — WordPress never runs, so that AI-referral visit is never counted (the same physics as the under-counted Activity log above). CDN mode moves the counting into the **visitor's browser**: it adds one tiny script that reports the referral after the page loads, so the count survives the cache.
 
-Find it under **Settings → Caching & CDN → "CDN mode — count AI visits in the browser."** It's **off by default** — only turn it on if a full-page cache/CDN actually fronts your site. Three things to know:
+Find it under **Settings → Caching & CDN → "CDN mode — count readers from AI in the browser."** It's **off by default** — only turn it on if a full-page cache/CDN actually fronts your site. Three things to know:
 
 - **Still no IP.** It stores only a per-day *(assistant → page)* tally — no IP address, no User-Agent, no query string, exactly like the server-side count. The server (not the browser) decides which assistant a visit came from, so a page can't fake its way into your numbers.
 - **Read the total as a floor.** Visitors using an ad-blocker, or a script-blocking privacy browser, won't be counted — so the number is a minimum, never an over-count.

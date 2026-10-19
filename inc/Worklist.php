@@ -492,9 +492,11 @@ final class Worklist {
 	 * @param string $filter 'fixable' | 'clear' | 'setAside'.
 	 * @param int    $page   1-based page number.
 	 * @param int    $per    Rows per page.
+	 * @param string $issue  Only rows flagging this check id.
+	 * @param string $sort   '' for the ranked order, or a traffic order {@see PostTraffic::SORTS}.
 	 * @return array
 	 */
-	public function page( $filter, $page = 1, $per = self::PER_PAGE, $issue = '' ) {
+	public function page( $filter, $page = 1, $per = self::PER_PAGE, $issue = '', $sort = '' ) {
 		$filter = in_array( $filter, array( 'fixable', 'clear', 'setAside' ), true ) ? $filter : 'fixable';
 		// ⚠️ A missing or zero size means "use the normal page size", NOT "one
 		// row". Clamping with max(1, …) turned an absent parameter into a
@@ -514,7 +516,8 @@ final class Worklist {
 		// screen still said "sixty pages flagged X", which is the failure that
 		// looks like success. The doors that take it from outside answer 400
 		// for an id no check owns.
-		$slice = Grades::page( $filter, $types, $aside, $page, $per, (string) $issue );
+		$sort  = in_array( (string) $sort, PostTraffic::SORTS, true ) ? (string) $sort : '';
+		$slice = Grades::page( $filter, $types, $aside, $page, $per, (string) $issue, $sort );
 
 		$search = $this->search_by_post();
 		// Both engines, read once for the whole page rather than once per row.
@@ -542,9 +545,13 @@ final class Worklist {
 		}
 
 		$payload = array(
-			'items'        => $items,
+			'items'        => self::with_traffic( $items ),
 			'counts'       => $this->counts(),
 			'filter'       => $filter,
+			'sort'         => $sort,
+			// The span the AI-visit and bot-read numbers on each row cover. Search
+			// carries the engine's own range on the row, because it is not this one.
+			'trafficDays'  => PostTraffic::window(),
 			// ⚠️ WHAT THIS LIST IS, when it is not all of it. `counts` describes
 			// the whole bucket and `total` describes these rows — while an issue
 			// filter is on the two disagree ON PURPOSE, and this is the only
@@ -1083,7 +1090,25 @@ final class Worklist {
 				$out[] = $item;
 			}
 		}
-		return $out;
+		return self::with_traffic( $out );
+	}
+
+	/**
+	 * Each row's three traffic numbers, read for the whole page at once
+	 * {@see PostTraffic::totals_for()} — the same reader the editor and the posts
+	 * list use, so a post shows one number everywhere.
+	 *
+	 * @param array<int,array> $items Rows, each with an `id`.
+	 * @return array<int,array>
+	 */
+	private static function with_traffic( array $items ) {
+		$totals = PostTraffic::totals_for( wp_list_pluck( $items, 'id' ) );
+		foreach ( $items as &$item ) {
+			$id              = (int) $item['id'];
+			$item['traffic'] = isset( $totals[ $id ] ) ? $totals[ $id ] : array( 'ai' => 0, 'bots' => 0, 'clicks' => null );
+		}
+		unset( $item );
+		return $items;
 	}
 
 	/**

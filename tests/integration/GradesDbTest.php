@@ -156,6 +156,33 @@ final class GradesDbTest extends DbTestCase {
 		$this->assertSame( 2, $out['total'] );
 	}
 
+	/**
+	 * ⭐ A traffic order re-orders the SAME bucket: busiest first, a page with no
+	 * traffic still listed (last), and the total unchanged.
+	 */
+	public function test_a_traffic_order_puts_the_busiest_page_first_and_drops_none() {
+		\Agentimus\Activity\Referrals::install();
+		$table = \Agentimus\Activity\Referrals::name();
+		global $wpdb;
+		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB
+
+		$big   = $this->post( 'Worth most' );
+		$read  = $this->post( 'Read most' );
+		$never = $this->post( 'Never visited' );
+		$this->grade( $big, true, 500 );
+		$this->grade( $read, true, 10 );
+		$this->grade( $never, true, 5 );
+		$wpdb->insert( $table, array( 'day' => gmdate( 'Y-m-d' ), 'source' => 'ChatGPT', 'path' => '/r', 'post_id' => $read, 'hits' => 9 ) ); // phpcs:ignore WordPress.DB
+		$wpdb->insert( $table, array( 'day' => gmdate( 'Y-m-d' ), 'source' => 'ChatGPT', 'path' => '/b', 'post_id' => $big, 'hits' => 2 ) ); // phpcs:ignore WordPress.DB
+
+		$out = Grades::page( 'fixable', $this->types, array(), 1, 20, '', 'ai' );
+
+		$this->assertSame( array( $read, $big, $never ), $out['ids'] );
+		$this->assertSame( 3, $out['total'] );
+		$this->assertSame( array( $big, $read, $never ), Grades::page( 'fixable', $this->types, array(), 1, 20, '', 'nonsense' )['ids'], 'an unknown order is the ranked order' );
+		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB
+	}
+
 	/* ----------------------------------------------------------- the paging */
 
 	public function test_paging_loses_nothing_and_repeats_nothing() {

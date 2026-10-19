@@ -90,7 +90,7 @@ final class PageViews {
 		// Everything else — the owner-skip, flood control, the identity verdict,
 		// the signer, the row cap — is the Recorder's, unchanged and shared with
 		// every other surface. This class only decides WHETHER a page view counts.
-		Recorder::record( self::LABEL, false, self::address() );
+		Recorder::record( self::LABEL, false, self::address(), self::post_id() );
 	}
 
 	/**
@@ -132,6 +132,18 @@ final class PageViews {
 	}
 
 	/**
+	 * The post this request read, so its row can be counted against that post
+	 * {@see \Agentimus\PostTraffic}. Only a single post or page — an archive
+	 * lists many posts and is a read of none of them.
+	 *
+	 * @return int 0 when the request was not for one post.
+	 */
+	public static function post_id() {
+		$obj = get_queried_object();
+		return is_singular() && $obj instanceof \WP_Post ? (int) $obj->ID : 0;
+	}
+
+	/**
 	 * Whether the client that asked for this page is a machine.
 	 *
 	 * Two ways to be one, and the second is the point of the whole feature:
@@ -169,7 +181,7 @@ final class PageViews {
 	 *
 	 * @return bool
 	 */
-	private static function enabled() {
+	public static function enabled() {
 		if ( null === self::$enabled ) {
 			$settings = new Settings();
 			/**

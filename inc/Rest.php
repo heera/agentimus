@@ -252,6 +252,22 @@ final class Rest {
 					// `filter` for not using an enum here: it would be checked
 					// before the permission callback.
 					'issue'  => array( 'type' => 'string', 'required' => false ),
+					// A traffic order (ai | bots | clicks); anything else is the ranked order.
+					'sort'   => array( 'type' => 'string', 'required' => false ),
+				),
+			)
+		);
+
+		// One post's traffic in full — the detail a Your Content row shows when opened.
+		register_rest_route(
+			self::NAMESPACE,
+			'/post-traffic',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_post_traffic' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'post' => array( 'type' => 'integer', 'required' => true ),
 				),
 			)
 		);
@@ -1011,7 +1027,8 @@ final class Rest {
 			(string) $request->get_param( 'filter' ),
 			(int) $request->get_param( 'page' ),
 			(int) $request->get_param( 'per' ),
-			(string) $request->get_param( 'issue' )
+			(string) $request->get_param( 'issue' ),
+			(string) $request->get_param( 'sort' )
 		);
 
 		// ⚠️⚠️ HOW MANY PAGES THIS VERY REQUEST RE-READ — and it is not a
@@ -1024,6 +1041,21 @@ final class Rest {
 		$out['swept'] = $swept;
 
 		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * GET /post-traffic — {@see PostTraffic::for_post()}, the same payload the
+	 * read-post-traffic tool returns.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_post_traffic( \WP_REST_Request $request ) {
+		$post = get_post( absint( $request->get_param( 'post' ) ) );
+		if ( ! $post instanceof \WP_Post ) {
+			return new \WP_Error( 'agentimus_not_found', __( 'Post not found.', 'agentimus' ), array( 'status' => 404 ) );
+		}
+		return rest_ensure_response( PostTraffic::for_post( (int) $post->ID ) );
 	}
 
 	/**

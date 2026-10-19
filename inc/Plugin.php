@@ -129,6 +129,7 @@ final class Plugin {
 		( new Assistant( $this->settings ) )->register(); // The in-admin writing assistant (nav-bar quill → drawer); gated on enable_agent_writes + a provider.
 		( new AssistantEditor( $this->settings ) )->register(); // Its block-editor half: per-Image-block Generate + the featured-image panel.
 		( new Worklist( $this->settings ) )->register(); // The grading sweep, and the saves that make a grade stale.
+		( new PostTrafficColumn( $this->settings ) )->register(); // Sortable "Readers From AI" column on WordPress's own posts lists.
 		( new Rest( $this->settings ) )->register();
 		( new Admin( $this->settings ) )->register();
 		( new Discovery\Module( $this->settings ) )->register();

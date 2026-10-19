@@ -90,8 +90,10 @@ final class Recorder {
 	 * @param bool   $refused  True when the request was refused, not served.
 	 * @param string $path     Which page was read, for a label that groups many
 	 *                         addresses ({@see PageViews::address()}). '' otherwise.
+	 * @param int    $post_id  Which post was read, when the request resolved to one.
+	 *                         0 otherwise.
 	 */
-	public static function record( $endpoint, $refused = false, $path = '' ) {
+	public static function record( $endpoint, $refused = false, $path = '', $post_id = 0 ) {
 		if ( ! self::enabled() ) {
 			return;
 		}
@@ -178,9 +180,10 @@ final class Recorder {
 				// not exist. One too long to keep is not kept, and the row says so by
 				// having none.
 				'path'     => strlen( (string) $path ) <= 255 ? (string) $path : '',
+				'post_id'  => max( 0, (int) $post_id ),
 				'hit_at'   => current_time( 'mysql', true ), // GMT.
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%s' )
 		);
 
 		if ( 2 === (int) $verdict ) {

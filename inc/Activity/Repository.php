@@ -808,6 +808,11 @@ final class Repository {
 			$where[]  = 'ua LIKE %s';
 			$params[] = $wpdb->esc_like( (string) $args['ua'] ) . '%';
 		}
+		if ( ! empty( $args['post'] ) ) {
+			// One post's reads, on the `post_hit` index — the same rows its traffic counts.
+			$where[]  = 'post_id = %d';
+			$params[] = (int) $args['post'];
+		}
 
 		return array( $where, $params );
 	}

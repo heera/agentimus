@@ -235,15 +235,17 @@ Clicking a client or endpoint in the table filters the whole log onto that value
 
 Requests marked **spoofed** are tinted, so a crawler that claimed to be Googlebot and failed reverse-DNS verification stands out as you scroll.
 
-### Rows or Visits
+### Every request, By visitor or By page
 
-The switch at the top right of the log changes how it reads. **Rows** lists every request on its own. **Visits** groups one client's requests together while no more than **2 minutes** pass between them, so each line reads like *"Orbbot · 5 requests in 40 s"*, with the pages it read underneath. Click **Show the requests** to see each one.
+The switch at the top right of the log changes how it reads, and the line under it says what the view shows. **Every request** lists each request on its own. **By visitor** groups one client's requests together while no more than **2 minutes** pass between them, so each line reads like *"Orbbot · 5 requests in 40 s"*, with the pages it read underneath. Click **Show the requests** to see each one.
 
 The difference is the point. An AI assistant answering someone's question reads several pages within seconds: one visit, many requests. A crawler indexing your site reads one page now and another later: many one-request visits. The log can't see the question itself, because no bot sends it, but the shape of the visit shows which kind of reading it was.
 
+**By page** lists your posts and pages, the most read first: how often bots read each one (or its Markdown copy), how many readers AI assistants sent you, the bots that read it most and when one last did. It counts exactly what the page's row in **Your Content** counts, so the two always agree. Only the **From** and **To** dates apply here. Click a page's name to see each of its reads with its time; the ↗ beside it opens the page itself. Reads of archives, tag pages and the blog index belong to no single page, so the view says how many there were instead of listing them.
+
 Good to know:
 
-- **One client** means the same name, network and User-Agent. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one visit.
+- **One client** means the same name, network and User-Agent. The log keeps no IP addresses, so two people using the same assistant at the same moment from the same network show as one line.
 - **The filters apply first.** Filter to one page and each visit counts only its requests for that page.
 - **Visits are always newest first**, and you page with **Newer** and **Older**. A visit is never split across two pages.
 - A visit lists up to 50 of its requests; a longer one says how many more it made.

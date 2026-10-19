@@ -45,6 +45,7 @@ use Agentimus\Readiness;
 use Agentimus\Score;
 use Agentimus\Findings;
 use Agentimus\Audience;
+use Agentimus\PostTraffic;
 use Agentimus\Content;
 use Agentimus\Media;
 use Agentimus\LlmsText;
@@ -418,6 +419,7 @@ final class Registrar {
 						. 'with exact names is allowed and reads as it looks.'
 					),
 					'ua'       => self::s( 'User-agent prefix to match.' ),
+					'post'     => self::i( 'Only reads of this post/page and its Markdown copy — the rows read-post-traffic counts as its bot reads (plus refused and fake ones, which carry their status).' ),
 					'before'   => self::i( 'Pagination cursor: return rows with id below this (use the previous page’s "cursor").' ),
 					'per_page' => self::i( 'Rows per page (the store clamps this).' ),
 					'group'    => self::s(
@@ -426,7 +428,10 @@ final class Registrar {
 						. 'A visit of several pages in seconds is what an assistant answering a question looks like; '
 						. 'one page at a time is a crawl. The log keeps no IP addresses, so two people using the same '
 						. 'assistant at once from one network share a visit. per_page then counts visits; page with '
-						. '"before" = the previous "cursor". Default "rows".'
+						. '"before" = the previous "cursor". "pages" returns `pages` instead: one line per post/page '
+						. 'with traffic in the date range, busiest first — bot reads, readers from AI, the busiest bots, last read — '
+						. 'the same counts read-post-traffic gives; only from/to apply, and `unattributed` counts reads of '
+						. 'archives and other addresses that are not one post. Default "rows".'
 					),
 				)
 			),
@@ -517,6 +522,32 @@ final class Registrar {
 					),
 					'gapSeconds'    => self::i( 'Silence, in seconds, that ends a visit.' ),
 					'visitTotal'    => self::i( 'With group "visits": how many visits match the filters, across every page.' ),
+					'pages'         => self::arr(
+						array(
+							'postId'   => self::i(),
+							'title'    => self::s(),
+							'type'     => self::s( 'Post type slug.' ),
+							'url'      => self::s(),
+							'bots'     => self::i( 'Bot reads of the page and its Markdown copy (refused, proven fakes, scripts and WordPress sites left out).' ),
+							'ai'       => self::i( 'Readers AI assistants sent.' ),
+							'readBy'   => self::arr(
+								array(
+									'label' => self::s(),
+									'hits'  => self::i(),
+								),
+								'The busiest three bots.'
+							),
+							'botKinds' => self::i( 'How many different bots read it.' ),
+							'last'     => self::s( 'Its last bot read, GMT; empty when only readers from AI came.' ),
+						),
+						'With group "pages": one line per post/page, busiest first.'
+					),
+					'pageTotal'     => self::i( 'With group "pages": how many posts/pages had traffic in the range.' ),
+					'unattributed'  => self::i( 'With group "pages": bot reads of addresses that are not one post (archives, tag pages, the blog index).' ),
+					'matching'      => self::b( 'With group "pages": TRUE while older visits are still being matched to their posts — the numbers may rise.' ),
+					'group'         => self::s( 'Which view this is, when not rows.' ),
+					'from'          => self::s( 'With group "pages": first day counted, Y-m-d (GMT).' ),
+					'to'            => self::s( 'With group "pages": last day counted, Y-m-d (GMT).' ),
 				)
 			),
 			function ( $input ) {
@@ -572,8 +603,14 @@ final class Registrar {
 				if ( isset( $input['before'] ) ) {
 					$args['before'] = (int) $input['before'];
 				}
+				if ( ! empty( $input['post'] ) ) {
+					$args['post'] = absint( $input['post'] );
+				}
 				if ( isset( $input['per_page'] ) ) {
 					$args['per_page'] = (int) $input['per_page'];
+				}
+				if ( isset( $input['group'] ) && 'pages' === $input['group'] ) {
+					return PostTraffic::pages( array_intersect_key( $args, array_flip( array( 'from', 'to', 'per_page' ) ) ) );
 				}
 				if ( isset( $input['group'] ) && 'visits' === $input['group'] ) {
 					return Repository::visits( $args );
@@ -1388,7 +1425,7 @@ final class Registrar {
 									'hasPrev' => self::b( 'False on a first window — never invent a percentage from a zero baseline.' ),
 								)
 							),
-							'arrived' => self::i( 'The human headline: analytics users when connected, otherwise search clicks + AI visits. A sum of PEOPLE only — machines are never in it.' ),
+							'arrived' => self::i( 'The human headline: analytics users when connected, otherwise search clicks + readers from AI. A sum of PEOPLE only — machines are never in it.' ),
 							'whole'   => self::b( 'True when `arrived` is the whole audience (analytics connected); false = the two named routes only, a smaller claim.' ),
 						)
 					),
@@ -1415,6 +1452,99 @@ final class Registrar {
 			),
 			function () {
 				return Audience::from_stats( Repository::stats( $this->settings ) );
+			},
+			$manage
+		);
+
+		$this->add(
+			'read-post-traffic',
+			__( 'Get one page’s traffic', 'agentimus' ),
+			'Returns who came to ONE post/page — the same numbers the owner sees in the editor’s Traffic tab, '
+				. 'the Your Content list and the posts list. Three counts that are NEVER summed, because they are '
+				. 'different populations on different clocks: `ai` is readers an AI assistant sent (people), '
+				. '`bots` is crawler/agent fetches of the page or its Markdown copy (machines — refused requests, '
+				. 'PROVEN fakes, scripts and WordPress sites left out and counted apart; `verified` says whether each bot was checked), and `search` is the '
+				. 'connected engine’s own report for the page over ITS OWN dates (null when it reported nothing, '
+				. 'or no engine is connected). `ai` and `bots` cover the last `window` days. ⚠️ When `matching` is '
+				. 'true, older visits are still being matched to their pages and the numbers may rise — say so '
+				. 'rather than quote them as final. When `pageViews` is false, page visits are not recorded and '
+				. '`bots` counts only Markdown reads.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post/page ID.' ),
+				),
+				array( 'post_id' )
+			),
+			self::obj(
+				array(
+					'postId'    => self::i( 'The page asked about.' ),
+					'window'    => self::i( 'Days the ai and bots counts cover, today included.' ),
+					'recording' => self::b( 'Whether visits are being recorded at all. FALSE ⇒ ai and bots are not measured, whatever they read.' ),
+					'pageViews' => self::b( 'Whether bot visits to pages are recorded. FALSE ⇒ bots counts only reads of the Markdown copy.' ),
+					'matching'  => self::b( 'TRUE while visits logged before per-page counting existed are still being matched to their pages.' ),
+					'ai'        => self::obj(
+						array(
+							'total'    => self::i( 'Readers AI assistants sent to this page.' ),
+							'bySource' => self::arr(
+								array(
+									'label' => self::s( 'The assistant.' ),
+									'hits'  => self::i(),
+								)
+							),
+						)
+					),
+					'bots'      => self::obj(
+						array(
+							'total' => self::i( 'Bot reads of this page and its Markdown copy.' ),
+							'byBot' => self::arr(
+								array(
+									'label'    => self::s( 'The bot, as the Request Log names it.' ),
+									'hits'     => self::i(),
+									'verified' => self::b( 'TRUE when at least one of its reads passed the operator’s own check. FALSE means not checked — not fake.' ),
+									'last'     => self::s( 'Its most recent read of this page, GMT "Y-m-d H:i:s".' ),
+								)
+							),
+							'more'  => self::i( 'Bots counted in total but left out of byBot.' ),
+							'leftOut' => self::i( 'Requests for this page from PROVEN fakes or refused at the door — not reads, so not in total. read-request-log with this post lists them with their status.' ),
+							'notReaders' => self::i( 'Requests for this page from scripts and command-line tools, or from WordPress sites (this site\'s own included) — not a bot reading the page, so not in total.' ),
+						)
+					),
+					'daily'     => self::arr(
+						array(
+							'date' => self::s( 'Day, Y-m-d (GMT).' ),
+							'ai'   => self::i( 'Readers from AI that day.' ),
+							'bots' => self::i( 'Bot reads that day.' ),
+						),
+						'Every day of the window, oldest first, zeros included. For each read with its time, call read-request-log with this post.'
+					),
+					'search'    => self::nullable_obj(
+						array(
+							'engine'      => self::s( 'Google or Bing.' ),
+							'clicks'      => self::i(),
+							'impressions' => self::i(),
+							'position'    => self::n( 'Average position, weighted by impressions.' ),
+							'start'       => self::s( 'First day of the engine’s range.' ),
+							'end'         => self::s( 'Last day of the engine’s range.' ),
+							'partial'     => self::b( 'TRUE: summed from the page’s reported searches, which leave out rare and private ones — can sit a little under the engine’s own page total.' ),
+							'queries'     => self::arr(
+								array(
+									'query'       => self::s( 'What was searched.' ),
+									'clicks'      => self::i(),
+									'impressions' => self::i(),
+									'position'    => self::n(),
+								),
+								'The searches that brought people here, most clicks first (at most five).'
+							),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$post = get_post( (int) ( $input['post_id'] ?? 0 ) );
+				if ( ! $post instanceof \WP_Post ) {
+					return new \WP_Error( 'agentimus_not_found', __( 'Post not found.', 'agentimus' ), array( 'status' => 404 ) );
+				}
+				return PostTraffic::for_post( (int) $post->ID );
 			},
 			$manage
 		);
@@ -3563,6 +3693,8 @@ final class Registrar {
 			// list over every subsystem) and the people/machines audience split.
 			self::CATEGORY . '/read-findings',
 			self::CATEGORY . '/read-audience',
+			// One page's slice of the same two halves, plus its search report.
+			self::CATEGORY . '/read-post-traffic',
 			// ⭐ The two "is anything broken?" reads. The ledger is the only place a
 			// failed announcement's REASON survives — the admin shows it on a
 			// tooltip and nowhere else — and read-integrations answers whether a

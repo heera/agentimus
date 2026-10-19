@@ -189,7 +189,7 @@ final class Endpoints {
 				// rather than send a cacheable 200 body of "# Not found" — a soft-404
 				// and a weak existence oracle for private / scheduled slugs.
 				if ( $post && 'publish' === $post->post_status && '' === (string) $post->post_password ) {
-					$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown' );
+					$this->send( MarkdownCache::post( $post_id ), 'text/markdown', 'markdown', 3600, $post_id );
 				}
 			}
 			return; // Unknown / out-of-scope / non-public .md path: let WordPress 404 normally.
@@ -214,7 +214,7 @@ final class Endpoints {
 		if ( is_singular() ) {
 			$id = get_queried_object_id();
 			if ( $id && $this->post_in_scope( $id ) ) {
-				$this->send( MarkdownCache::post( $id ), 'text/markdown', 'markdown' );
+				$this->send( MarkdownCache::post( $id ), 'text/markdown', 'markdown', 3600, $id );
 			}
 		}
 		if ( is_front_page() || is_home() || is_archive() || is_search() ) {
@@ -422,7 +422,7 @@ final class Endpoints {
 		);
 	}
 
-	private function send( $body, $content_type, $label = '', $max_age = 3600 ) {
+	private function send( $body, $content_type, $label = '', $max_age = 3600, $post_id = 0 ) {
 		// Optional hard enforcement (opt-in): deny denylisted/spoofed agents before
 		// we serve — and before we record a hit, so a blocked request never appears
 		// in the log as though it were served.
@@ -430,7 +430,8 @@ final class Endpoints {
 		// refused (never as a read) — see Guard::maybe_block().
 		Guard::maybe_block( $label );
 		if ( '' !== $label ) {
-			\Agentimus\Activity\Recorder::record( $label );
+			// A post's .md twin is a read of that post, counted against it like its HTML.
+			\Agentimus\Activity\Recorder::record( $label, false, '', (int) $post_id );
 		}
 		if ( ! headers_sent() ) {
 			status_header( 200 );

@@ -141,7 +141,7 @@ There are two halves to being cited by an AI:
 
 No plugin, no `llms.txt`, and no schema can manufacture authority. Any tool promising "instant AI visibility" is overselling. What Agentimus guarantees is that when your authority *does* bring an AI to your door, nothing is lost in translation — you are read correctly and described in your own words.
 
-A related feature worth knowing: the dashboard's **Traffic from AI** card counts real people who arrived from an AI assistant (detected from the referrer and the `utm_source` some AI tools add). Treat that number as a floor — "at least this many" — because some AI visits can't be detected at all.
+A related feature worth knowing: the dashboard's **Traffic from AI** card counts real people who arrived from an AI assistant (detected from the referrer and the `utm_source` some AI tools add). Treat that number as a floor — "at least this many" — because some readers from AI can't be detected at all.
 
 ## How do I turn features off?
 

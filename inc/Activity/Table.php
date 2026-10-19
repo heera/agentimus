@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 final class Table {
 
 	/** Bump when the schema changes to trigger a dbDelta upgrade. */
-	const VERSION        = '7';
+	const VERSION        = '8';
 	const VERSION_OPTION = 'agentimus_activity_db_version';
 
 	/**
@@ -66,12 +66,14 @@ final class Table {
   signer varchar(64) NOT NULL DEFAULT '',
   refused tinyint(1) NOT NULL DEFAULT 0,
   path varchar(255) NOT NULL DEFAULT '',
+  post_id bigint(20) unsigned NOT NULL DEFAULT 0,
   hit_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY hit_at (hit_at),
   KEY endpoint (endpoint),
   KEY agent (agent),
-  KEY ua (ua(191))
+  KEY ua (ua(191)),
+  KEY post_hit (post_id,hit_at)
 ) $collate;";
 
 		dbDelta( $sql );
@@ -86,6 +88,8 @@ final class Table {
 		self::ensure_column( 'signer', "varchar(64) NOT NULL DEFAULT ''" );
 		self::ensure_column( 'refused', 'tinyint(1) NOT NULL DEFAULT 0' ); // 1 = turned away at the door, never served. Excluded from every "what was read" total.
 		self::ensure_column( 'path', "varchar(255) NOT NULL DEFAULT ''" ); // WHICH page a `page` row read. '' on every other surface, and on rows older than the column.
+		self::ensure_column( 'post_id', 'bigint(20) unsigned NOT NULL DEFAULT 0' ); // WHICH POST a `page` or `markdown` row read. 0 = not a post, or a row older than the column {@see \Agentimus\PostTraffic::backfill()}.
+		self::ensure_index( 'post_hit', '(post_id,hit_at)' );
 
 		update_option( self::VERSION_OPTION, self::VERSION ); // Autoloaded: read on every boot by maybe_install(), so it belongs in the single alloptions load.
 	}
@@ -107,6 +111,24 @@ final class Table {
 			return;
 		}
 		$wpdb->query( "ALTER TABLE $table ADD COLUMN $column $definition" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table, $column and $definition are our own literals, not user input.
+	}
+
+	/**
+	 * Add an index when it is missing — the same guard as {@see ensure_column()}, for the
+	 * same reason: a per-post read without it scans every row in the log.
+	 *
+	 * @param string $name    Index name.
+	 * @param string $columns Parenthesised column list.
+	 * @return void
+	 */
+	private static function ensure_index( $name, $columns ) {
+		global $wpdb;
+		$table  = self::name();
+		$exists = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM $table WHERE Key_name = %s", $name ) ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived name; the name is bound.
+		if ( $exists ) {
+			return;
+		}
+		$wpdb->query( "ALTER TABLE $table ADD KEY $name $columns" ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- our own literals, not user input.
 	}
 
 }
