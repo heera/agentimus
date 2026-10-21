@@ -1350,7 +1350,7 @@ final class Worklist {
 		// the words themselves, because then no engine is the one claiming this.
 		$out['engine'] = (bool) $chosen['chosen'] ? '' : $this->engine_label();
 
-		$cov = Focus::coverage( $post, $out['query'], $this->rendered( $post ) );
+		$cov = Focus::coverage( $post, $out['query'] );
 		if ( ! $cov || ! Coverage::is_measured( isset( $cov['state'] ) ? $cov['state'] : '' ) ) {
 			// There IS a search; it just holds no word this check can look for —
 			// only common or two-letter words, or a script it cannot read at all
@@ -1452,7 +1452,6 @@ final class Worklist {
 			return null;
 		}
 
-		$html  = $this->rendered( $post );
 		$focus = null;
 		$cov   = null;
 
@@ -1464,7 +1463,7 @@ final class Worklist {
 		$others = array();
 		if ( $chosen['chosen'] ) {
 			foreach ( Focus::phrases( $chosen['all'] ) as $phrase ) {
-				$c = Focus::coverage( $post, $phrase, $html );
+				$c = Focus::coverage( $post, $phrase );
 				$others[] = array(
 					'query' => $phrase,
 					'state' => $c ? (string) $c['state'] : '',
@@ -1500,7 +1499,7 @@ final class Worklist {
 			// Through Focus::coverage — the SEO-title-aware measurement the editor
 			// and the 'others' loop above already use — so this row can never
 			// contradict the editor's in_title verdict when an SEO title stands.
-			$cov = Focus::coverage( $post, $focus['query'], $html );
+			$cov = Focus::coverage( $post, $focus['query'] );
 		}
 
 		// ⚠️ ONE analyze() for the whole row. It renders the page, and three
@@ -1594,18 +1593,6 @@ final class Worklist {
 		);
 		$weight = isset( $gap[ $cov['state'] ] ) ? $gap[ $cov['state'] ] : 0.0;
 		return (int) round( $focus['impressions'] * $weight );
-	}
-
-	/**
-	 * A post's own rendered content — the form the checks and the machine
-	 * surfaces read, without third-party `the_content` filters joining in.
-	 *
-	 * @param \WP_Post $post The post.
-	 * @return string
-	 */
-	private function rendered( $post ) {
-		$content = (string) $post->post_content;
-		return function_exists( 'do_blocks' ) ? do_blocks( $content ) : $content;
 	}
 
 	/**

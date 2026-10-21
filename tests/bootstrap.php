@@ -297,6 +297,10 @@ namespace {
 	if ( ! function_exists( 'is_singular' ) )           { function is_singular( $types = '' ) { return ! empty( $GLOBALS['_af_is_singular'] ); } }
 	if ( ! function_exists( 'is_front_page' ) )         { function is_front_page() { return ! empty( $GLOBALS['_af_is_front_page'] ); } }
 	if ( ! function_exists( 'do_blocks' ) )             { function do_blocks( $content ) { return (string) $content; } }
+	if ( ! function_exists( 'has_blocks' ) )            { function has_blocks( $content ) { return false !== strpos( (string) $content, '<!-- wp:' ); } }
+	// Core's wpautop, reduced to the part the tests lean on: blank-line-separated
+	// text becomes paragraphs, and text that already opens with a tag is left alone.
+	if ( ! function_exists( 'wpautop' ) )               { function wpautop( $text ) { $out = ''; foreach ( preg_split( '/\n\s*\n/', trim( (string) $text ) ) as $chunk ) { $chunk = trim( $chunk ); if ( '' !== $chunk ) { $out .= '<' === $chunk[0] ? $chunk . "\n" : '<p>' . $chunk . "</p>\n"; } } return $out; } }
 	if ( ! function_exists( 'get_the_date' ) )          { function get_the_date( $format = '', $p = null ) { return '2026-01-01T00:00:00+00:00'; } }
 	if ( ! function_exists( 'get_the_modified_date' ) ) { function get_the_modified_date( $format = '', $p = null ) { return '2026-01-02T00:00:00+00:00'; } }
 	// Featured-image surface for the PageCheck featured row (toggle via the globals;

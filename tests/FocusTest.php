@@ -123,6 +123,26 @@ final class FocusTest extends TestCase {
 		$this->assertSame( 'Connecting', $c['heading'] );
 	}
 
+	/**
+	 * A classic-editor post stores bare text — WordPress adds the paragraphs
+	 * when it renders. Measured without that step the page had no passages at
+	 * all, so it was "missing" words it says plainly.
+	 */
+	public function test_coverage_reads_a_classic_post() {
+		$post = $this->fixture(
+			5,
+			array(),
+			array(
+				'post_title'   => 'Notes',
+				'post_content' => "Agentimus ships a WordPress MCP server you can point Claude at.\n\nThat's it.",
+			)
+		);
+
+		$c = Focus::coverage( $post, 'wordpress mcp server' );
+
+		$this->assertSame( Coverage::ANSWERED, $c['state'] );
+	}
+
 	/** A title match is reported separately — it is the edit most worth making. */
 	public function test_coverage_reports_the_title_separately() {
 		$post = $this->fixture(

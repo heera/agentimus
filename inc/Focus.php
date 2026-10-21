@@ -466,7 +466,7 @@ final class Focus {
 		// what is saved. Same measurement either way — only the source differs,
 		// and the panel says which one it read.
 		$raw  = null === $content ? (string) $post->post_content : (string) $content;
-		$html = function_exists( 'do_blocks' ) ? do_blocks( $raw ) : $raw;
+		$html = self::html( $raw );
 
 		// "The title they see" is the SEO title whenever one is set (solo mode
 		// swaps it into the document title) — measuring the post title instead
@@ -485,6 +485,36 @@ final class Focus {
 			$title = (string) $post->post_title;
 		}
 		return Coverage::measure( $html, (string) $title, $query );
+	}
+
+	/**
+	 * A post body as the reader gets it, minus third-party `the_content` filters.
+	 *
+	 * ⚠️ do_blocks() alone is only half of WordPress's render. A classic-editor
+	 * post stores bare text, and its paragraphs exist only after wpautop() —
+	 * which core skips for block content, so this does too. Without it a classic
+	 * post had no passages at all, and coverage called it "missing" words it
+	 * says in plain sight.
+	 *
+	 * The last render is kept: a worklist row measures several searches against
+	 * the same body, and the block renderer is the expensive part.
+	 *
+	 * @param string $raw Stored post content, or the editor's current text.
+	 * @return string
+	 */
+	public static function html( $raw ) {
+		static $last_raw = null, $last_html = '';
+		$raw = (string) $raw;
+		if ( $raw === $last_raw ) {
+			return $last_html;
+		}
+		$html = function_exists( 'do_blocks' ) ? do_blocks( $raw ) : $raw;
+		if ( function_exists( 'wpautop' ) && ! ( function_exists( 'has_blocks' ) && has_blocks( $raw ) ) ) {
+			$html = wpautop( $html );
+		}
+		$last_raw  = $raw;
+		$last_html = $html;
+		return $html;
 	}
 
 	/* ---------------------------------------------------------------------- *
