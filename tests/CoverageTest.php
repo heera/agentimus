@@ -210,6 +210,15 @@ final class CoverageTest extends TestCase {
 		$this->assertSame( $one, Coverage::ruleset(), 'And it settles again when the filter goes.' );
 	}
 
+	/**
+	 * 1.53.1 taught coverage to read classic-editor posts. Every install
+	 * graded before that holds "missing" verdicts for them, and only a moved
+	 * fingerprint sends those back to be read. 7f85fba0 is the 1.53.0 one.
+	 */
+	public function test_reading_classic_posts_moved_the_ruleset() {
+		$this->assertNotSame( '7f85fba0', Coverage::ruleset() );
+	}
+
 	/* ---- passages ----------------------------------------------------------- */
 
 	public function test_passages_carry_their_nearest_heading() {

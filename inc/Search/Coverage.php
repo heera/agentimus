@@ -78,6 +78,19 @@ final class Coverage {
 	const MAX_PASSAGES = 400;
 
 	/**
+	 * A classic-editor post is read with the paragraphs WordPress gives it.
+	 *
+	 * It stores bare text, and its `<p>`s exist only after wpautop() — so
+	 * measured as stored it had no passages, and every word it says was
+	 * "missing" {@see \Agentimus\Focus::html()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.1): every install graded
+	 * before holds those false verdicts, and without a new fingerprint none of
+	 * them is ever read again. Same law as PageCheck's rule constants.
+	 */
+	const CLASSIC_POSTS_GET_PARAGRAPHS = true;
+
+	/**
 	 * Words too common to carry meaning in a search. Deliberately short: every
 	 * word dropped here is one the page no longer has to contain, so an
 	 * over-long list would hand out "answered" for free.

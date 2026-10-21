@@ -509,7 +509,7 @@ final class Focus {
 			return $last_html;
 		}
 		$html = function_exists( 'do_blocks' ) ? do_blocks( $raw ) : $raw;
-		if ( function_exists( 'wpautop' ) && ! ( function_exists( 'has_blocks' ) && has_blocks( $raw ) ) ) {
+		if ( Coverage::CLASSIC_POSTS_GET_PARAGRAPHS && function_exists( 'wpautop' ) && ! ( function_exists( 'has_blocks' ) && has_blocks( $raw ) ) ) {
 			$html = wpautop( $html );
 		}
 		$last_raw  = $raw;
