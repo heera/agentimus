@@ -20,7 +20,6 @@ final class NearPageOneGapsDbTest extends DbTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		$this->set_permalink_structure( '/%postname%/' );
 		delete_option( Table::VERSION_OPTION );
 		Table::install();
 		global $wpdb;
@@ -32,9 +31,6 @@ final class NearPageOneGapsDbTest extends DbTestCase {
 	public function tear_down(): void {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . Table::name() ); // phpcs:ignore WordPress.DB
-		// ⚠️ Put plain links back: WordPress 6.0's test case does not, and the
-		// leak turned PageViewsDbTest's "/?p=251" into "/a-page/" on that cell.
-		$this->set_permalink_structure( '' );
 		parent::tear_down();
 	}
 
@@ -125,7 +121,10 @@ final class NearPageOneGapsDbTest extends DbTestCase {
 		self::factory()->post->create(
 			array(
 				'post_title'   => 'Another post',
-				'post_content' => '<p>See <a href="' . esc_url( get_permalink( $id ) ) . '">clamp</a>.</p>',
+				// The link as a pretty-permalink site writes it. ⛔ Never switch the
+				// structure here: WordPress 6.0's test case does not restore it, and
+				// either direction broke PageViewsDbTest on that CI cell.
+				'post_content' => '<p>See <a href="' . esc_url( home_url( '/php-clamp-explained/' ) ) . '">clamp</a>.</p>',
 			)
 		);
 
