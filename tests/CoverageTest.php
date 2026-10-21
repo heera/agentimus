@@ -129,6 +129,50 @@ final class CoverageTest extends TestCase {
 		$this->assertNotContains( 'txt', Coverage::words( 'llms.txt' ), 'a fragment must not become its own hit' );
 	}
 
+	/**
+	 * …but a PAGE that writes "AI-discovery" or "the_excerpt" still says
+	 * "discovery" and "excerpt". Read only whole, those words were missing from
+	 * the very paragraph that answered (heera.it 3612 and 241, 1.53.1).
+	 */
+	public function test_a_page_compound_still_says_its_parts() {
+		$m = Coverage::measure(
+			'<p>Agentimus adds an AI-discovery layer to your WordPress site.</p>',
+			'',
+			'ai discovery layer for wordpress'
+		);
+		$this->assertSame( Coverage::ANSWERED, $m['state'] );
+
+		$m = Coverage::measure(
+			'<p>I wanted to show video clips with the_excerpt on my index page.</p>',
+			'',
+			'show video in excerpt'
+		);
+		$this->assertSame( Coverage::ANSWERED, $m['state'] );
+	}
+
+	/**
+	 * A page about "PHP 5.5.0" or "PHP 5.5.x" is about PHP 5.5 — it never wrote
+	 * a bare "5.5", and was "barely" for "php 5.5 new features" (heera.it 1111).
+	 */
+	public function test_a_page_version_says_its_release() {
+		$html = '<p>The PHP development team announced PHP 5.5.0, with a large number of new features.</p>';
+		$this->assertSame( Coverage::ANSWERED, Coverage::measure( $html, '', 'php 5.5 new features' )['state'] );
+
+		$html = '<p>Most improvements in PHP 5.5.x have no impact on existing code.</p>';
+		$this->assertSame( Coverage::ANSWERED, Coverage::measure( $html, '', 'php 5.5 code' )['state'] );
+
+		// One-sided, like compounds: a page saying 5.5 has not said which patch.
+		$html = '<p>PHP 5.5 shipped generators.</p>';
+		$this->assertSame( Coverage::BARELY, Coverage::measure( $html, '', 'php 5.5.0' )['state'] );
+	}
+
+	/** The search side stays whole: a page saying "json" alone does not answer "json-ld". */
+	public function test_a_search_compound_still_needs_the_whole_term() {
+		$m = Coverage::measure( '<p>Send json from the server.</p>', '', 'json-ld' );
+
+		$this->assertSame( Coverage::MISSING, $m['state'] );
+	}
+
 	public function test_stopwords_and_short_words_are_dropped() {
 		$this->assertSame( array( 'block', 'gptbot' ), Coverage::words( 'how to block gptbot' ) );
 	}
@@ -219,6 +263,19 @@ final class CoverageTest extends TestCase {
 		$this->assertNotSame( '7f85fba0', Coverage::ruleset() );
 	}
 
+	/**
+	 * 1.53.2 lets a page's hyphenated and underscored words count their parts.
+	 * Pages graded under 1.53.1 (1aeb4ff6) must be read again to get it.
+	 */
+	public function test_reading_compound_parts_moved_the_ruleset() {
+		$this->assertNotSame( '1aeb4ff6', Coverage::ruleset() );
+	}
+
+	/** …and versions saying their release moved it again: 80cc0386 is dev2's, already on heera.it. */
+	public function test_reading_versions_moved_the_ruleset() {
+		$this->assertNotSame( '80cc0386', Coverage::ruleset() );
+	}
+
 	/* ---- passages ----------------------------------------------------------- */
 
 	public function test_passages_carry_their_nearest_heading() {
@@ -228,6 +285,14 @@ final class CoverageTest extends TestCase {
 		$this->assertSame( 'First', $p[0]['heading'] );
 		$this->assertSame( 'Second', $p[1]['heading'] );
 		$this->assertSame( 'Second', $p[2]['heading'], 'a list item belongs to the heading above it' );
+	}
+
+	/** The quote is text a reader sees, not markup: "&nbsp;" came back raw (heera.it 2021). */
+	public function test_passages_are_plain_text_not_entities() {
+		$p = Coverage::passages( '<h2>Q&amp;A</h2><p>building an&nbsp;ACL&nbsp;in Laravel &amp; more</p>' );
+
+		$this->assertSame( 'Q&A', $p[0]['heading'] );
+		$this->assertSame( 'building an ACL in Laravel & more', $p[0]['text'] );
 	}
 
 	/** Script and style bodies are not prose and must not match on variable names. */

@@ -91,6 +91,21 @@ final class Coverage {
 	const CLASSIC_POSTS_GET_PARAGRAPHS = true;
 
 	/**
+	 * A page's "AI-discovery" also says "discovery"; its "the_excerpt" says
+	 * "excerpt" {@see page_words()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.2) — same law as above.
+	 */
+	const PAGE_COMPOUNDS_SAY_THEIR_PARTS = true;
+
+	/**
+	 * A page's "5.5.0" or "5.5.x" also says "5.5" {@see page_words()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.2-dev3) — same law as above.
+	 */
+	const PAGE_VERSIONS_SAY_THEIR_RELEASE = true;
+
+	/**
 	 * Words too common to carry meaning in a search. Deliberately short: every
 	 * word dropped here is one the page no longer has to contain, so an
 	 * over-long list would hand out "answered" for free.
@@ -204,7 +219,7 @@ final class Coverage {
 		$anywhere   = array();
 
 		foreach ( self::passages( $html ) as $passage ) {
-			$have = self::words( $passage['heading'] . ' ' . $passage['text'] );
+			$have = self::page_words( $passage['heading'] . ' ' . $passage['text'] );
 			$hit  = array_intersect( $wanted, $have );
 			if ( $hit ) {
 				$anywhere = array_unique( array_merge( $anywhere, $hit ) );
@@ -235,7 +250,7 @@ final class Coverage {
 			'words'      => $total,
 			'in_passage' => (int) $best['hit'],
 			'on_page'    => $on_page,
-			'in_title'   => count( array_intersect( $wanted, self::words( $title ) ) ),
+			'in_title'   => count( array_intersect( $wanted, self::page_words( $title ) ) ),
 			// Only worth naming when the passage actually answered — pointing at
 			// the best of a bad set would send the owner to the wrong paragraph.
 			'heading'    => self::ANSWERED === $state ? (string) $best['heading'] : '',
@@ -278,6 +293,40 @@ final class Coverage {
 	 */
 	public static function words( $text ) {
 		return array_values( array_unique( array_column( self::terms( $text ), 'stem' ) ) );
+	}
+
+	/**
+	 * The words a PAGE says: {@see words()}, plus the parts of each hyphenated
+	 * or underscored word. A writer who puts "AI-discovery layer" in a sentence
+	 * has said "discovery", and "the_excerpt" in a post about excerpts says
+	 * "excerpt" — read only whole, both were missing from the very paragraph
+	 * that answered.
+	 *
+	 * A version works the same way: a page about "PHP 5.5.0" or "5.5.x" has said
+	 * "5.5", though it never wrote it bare.
+	 *
+	 * ⚠️ One-sided on purpose. The SEARCH keeps its compounds whole, so a page
+	 * that only says "json" still does not answer "json-ld", and one saying
+	 * "5.5" has not said "5.5.0". Other dots stay joined on both sides: "txt" is
+	 * not something "llms.txt" says.
+	 *
+	 * @param string $text Page text.
+	 * @return string[]
+	 */
+	public static function page_words( $text ) {
+		$text  = (string) $text;
+		$words = array_merge( self::words( $text ), self::words( strtr( $text, '-_', '  ' ) ) );
+		foreach ( $words as $word ) {
+			// "5.5.0" → "5.5"; "8.1.2.3" → "8.1.2" and "8.1".
+			$parts = explode( '.', $word );
+			if ( count( $parts ) < 3 || ! preg_match( '/^\d+(\.\d+)+(\.x)?$/', $word ) ) {
+				continue;
+			}
+			for ( $keep = count( $parts ) - 1; $keep >= 2; $keep-- ) {
+				$words[] = implode( '.', array_slice( $parts, 0, $keep ) );
+			}
+		}
+		return array_values( array_unique( $words ) );
 	}
 
 	/**
@@ -389,7 +438,10 @@ final class Coverage {
 			if ( '' === $chunk || '<' !== $chunk[0] ) {
 				continue; // Text between the blocks we recognise; not a passage of its own.
 			}
-			$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $chunk ) ) );
+			// Decoded, so the quote and heading read as text: "an&nbsp;ACL" was
+			// handed back raw. Words never change — terms() decodes anyway.
+			$text = html_entity_decode( wp_strip_all_tags( $chunk ), ENT_QUOTES, 'UTF-8' );
+			$text = trim( preg_replace( '/[\s\x{00A0}]+/u', ' ', $text ) );
 			if ( '' === $text ) {
 				continue;
 			}
