@@ -32,6 +32,9 @@ final class NearPageOneGapsDbTest extends DbTestCase {
 	public function tear_down(): void {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . Table::name() ); // phpcs:ignore WordPress.DB
+		// ⚠️ Put plain links back: WordPress 6.0's test case does not, and the
+		// leak turned PageViewsDbTest's "/?p=251" into "/a-page/" on that cell.
+		$this->set_permalink_structure( '' );
 		parent::tear_down();
 	}
 
