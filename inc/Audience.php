@@ -166,6 +166,41 @@ final class Audience {
 	}
 
 	/**
+	 * What a stale analytics snapshot covers, in words. "Over two days old"
+	 * under a "Last 30 days" tag let wpftest's July test numbers pass for
+	 * October's: the sentence names the days and when they were fetched.
+	 *
+	 * @param array $all The analytics half.
+	 * @return string
+	 */
+	private static function stale_text( array $all ) {
+		$format = (string) get_option( 'date_format' );
+		$format = '' !== $format ? $format : 'F j, Y';
+		$day    = static function ( $ymd ) use ( $format ) {
+			$ts = strtotime( (string) $ymd . ' 12:00:00 UTC' );
+			return $ts ? date_i18n( $format, $ts ) : '';
+		};
+		$fetched = (int) $all['fetched'] > 0 ? date_i18n( $format, (int) $all['fetched'] ) : '';
+		$start   = $day( $all['start'] );
+		$end     = $day( $all['end'] );
+		if ( '' !== $start && '' !== $end ) {
+			return sprintf(
+				/* translators: 1: first day covered, 2: last day covered, 3: date fetched, 4: the window in days. */
+				__( 'The analytics figures cover %1$s to %2$s and were last updated %3$s — not the last %4$d days.', 'agentimus' ),
+				$start,
+				$end,
+				$fetched,
+				(int) $all['window']
+			);
+		}
+		return sprintf(
+			/* translators: %s: date the figures were last fetched. */
+			__( 'The analytics figures were last updated %s, so they are not today’s.', 'agentimus' ),
+			$fetched
+		);
+	}
+
+	/**
 	 * Everyone — the GA4 half, when the owner has connected it.
 	 *
 	 * `activeUsers` is the headline rather than sessions or page views: sessions
@@ -208,6 +243,10 @@ final class Audience {
 			'stale'         => false,
 			'fetched'       => 0,
 			'window'        => (int) $window,
+			// The days the numbers cover, as Google was asked for them. A stale
+			// snapshot is NOT "the last N days", and the screen says which it is.
+			'start'         => '',
+			'end'           => '',
 		);
 		if ( ! $settings->analytics_connected() ) {
 			return $empty;
@@ -268,6 +307,8 @@ final class Audience {
 			'stale'     => $fetched > 0 && ( time() - $fetched ) > 2 * DAY_IN_SECONDS,
 			'fetched'   => $fetched,
 			'window'    => (int) ( isset( $snap['window'] ) ? $snap['window'] : $window ),
+			'start'     => (string) ( isset( $snap['start'] ) ? $snap['start'] : '' ),
+			'end'       => (string) ( isset( $snap['end'] ) ? $snap['end'] : '' ),
 		);
 	}
 
@@ -452,7 +493,7 @@ final class Audience {
 			$out[] = array(
 				'key'   => 'people-stale',
 				'scope' => 'humans',
-				'text'  => __( 'The analytics figure is over two days old.', 'agentimus' ),
+				'text'  => self::stale_text( $all ),
 			);
 		}
 

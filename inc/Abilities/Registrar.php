@@ -1387,6 +1387,8 @@ final class Registrar {
 									'error'          => self::s( 'The last fetch failure, when pending.' ),
 									'stale'          => self::b( 'True when the snapshot is over two days old.' ),
 									'fetched'        => self::i( 'Unix time of the snapshot; 0 = never.' ),
+									'start'          => self::s( 'First day the snapshot covers (Y-m-d), as Google was asked for it. When `stale` is true these are NOT the last `window` days — quote these dates instead.' ),
+									'end'            => self::s( 'Last day the snapshot covers (Y-m-d).' ),
 									'window'         => self::i(),
 								)
 							),

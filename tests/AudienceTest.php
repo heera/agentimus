@@ -217,6 +217,40 @@ final class AudienceTest extends TestCase {
 		delete_option( 'agentimus_google_ga4' );
 	}
 
+	/**
+	 * …and says WHICH days it is. "Over two days old" under a "Last 30 days"
+	 * tag was all wpftest said of a snapshot from July 10 – August 8, read in
+	 * late October: the owner took 2½-month-old test numbers for this month's.
+	 */
+	public function test_a_stale_snapshot_names_the_days_it_covers() {
+		update_option( 'agentimus_google', array( 'sa_json' => 'x', 'ga4_property' => '12345' ) );
+		update_option(
+			'agentimus_google_ga4',
+			array(
+				'totals'  => array( 'users' => 10, 'sessions' => 12, 'views' => 20 ),
+				'window'  => 30,
+				'start'   => '2026-07-10',
+				'end'     => '2026-08-08',
+				'fetched' => time() - 75 * DAY_IN_SECONDS,
+			)
+		);
+
+		$out = Audience::from_stats( $this->stats() );
+		$all = $out['people']['all'];
+
+		$this->assertSame( '2026-07-10', $all['start'] );
+		$this->assertSame( '2026-08-08', $all['end'] );
+		$limit = array_values( array_filter( $out['limits'], function ( $l ) {
+			return 'people-stale' === $l['key'];
+		} ) );
+		$this->assertStringContainsString( 'July 10, 2026', $limit[0]['text'] );
+		$this->assertStringContainsString( 'August 8, 2026', $limit[0]['text'] );
+		$this->assertStringContainsString( 'not the last 30 days', $limit[0]['text'] );
+
+		delete_option( 'agentimus_google' );
+		delete_option( 'agentimus_google_ga4' );
+	}
+
 	public function test_a_referral_free_site_still_returns_a_whole_shape() {
 		$out = Audience::from_stats( array( 'enabled' => true, 'window' => 7, 'totals' => array() ) );
 

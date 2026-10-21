@@ -191,6 +191,27 @@ export default {
       if (!this.gaOn) return 0;
       return Math.max(0, this.ga.users - this.ga.newUsers);
     },
+    // "1.3" — why visits outnumber people, as a number beside the visits.
+    // One decimal, and a whole number shown bare ("1", never "1.0").
+    visitsPerPerson() {
+      const ga = this.ga || {};
+      if (!ga.users || !ga.sessions) return '';
+      return String(Math.round((ga.sessions / ga.users) * 10) / 10);
+    },
+    // The analytics cards' tag. "Last 30 days" is only true of a fresh
+    // snapshot: an old one names the days it actually covers, or wpftest's
+    // July test numbers read as this month's under a "Last 30 days" tag.
+    gaTag() {
+      const ga = this.ga || {};
+      if (ga.stale && ga.start && ga.end) {
+        return `${this.dateLabel(ga.start)} – ${this.dateLabel(ga.end)}`;
+      }
+      return `Last ${this.audience.window} days`;
+    },
+    gaFetched() {
+      const at = (this.ga && this.ga.fetched) || 0;
+      return at ? formatDate(new Date(at * 1000)) : '';
+    },
     range() {
       return (this.report && this.report.range) || { from: '', to: '', floor: '' };
     },
@@ -531,33 +552,35 @@ export default {
     <section v-if="gaOn" class="ar-card ar-rd ar-rd--all">
       <h2 class="ar-card__title">
         Everyone Who Visited
-        <span class="ar-card__tag">Last {{ audience.window }} days</span>
+        <span class="ar-card__tag">{{ gaTag }}</span>
       </h2>
       <p class="ar-card__lead">
-        Every visitor, however they found you. A visit is one person’s trip to your
-        site; they can come back and visit again.
+        Everyone who came to your site, however they found you, as Google Analytics
+        counts them. <strong>People</strong> is who came; <strong>visits</strong> is how
+        many times they came, so one person can make several visits. Google counts each
+        browser as a person: someone on a phone and a laptop counts twice.
       </p>
 
       <div class="ar-rd__grid">
         <div class="ar-rd__cell">
           <p class="ar-rd__cn">{{ n(ga.users) }}</p>
           <p class="ar-rd__cl">people</p>
-          <p class="ar-rd__cs">{{ n(ga.newUsers) }} first-timers · {{ n(returning) }} came back</p>
+          <p class="ar-rd__cs">{{ n(ga.newUsers) }} new · {{ n(returning) }} had visited before</p>
         </div>
         <div class="ar-rd__cell">
           <p class="ar-rd__cn">{{ n(ga.sessions) }}</p>
           <p class="ar-rd__cl">visits</p>
-          <p class="ar-rd__cs">{{ ga.perVisit }} pages per visit</p>
+          <p v-if="visitsPerPerson" class="ar-rd__cs">{{ visitsPerPerson }} per person, on average</p>
         </div>
         <div class="ar-rd__cell">
           <p class="ar-rd__cn">{{ n(ga.views) }}</p>
           <p class="ar-rd__cl">pages opened</p>
-          <p class="ar-rd__cs">across the whole site</p>
+          <p class="ar-rd__cs">{{ ga.perVisit }} per visit</p>
         </div>
         <div class="ar-rd__cell">
           <p class="ar-rd__cn">{{ avgTime }}</p>
           <p class="ar-rd__cl">average visit</p>
-          <p class="ar-rd__cs">{{ ga.engagedPct }}% stayed to read</p>
+          <p class="ar-rd__cs">{{ ga.engagedPct }}% stayed 10+ seconds or opened another page</p>
         </div>
       </div>
 
@@ -565,16 +588,27 @@ export default {
            only, so Bing's people are counted by the same instrument as
            Google's. The Search Performance card counts what the ENGINES
            report; the sentence says so before anyone compares the two. -->
-      <p v-if="engineTotal" class="ar-rd__note"><span>
+      <!-- Side by side, half each, one box apiece (his layout, 1.53.3); a lone
+           note takes the whole row, and narrow cards stack them. -->
+      <div v-if="engineTotal || ga.stale" class="ar-rd__notes">
+      <p v-if="engineTotal" class="ar-rd__box">
         Search engines sent <strong>{{ n(engineTotal) }}</strong> of these visits —
         {{ engineLine }}. That’s Google Analytics’ own attribution; the Search
         Performance card counts what the engines themselves report, so the two
         won’t match exactly.
-      </span></p>
+      </p>
 
-      <p v-if="ga.stale" class="ar-rd__note"><span>
-        These haven’t refreshed in over two days — they’re the last good numbers, not today’s.
-      </span></p>
+      <p v-if="ga.stale" class="ar-rd__box">
+        <template v-if="ga.start && ga.end">
+          These numbers cover {{ dateLabel(ga.start) }} to {{ dateLabel(ga.end) }} and were
+          last updated {{ gaFetched }} — not the last {{ audience.window }} days.
+        </template>
+        <template v-else>
+          These numbers were last updated {{ gaFetched }}, so they are not today’s.
+        </template>
+        If they stay this way, check the Google Analytics connection under Settings → Data Sources.
+      </p>
+      </div>
     </section>
 
     <!-- Content analytics, not audience overview — so it stands on its own
@@ -582,7 +616,7 @@ export default {
     <section v-if="gaOn && allPages.length" class="ar-card ar-rd">
       <h2 class="ar-card__title">
         Busiest Pages
-        <span class="ar-card__tag">Last {{ audience.window }} days</span>
+        <span class="ar-card__tag">{{ gaTag }}</span>
       </h2>
       <p class="ar-card__lead">Your whole site, busiest first — everyone, not only AI.</p>
       <ul class="ar-rd__list ar-rd__list--wide">

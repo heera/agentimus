@@ -9311,13 +9311,20 @@ body {
    box, so the dashed line stopped at 82ch and read as a half-drawn border
    (his catch, 2026-08-15). Two boxes: the <p> spans the card and carries the
    rule, the <span> inside it keeps the reading width. */
-.ar-rd__note {
-  margin: 20px 0 0; padding-top: 12px; border-top: 1px dashed var(--ar-line-strong);
-  font-size: 12px; line-height: 1.55; color: var(--ar-ink-faint);
+/* The notes under the tiles: one bordered box each, side by side at half
+   width (his layout, 1.53.3). Column flow makes a lone note the full row;
+   a narrow card stacks them. */
+.ar-rd__notes {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 14px;
+  margin: 22px 0 0; padding-top: 18px; border-top: 1px dashed var(--ar-line-strong);
 }
-.ar-rd__note > span { display: block; max-width: 82ch; }
+.ar-rd__box {
+  margin: 0; padding: 12px 14px; border: 1px solid var(--ar-line); border-radius: 9px;
+  background: var(--ar-surface-2); font-size: 12px; line-height: 1.55; color: var(--ar-ink-soft);
+}
 
 @container (max-width: 720px) {
+  .ar-rd__notes { grid-auto-flow: row; }
   .ar-rd__hero { font-size: 42px; }
   .ar-rd__cols { grid-template-columns: 1fr; gap: 22px; }
 }
