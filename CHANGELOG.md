@@ -4,6 +4,14 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.2
+* Fixed: words written with a hyphen or an underscore, such as "AI-discovery" or "the_excerpt", now count as the words inside them, and a version such as "5.5.0" or "5.5.x" counts as "5.5". Pages that answered their search in plain words were listed in Your Content as not answering it. A search still needs its whole word: a page that only says "json" does not answer "json-ld".
+* Changed: "pages are one push from page one" now says what each page still lacks: a paragraph that answers the search, the searched words in its title, or a link from another of your posts. It used to give the same two tips every time, even to pages that had done both.
+* Fixed: the same finding counted only the three searches listed for each page, so its searches, impressions and visits were too low. It now counts every search the pages are found for.
+* Note: your site reads its pages again once after updating, so pages that were wrongly listed leave Your Content by themselves.
+* New: read-search-opportunities gives each page ranking just off page one a `missing` list (`answer`, `title`, `link`), so a connected AI agent can make the edit that is left. Its `waiting` flag is now declared too.
+* Fixed: the quote a coverage check returns no longer carries raw HTML codes such as `&nbsp;`.
+
 ## 1.53.1
 * Fixed: posts written in the classic editor were marked as not answering searches they plainly answer. WordPress adds a classic post's paragraphs only when it shows the page, and the search check read the post as stored, so it found no text to look in. It now reads the post the way your visitors see it.
 * Note: your site reads its pages again once after updating, so classic posts that were wrongly listed in Your Content leave the list by themselves.

@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.53.1
+Stable tag: 1.53.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.53.2 =
+* Fixed: words written with a hyphen or an underscore, such as "AI-discovery" or "the_excerpt", now count as the words inside them, and a version such as "5.5.0" or "5.5.x" counts as "5.5". Pages that answered their search in plain words were listed in Your Content as not answering it. A search still needs its whole word: a page that only says "json" does not answer "json-ld".
+* Changed: "pages are one push from page one" now says what each page still lacks: a paragraph that answers the search, the searched words in its title, or a link from another of your posts. It used to give the same two tips every time, even to pages that had done both.
+* Fixed: the same finding counted only the three searches listed for each page, so its searches, impressions and visits were too low. It now counts every search the pages are found for.
+* Note: your site reads its pages again once after updating, so pages that were wrongly listed leave Your Content by themselves.
+
 = 1.53.1 =
 * Fixed: posts written in the classic editor were marked as not answering searches they plainly answer. WordPress adds a classic post's paragraphs only when it shows the page, and the search check read the post as stored, so it found no text to look in. It now reads the post the way your visitors see it.
 * Note: your site reads its pages again once after updating, so classic posts that were wrongly listed in Your Content leave the list by themselves.
@@ -410,6 +416,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.48.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.2 =
+Pages with hyphenated words or version numbers are no longer marked as missing them, and the page-one finding names what is left to do. No breaking changes.
 
 = 1.53.1 =
 Classic-editor posts are no longer marked as missing words they contain. No breaking changes.

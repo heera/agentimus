@@ -999,6 +999,20 @@ final class Admin {
 				// AI" is the name for people an AI sent, everywhere — never "visits".
 				// ⭐ 1.53.1 is one fix, so ONE row: classic-editor posts were
 				// flagged for searches they answer, and leave the list on their own.
+				// ⭐ 1.53.2 KEEPS 1.53.1's row under its own two — his call,
+				// 2026-10-21. Both are the same story (pages wrongly listed as not
+				// answering), and an owner who skipped 1.53.1 would otherwise never
+				// hear the first half. The one exception to "every release rewrites".
+				array(
+					'icon'  => 'link',
+					'title' => 'Findings Name the Step Left',
+					'text'  => '“One push from page one” now says what each page still lacks — often just a link from another of your posts — instead of repeating advice you have already followed.',
+				),
+				array(
+					'icon'  => 'search',
+					'title' => 'More Searches Read Correctly',
+					'text'  => 'Words joined by a hyphen or underscore, like “AI-discovery”, and versions like “5.5.0” now count as the words inside them. Pages wrongly listed as not answering their search leave Your Content by themselves.',
+				),
 				array(
 					'icon'  => 'search',
 					'title' => 'Classic Posts Read Correctly',
