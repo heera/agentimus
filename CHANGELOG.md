@@ -4,6 +4,10 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.1
+* Fixed: posts written in the classic editor were marked as not answering searches they plainly answer. WordPress adds a classic post's paragraphs only when it shows the page, and the search check read the post as stored, so it found no text to look in. It now reads the post the way your visitors see it.
+* Note: your site reads its pages again once after updating, so classic posts that were wrongly listed in Your Content leave the list by themselves.
+
 ## 1.53.0
 * New: traffic for each post and page, in Your Content. Each row shows its bot reads, readers from AI and search clicks, and a new menu orders the list by any of them, so a busy page that needs work comes to the top. Open a row to see who came: a day-by-day chart of bot reads and readers from AI, each bot with its count, when it last read the page and whether it was verified, each AI assistant that sent readers, and the searches that brought people from your search engine. Proven fake bots, refused requests, scripts and command-line tools, and requests from WordPress sites (your own included) are not counted as bot reads; the page says how many were left out. Traffic logged before this update is matched to its pages in the background, and the screen says so until that is done.
 * New: the Request Log's views are now named for what they show — **Every request**, **By visitor** and a new **By page** — with a line under them saying what each one is. By page lists one line per post or page, busiest first, with its bot reads, readers from AI, the bots that read it and its last bot read, over the dates you pick. Click a page to see each of its reads with its time. Bot reads of archives, tag pages and the blog index belong to no single page, so the view says how many there were instead of listing them.

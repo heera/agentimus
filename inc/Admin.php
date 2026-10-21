@@ -997,20 +997,12 @@ final class Admin {
 				// ⭐ 1.53.0 is three new things and no fixes row: traffic for each
 				// page, the By page view, and the posts-list column. "Readers from
 				// AI" is the name for people an AI sent, everywhere — never "visits".
+				// ⭐ 1.53.1 is one fix, so ONE row: classic-editor posts were
+				// flagged for searches they answer, and leave the list on their own.
 				array(
-					'icon'  => 'page',
-					'title' => 'Traffic For Each Page',
-					'text'  => 'Open any row in Your Content to see who came: the bots that read it, the readers AI sent you, and the searches that found it. The list can be sorted by any of them.',
-				),
-				array(
-					'icon'  => 'clock',
-					'title' => 'Your Pages, Most Read First',
-					'text'  => 'The Request Log has a new By page view: your posts and pages, the most read first. Click one to see each read with its time.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'Readers From AI Column',
-					'text'  => 'Your Posts and Pages lists have a sortable Readers From AI column, so the posts AI sends people to rise to the top.',
+					'icon'  => 'search',
+					'title' => 'Classic Posts Read Correctly',
+					'text'  => 'Posts written in the classic editor were listed as not answering searches they do answer. They are read properly now, and the wrong ones leave Your Content by themselves.',
 				),
 			),
 		);
