@@ -33,6 +33,15 @@ defined( 'ABSPATH' ) || exit;
 
 final class Standing {
 
+	/** A near-page-one page still owes a paragraph that answers its search. */
+	const GAP_ANSWER = 'answer';
+
+	/** …still owes some searched words in the title searchers see. */
+	const GAP_TITLE = 'title';
+
+	/** …still has no link from any of the site's own posts. */
+	const GAP_LINK = 'link';
+
 	/**
 	 * Whether the owner's side is done, for one page on one worklist.
 	 *
@@ -67,18 +76,38 @@ final class Standing {
 	 * @return bool
 	 */
 	public static function near_done( $post, $query, array $cover = null ) {
+		return array() === self::near_gaps( $post, $query, $cover );
+	}
+
+	/**
+	 * WHICH of those three a near-page-one page still owes — {@see GAP_ANSWER},
+	 * {@see GAP_TITLE}, {@see GAP_LINK} — so a surface can ask for the edit that
+	 * is actually left. The Findings row used to repeat "put the words in the
+	 * title, answer in one paragraph" over two heera.it pages that had done both
+	 * and lacked only a link, and never said so.
+	 *
+	 * @param \WP_Post   $post  The post.
+	 * @param string     $query The search it is judged against.
+	 * @param array|null $cover A verdict already measured for this pair.
+	 * @return string[] Empty when the owner's side is done.
+	 */
+	public static function near_gaps( $post, $query, array $cover = null ) {
 		if ( null === $cover ) {
 			$cover = Focus::coverage( $post, $query );
 		}
+		$gaps = array();
 		if ( ! is_array( $cover ) || Coverage::ANSWERED !== $cover['state'] ) {
-			return false;
+			$gaps[] = self::GAP_ANSWER;
 		}
 		// A COUNT, not a flag: "okf" in the title does not carry "okf bundle".
-		$words = (int) $cover['words'];
+		$words = is_array( $cover ) ? (int) $cover['words'] : 0;
 		if ( $words < 1 || (int) $cover['in_title'] < $words ) {
-			return false;
+			$gaps[] = self::GAP_TITLE;
 		}
-		return self::inbound_links( $post ) > 0;
+		if ( self::inbound_links( $post ) < 1 ) {
+			$gaps[] = self::GAP_LINK;
+		}
+		return $gaps;
 	}
 
 	/**
@@ -142,6 +171,38 @@ final class Standing {
 		$out = array();
 		foreach ( $ids as $id ) {
 			$out[ $id ] = self::done( $id, $kind );
+		}
+		set_transient( $key, $out, HOUR_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * {@see near_gaps()} for a set of near-page-one pages, cached on the same
+	 * key rule as {@see map()} and for the same reason.
+	 *
+	 * @param array $ids Post IDs.
+	 * @return array<int,string[]> Post ID → what is left; a post that cannot be
+	 *                             read is absent, never reported as finished.
+	 */
+	public static function near_gaps_map( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( ! $ids ) {
+			return array();
+		}
+		sort( $ids );
+
+		$key    = 'agentimus_near_gaps_' . md5( implode( ',', $ids ) . '|' . (string) get_lastpostmodified( 'gmt' ) );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$out = array();
+		foreach ( $ids as $id ) {
+			$post = get_post( $id );
+			if ( $post ) {
+				$out[ $id ] = self::near_gaps( $post, Focus::primary( $post ) );
+			}
 		}
 		set_transient( $key, $out, HOUR_IN_SECONDS );
 		return $out;

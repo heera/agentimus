@@ -390,22 +390,24 @@ final class Findings {
 			return array();
 		}
 
-		$split = $this->partition( $pages );
-		$capped = $this->cap_note( isset( $group['counts']['almost'] ) ? $group['counts']['almost'] : 0, count( $pages ) );
-		$out    = array();
+		$split   = $this->partition( $pages );
+		$todo    = $split['todo'];
+		$waiting = $split['waiting'];
+		$capped  = $this->cap_note( isset( $group['counts']['almost'] ) ? $group['counts']['almost'] : 0, count( $pages ) );
+		$out     = array();
 
-		if ( $split['todo'] ) {
-			$todo    = $split['todo'];
+		if ( $todo ) {
 			$n       = count( $todo );
 			$queries = 0;
 			$shown   = 0;
 			$clicks  = 0;
+			// The PAGE totals, not a sum over `queries`: a card lists only its top
+			// three searches, so summing those read "6 searches · 228 shown" over
+			// two heera.it pages with 34 searches and 576 impressions.
 			foreach ( $todo as $page ) {
-				foreach ( (array) ( isset( $page['queries'] ) ? $page['queries'] : array() ) as $q ) {
-					++$queries;
-					$shown  += (int) ( isset( $q['impressions'] ) ? $q['impressions'] : 0 );
-					$clicks += (int) ( isset( $q['clicks'] ) ? $q['clicks'] : 0 );
-				}
+				$queries += (int) ( isset( $page['searches'] ) ? $page['searches'] : 0 );
+				$shown   += (int) ( isset( $page['impressions'] ) ? $page['impressions'] : 0 );
+				$clicks  += (int) ( isset( $page['clicks'] ) ? $page['clicks'] : 0 );
 			}
 
 			$out[] = $this->row(
@@ -438,31 +440,25 @@ final class Findings {
 					'performance',
 					'ar-group-search'
 				),
-				array_merge(
-					array(
-						__( 'Use the words people typed in the title they see.', 'agentimus' ),
-						__( 'Answer the question directly in one paragraph.', 'agentimus' ),
-					),
-					$capped
-				)
+				array_merge( $this->near_points( $todo ), $capped )
 			);
 		}
 
-		if ( $split['waiting'] ) {
+		if ( $waiting ) {
 			$out[] = $this->waiting_row(
 				'near_page_one_waiting',
 				Search\Opportunities::KIND_NEAR,
 				(string) ( isset( $group['source'] ) ? $group['source'] : '' ),
-				$split['waiting'],
+				$waiting,
 				sprintf(
 					/* translators: %d: how many pages are finished and awaiting a report. */
 					_n(
 						'%d page is waiting on Google',
 						'%d pages are waiting on Google',
-						count( $split['waiting'] ),
+						count( $waiting ),
 						'agentimus'
 					),
-					count( $split['waiting'] )
+					count( $waiting )
 				),
 				__( 'Answered, titled and linked — there is no edit left to make.', 'agentimus' ),
 				array_merge(
@@ -558,7 +554,7 @@ final class Findings {
 
 		$split = $this->partition( $pages );
 		$capped = $this->cap_note( isset( $group['counts']['seen'] ) ? $group['counts']['seen'] : 0, count( $pages ) );
-		$out    = array();
+		$out     = array();
 
 		if ( $split['todo'] ) {
 			$n        = count( $split['todo'] );
@@ -631,6 +627,72 @@ final class Findings {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * What the near-page-one pages still owe, by name and count.
+	 *
+	 * ⛔ The fixed pair this replaced — "use the words in the title, answer in
+	 * one paragraph" — was read on heera.it over two pages that had done both
+	 * and lacked only a link from another post: advice for finished work, and
+	 * the one edit left never named. Each card now says what is missing
+	 * ({@see Search\Standing::near_gaps()}); this counts it.
+	 *
+	 * A card the check could not read (`missing` null) keeps the general advice,
+	 * since nothing is known about which part it lacks.
+	 *
+	 * @param array $todo The cards still asking for work.
+	 * @return string[]
+	 */
+	private function near_points( array $todo ) {
+		$count   = array(
+			Search\Standing::GAP_ANSWER => 0,
+			Search\Standing::GAP_TITLE  => 0,
+			Search\Standing::GAP_LINK   => 0,
+		);
+		$unknown = false;
+		foreach ( $todo as $page ) {
+			if ( ! isset( $page['missing'] ) || ! is_array( $page['missing'] ) ) {
+				$unknown = true;
+				continue;
+			}
+			foreach ( $page['missing'] as $gap ) {
+				if ( isset( $count[ $gap ] ) ) {
+					++$count[ $gap ];
+				}
+			}
+		}
+
+		$points = array();
+		if ( $count[ Search\Standing::GAP_TITLE ] ) {
+			$n        = $count[ Search\Standing::GAP_TITLE ];
+			$points[] = sprintf(
+				/* translators: %d: how many pages lack searched words in their title. */
+				_n( '%d is missing searched words from the title people see.', '%d are missing searched words from the title people see.', $n, 'agentimus' ),
+				$n
+			);
+		}
+		if ( $count[ Search\Standing::GAP_ANSWER ] ) {
+			$n        = $count[ Search\Standing::GAP_ANSWER ];
+			$points[] = sprintf(
+				/* translators: %d: how many pages do not answer their search in one paragraph. */
+				_n( '%d does not answer its search in one paragraph yet.', '%d do not answer their search in one paragraph yet.', $n, 'agentimus' ),
+				$n
+			);
+		}
+		if ( $count[ Search\Standing::GAP_LINK ] ) {
+			$n        = $count[ Search\Standing::GAP_LINK ];
+			$points[] = sprintf(
+				/* translators: %d: how many pages no other post links to. */
+				_n( '%d has no link from your other posts — link to it from a related one.', '%d have no link from your other posts — link to each from a related one.', $n, 'agentimus' ),
+				$n
+			);
+		}
+		if ( $unknown || ! $points ) {
+			$points[] = __( 'Use the words people typed in the title they see.', 'agentimus' );
+			$points[] = __( 'Answer the question directly in one paragraph.', 'agentimus' );
+		}
+		return $points;
 	}
 
 	/**

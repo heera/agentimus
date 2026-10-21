@@ -410,6 +410,7 @@ final class Rest {
 	 */
 	private function enrich_group( array $cards, $kind, $source ) {
 		$done = Standing::map( Standing::card_ids( $cards ), $kind );
+		$gaps = Opportunities::KIND_NEAR === $kind ? Standing::near_gaps_map( Standing::card_ids( $cards ) ) : array();
 
 		$out = array();
 		foreach ( $cards as $card ) {
@@ -422,6 +423,9 @@ final class Rest {
 			$card['since']   = $card['waiting']
 				? Progress::since( $source, $kind, $page_id, (string) $card['page_url'] )
 				: 0;
+			if ( Opportunities::KIND_NEAR === $kind ) {
+				$card['missing'] = isset( $gaps[ $page_id ] ) ? $gaps[ $page_id ] : null;
+			}
 			$out[] = $card;
 		}
 		return $out;

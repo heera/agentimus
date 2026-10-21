@@ -530,11 +530,17 @@ final class Report {
 	 */
 	private static function mark_waiting( array $cards, $kind ) {
 		$done = Standing::map( Standing::card_ids( $cards ), $kind );
+		$gaps = Opportunities::KIND_NEAR === $kind ? Standing::near_gaps_map( Standing::card_ids( $cards ) ) : array();
 		foreach ( $cards as &$card ) {
 			$id = (int) $card['postId'];
 			// A page with no post behind it can never be judged finished: nothing
 			// to measure, no title field to read. "We cannot tell" is never "done".
 			$card['waiting'] = $id > 0 && ! empty( $done[ $id ] );
+			if ( Opportunities::KIND_NEAR === $kind ) {
+				// What is left, by name — empty when nothing is, null when the page
+				// could not be read (and so nothing may be claimed either way).
+				$card['missing'] = isset( $gaps[ $id ] ) ? $gaps[ $id ] : null;
+			}
 		}
 		unset( $card );
 		return $cards;

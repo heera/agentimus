@@ -3799,6 +3799,12 @@ final class Registrar {
 				'position'    => array( 'type' => 'number', 'description' => 'Impression-weighted average rank.' ),
 				'searches'    => self::i( 'How many distinct searches found this page.' ),
 				'wholePage'   => self::b( 'True when the PAGE\'s combined demand qualified rather than any single search — the shape an engine produces when one page\'s traffic arrives as many long-tail searches.' ),
+				'waiting'     => self::b( 'True when the owner\'s side is done and only the engine\'s next report can move this page — no edit is left to ask for.' ),
+				'missing'     => array(
+					'type'        => array( 'array', 'null' ),
+					'items'       => array( 'type' => 'string', 'enum' => array( 'answer', 'title', 'link' ) ),
+					'description' => 'Pages ranking just off page one only: what is still left for the owner. "answer" — no paragraph answers the search; "title" — some searched words are not in the title searchers see; "link" — none of the site\'s own posts links here. Empty when nothing is (then `waiting` is true); null when the page could not be read, so nothing is claimed. Absent on the seen-not-clicked group.',
+				),
 				'queries'     => self::arr(
 					array(
 						'query'       => self::s(),
