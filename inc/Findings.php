@@ -792,8 +792,11 @@ final class Findings {
 			// that has been running for weeks.
 			$evidence[] = $since > 0
 				? sprintf(
+					// ⛔ Says what it dates. A bare "· since" under "waiting on
+					// Google" read as waiting since then, for pages whose last edit
+					// went in that same day (heera.it, 1.53.2).
 					/* translators: 1: page title, 2: the date it joined the worklist. */
-					__( '%1$s · since %2$s', 'agentimus' ),
+					__( '%1$s · on the list since %2$s', 'agentimus' ),
 					$name,
 					date_i18n( (string) get_option( 'date_format' ), $since )
 				)

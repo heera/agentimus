@@ -645,7 +645,7 @@ export default {
                      numbers are still worth reading; only the ask is withdrawn. -->
                 <p v-if="card.waiting" class="ar-opp__waiting">
                   <span class="ar-opp__waiting-mark" aria-hidden="true">◐</span>
-                  <span>{{ group.waitingLabel }}<template v-if="waitingSince(card)"> Waiting since {{ waitingSince(card) }}.</template></span>
+                  <span>{{ group.waitingLabel }}<template v-if="waitingSince(card)"> On this list since {{ waitingSince(card) }}.</template></span>
                 </p>
                 <div class="ar-opp__qwrap">
                   <table class="ar-opp__queries">

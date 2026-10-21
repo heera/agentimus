@@ -131,4 +131,25 @@ final class NearPageOneGapsDbTest extends DbTestCase {
 		$this->assertNull( $this->finding( 'near_page_one' ), 'Nothing is left to ask for.' );
 		$this->assertNotNull( $this->finding( 'near_page_one_waiting' ) );
 	}
+
+	/**
+	 * The date beside a waiting page is when it JOINED the list, and must say
+	 * so. Printed as a bare "· since September 21" under "waiting on Google",
+	 * it read as waiting since then — on heera.it, for two pages whose last
+	 * edit (a link) went in that afternoon.
+	 */
+	public function test_the_waiting_date_says_what_it_dates() {
+		$id = $this->seed_page();
+		\Agentimus\Search\Progress::observe( 'google', new Settings() );
+		self::factory()->post->create(
+			array(
+				'post_title'   => 'Another post',
+				'post_content' => '<p>See <a href="' . esc_url( home_url( '/php-clamp-explained/' ) ) . '">clamp</a>.</p>',
+			)
+		);
+
+		$row = $this->finding( 'near_page_one_waiting' );
+		$this->assertNotNull( $row, 'FIXTURE: the page must be waiting.' );
+		$this->assertStringStartsWith( 'PHP Clamp Explained · on the list since ', $row['evidence'][0] );
+	}
 }
