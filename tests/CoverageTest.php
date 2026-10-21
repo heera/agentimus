@@ -122,6 +122,78 @@ final class CoverageTest extends TestCase {
 		$this->assertSame( Coverage::words( 'class' ), Coverage::words( 'classes' ) );
 	}
 
+	/**
+	 * A word ending in "e" and its plural are one word. "perfumes" lost its
+	 * "es" and became "perfum" while "perfume" stayed "perfume", so a page
+	 * saying "perfume" never answered "winter perfumes" (heera.it, 1.53.2).
+	 */
+	public function test_a_word_ending_in_e_folds_with_its_plural() {
+		foreach ( array( 'perfume', 'theme', 'image', 'horse', 'freeze' ) as $one ) {
+			$this->assertSame( Coverage::words( $one ), Coverage::words( $one . 's' ), "$one / {$one}s" );
+		}
+		$html = '<p>My favourite winter perfume for the cold nights.</p>';
+		$this->assertSame( Coverage::ANSWERED, Coverage::measure( $html, '', 'winter perfumes' )['state'] );
+	}
+
+	/**
+	 * …without folding a word into a DIFFERENT one. Dropping every final "e"
+	 * would make "theme" read as "them", so a page saying "give them a call"
+	 * would answer "wordpress theme".
+	 */
+	public function test_folding_a_plural_never_lands_on_another_word() {
+		$this->assertNotSame( Coverage::words( 'them' ), Coverage::words( 'theme' ) );
+		$this->assertNotSame( Coverage::words( 'them' ), Coverage::words( 'themes' ) );
+		$this->assertNotSame( Coverage::words( 'plan' ), Coverage::words( 'planes' ) );
+		$this->assertSame( Coverage::MISSING, Coverage::measure( '<p>Give them a call.</p>', '', 'theme' )['state'] );
+		// The -es plurals still fold with their singular.
+		foreach ( array( 'class' => 'classes', 'box' => 'boxes', 'match' => 'matches', 'case' => 'cases', 'process' => 'processes', 'hero' => 'heroes', 'potato' => 'potatoes', 'category' => 'categories', 'query' => 'queries', 'story' => 'stories' ) as $one => $many ) {
+			$this->assertSame( Coverage::words( $one ), Coverage::words( $many ), "$one / $many" );
+		}
+	}
+
+	/**
+	 * "-ing" and "-ed" still meet a word that ends in "e". Folding "changes" to
+	 * "change" (not "chang") cut it off from "changing" — and "updates" from
+	 * "updating", "writes" from "writing". Both directions must hold.
+	 */
+	public function test_a_gerund_meets_its_base_word_ending_in_e() {
+		$pairs = array(
+			array( '<p>Office hours change next week.</p>', 'office hours changing' ),
+			array( '<p>Office hours are changing next week.</p>', 'office hours change' ),
+			array( '<p>How to update a plugin safely.</p>', 'updating plugin' ),
+			array( '<p>Updating a plugin safely.</p>', 'update plugins' ),
+			array( '<p>Writes the cache to disk.</p>', 'writing cache' ),
+			// A stem already ending in "e" still meets its "ee" word.
+			array( '<p>The team disagrees.</p>', 'team disagreed' ),
+		);
+		foreach ( $pairs as $pair ) {
+			$this->assertSame( Coverage::ANSWERED, Coverage::measure( $pair[0], '', $pair[1] )['state'], $pair[1] );
+		}
+		// …and a plain word ending in "e" still never meets a shorter one.
+		$this->assertSame( Coverage::MISSING, Coverage::measure( '<p>Give them a call.</p>', '', 'theme' )['state'] );
+	}
+
+	/**
+	 * An unrendered shortcode is markup, not words. Once underscores split,
+	 * "[woocommerce_my_account]" said "account", and a page holding nothing
+	 * but that tag answered "my account".
+	 */
+	public function test_a_shortcode_tag_is_not_a_passage() {
+		$this->assertSame( Coverage::MISSING, Coverage::measure( '<p>[woocommerce_my_account]</p>', '', 'my account' )['state'] );
+		$this->assertSame( Coverage::MISSING, Coverage::measure( '<p>[js_demo_board status="done"]</p>', '', 'board' )['state'] );
+		// Prose around a tag is still read, and a bracketed citation is prose.
+		$this->assertSame( Coverage::ANSWERED, Coverage::measure( '<p>Your account settings [account_form] live here.</p>', '', 'account settings' )['state'] );
+		$this->assertSame( Coverage::ANSWERED, Coverage::measure( '<p>Crawlers obey robots.txt [1].</p>', '', 'crawlers robots.txt' )['state'] );
+	}
+
+	/** Every stem is a fixed point, or two forms of a word could fold apart again. */
+	public function test_stemming_twice_changes_nothing() {
+		foreach ( array( 'perfumes', 'perfume', 'classes', 'class', 'crawlers', 'blocking', 'cases', 'case', 'trees', 'themes', 'used', 'processes', 'process', 'matches' ) as $w ) {
+			$once = Coverage::stem( $w );
+			$this->assertSame( $once, Coverage::stem( $once ), $w );
+		}
+	}
+
 	/** Dotted and hyphenated terms are single words, not fragments to match on. */
 	public function test_dotted_and_hyphenated_terms_survive_intact() {
 		$this->assertContains( 'llms.txt', Coverage::words( 'llms.txt wordpress' ) );
@@ -272,6 +344,11 @@ final class CoverageTest extends TestCase {
 	}
 
 	/** …and versions saying their release moved it again: 80cc0386 is dev2's, already on heera.it. */
+	/** …and folding "perfume" with "perfumes" moved it once more: cc18bf66 is 1.53.2's. */
+	public function test_folding_a_final_e_moved_the_ruleset() {
+		$this->assertNotSame( 'cc18bf66', Coverage::ruleset() );
+	}
+
 	public function test_reading_versions_moved_the_ruleset() {
 		$this->assertNotSame( '80cc0386', Coverage::ruleset() );
 	}

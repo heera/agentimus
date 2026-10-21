@@ -106,6 +106,28 @@ final class Coverage {
 	const PAGE_VERSIONS_SAY_THEIR_RELEASE = true;
 
 	/**
+	 * A word ending in "e" folds with its plural, and never into a different
+	 * word ("theme" is not "them") {@see stem()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.3) — same law as above.
+	 */
+	const PLURALS_FOLD_TO_THEIR_SINGULAR = true;
+
+	/**
+	 * "changing" meets "change", in either direction {@see terms()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.3) — same law as above.
+	 */
+	const GERUNDS_MEET_THEIR_BASE = true;
+
+	/**
+	 * An unrendered shortcode tag is not read as words {@see passages()}.
+	 *
+	 * ⚠️ A CONSTANT so {@see ruleset()} moves (1.53.3) — same law as above.
+	 */
+	const SHORTCODE_TAGS_ARE_NOT_WORDS = true;
+
+	/**
 	 * Words too common to carry meaning in a search. Deliberately short: every
 	 * word dropped here is one the page no longer has to contain, so an
 	 * over-long list would hand out "answered" for free.
@@ -208,6 +230,11 @@ final class Coverage {
 
 		$terms  = self::terms( $query );
 		$wanted = array_column( $terms, 'stem' );
+		// Each searched word, by stem, with the "-e" form a gerund also answers to.
+		$keys = array();
+		foreach ( $terms as $t ) {
+			$keys[ $t['stem'] ] = array_filter( array( $t['stem'], $t['alt'] ) );
+		}
 		$total  = count( $wanted );
 		if ( ! $total ) {
 			return $empty; // Nothing in the search this class can look for.
@@ -219,8 +246,7 @@ final class Coverage {
 		$anywhere   = array();
 
 		foreach ( self::passages( $html ) as $passage ) {
-			$have = self::page_words( $passage['heading'] . ' ' . $passage['text'] );
-			$hit  = array_intersect( $wanted, $have );
+			$hit = self::hits( $keys, self::page_words( $passage['heading'] . ' ' . $passage['text'] ) );
 			if ( $hit ) {
 				$anywhere = array_unique( array_merge( $anywhere, $hit ) );
 			}
@@ -250,7 +276,7 @@ final class Coverage {
 			'words'      => $total,
 			'in_passage' => (int) $best['hit'],
 			'on_page'    => $on_page,
-			'in_title'   => count( array_intersect( $wanted, self::page_words( $title ) ) ),
+			'in_title'   => count( self::hits( $keys, self::page_words( $title ) ) ),
 			// Only worth naming when the passage actually answered — pointing at
 			// the best of a bad set would send the owner to the wrong paragraph.
 			'heading'    => self::ANSWERED === $state ? (string) $best['heading'] : '',
@@ -296,6 +322,27 @@ final class Coverage {
 	}
 
 	/**
+	 * Which searched words a set of page words answers, by the search's stems.
+	 *
+	 * @param array<string,string[]> $keys Stem → the forms that answer it.
+	 * @param string[]               $have Page words.
+	 * @return string[] The stems answered.
+	 */
+	private static function hits( array $keys, array $have ) {
+		$have = array_flip( $have );
+		$hit  = array();
+		foreach ( $keys as $stem => $forms ) {
+			foreach ( $forms as $form ) {
+				if ( isset( $have[ $form ] ) ) {
+					$hit[] = (string) $stem;
+					break;
+				}
+			}
+		}
+		return $hit;
+	}
+
+	/**
 	 * The words a PAGE says: {@see words()}, plus the parts of each hyphenated
 	 * or underscored word. A writer who puts "AI-discovery layer" in a sentence
 	 * has said "discovery", and "the_excerpt" in a post about excerpts says
@@ -315,7 +362,13 @@ final class Coverage {
 	 */
 	public static function page_words( $text ) {
 		$text  = (string) $text;
-		$words = array_merge( self::words( $text ), self::words( strtr( $text, '-_', '  ' ) ) );
+		$words = array();
+		foreach ( array_merge( self::terms( $text ), self::terms( strtr( $text, '-_', '  ' ) ) ) as $t ) {
+			$words[] = $t['stem'];
+			if ( '' !== $t['alt'] ) {
+				$words[] = $t['alt']; // "changing" on the page also says "change".
+			}
+		}
 		foreach ( $words as $word ) {
 			// "5.5.0" → "5.5"; "8.1.2.3" → "8.1.2" and "8.1".
 			$parts = explode( '.', $word );
@@ -335,7 +388,7 @@ final class Coverage {
 	 * folded it to. {@see words()} is this, deduplicated to stems.
 	 *
 	 * @param string $text Any text.
-	 * @return array<int,array{word:string,stem:string}>
+	 * @return array<int,array{word:string,stem:string,alt:string}> `alt` is the "-e" form a gerund also answers to, or empty.
 	 */
 	public static function terms( $text ) {
 		// ASCII-only lowercasing, deliberately. strtolower() asks the C library
@@ -370,7 +423,16 @@ final class Coverage {
 				continue; // One entry per stem, keeping the FIRST spelling seen.
 			}
 			$seen[ $stem ] = true;
-			$out[]         = array( 'word' => $word, 'stem' => $stem );
+			// A word that lost "-ing" or "-ed" may have lost an "e" with it:
+			// "changing" stems to "chang", and must still meet "change". Only
+			// these words get the second form — a plain "them" never becomes
+			// "theme", so the plural fix's "theme is not them" holds.
+			$alt = '';
+			if ( $stem !== $word && preg_match( '/(?:ing|ed)$/', $word ) ) {
+				$alt = self::stem( $stem . 'e' );
+				$alt = $alt === $stem ? '' : $alt;
+			}
+			$out[]         = array( 'word' => $word, 'stem' => $stem, 'alt' => $alt );
 		}
 		return $out;
 	}
@@ -385,22 +447,38 @@ final class Coverage {
 	 */
 	public static function stem( $word ) {
 		// Stripped repeatedly, to a FIXED POINT. One pass is not enough and the
-		// failure is silent: "classes" loses its "es" and stops at "class", while
+		// failure is silent: "classes" stops at "class" after one pass, while
 		// "class" loses its "s" and stops at "clas" — so the plural and the
 		// singular fold to different words and a page answering one no longer
 		// matches a search using the other. What this needs is not linguistic
 		// accuracy (that would need a language) but SELF-CONSISTENCY: whatever
 		// the rules mangle a word into, they must mangle its other forms into the
 		// same thing. Iterating guarantees stem( stem( x ) ) === stem( x ).
-		for ( $pass = 0; $pass < 4; $pass++ ) {
+		for ( $pass = 0; $pass < 8; $pass++ ) {
 			$before = $word;
-			foreach ( array( 'ing', 'ed', 'es', 's' ) as $suffix ) {
+			// A plural loses its "s" only, never "es": stripping "es" turned
+			// "perfumes" into "perfum" while "perfume" stayed whole, so neither
+			// matched the other — and "themes" into "them", the pronoun.
+			$stripped = false;
+			foreach ( array( 'ing', 'ed', 's' ) as $suffix ) {
 				$len = strlen( $suffix );
 				// Keep a real root behind the ending, so "less" doesn't become "l".
 				if ( strlen( $word ) > $len + 3 && substr( $word, -$len ) === $suffix ) {
-					$word = substr( $word, 0, -$len );
+					$word     = substr( $word, 0, -$len );
+					$stripped = true;
 					break;
 				}
+			}
+			// …and the "e" goes only where English adds one to make the plural
+			// ("classes", "boxes", "matches", "dishes"), so "classe" meets
+			// "class". After any other letter it is part of the word: "theme"
+			// stays "theme", and never becomes "them".
+			// "o" too ("heroes", "potatoes"). And "ie" is a "y" in the singular
+			// ("categories" → "categorie" → "category"), so "query" meets "queries".
+			if ( ! $stripped && strlen( $word ) > 3 && preg_match( '/(?:s|x|z|ch|sh|o)e$/', $word ) ) {
+				$word = substr( $word, 0, -1 );
+			} elseif ( ! $stripped && strlen( $word ) > 3 && 'ie' === substr( $word, -2 ) ) {
+				$word = substr( $word, 0, -2 ) . 'y';
 			}
 			if ( $word === $before ) {
 				break;
@@ -441,6 +519,10 @@ final class Coverage {
 			// Decoded, so the quote and heading read as text: "an&nbsp;ACL" was
 			// handed back raw. Words never change — terms() decodes anyway.
 			$text = html_entity_decode( wp_strip_all_tags( $chunk ), ENT_QUOTES, 'UTF-8' );
+			// An unrendered shortcode is markup: "[woocommerce_my_account]"
+			// would otherwise say "account". A tag starts with a letter, which
+			// leaves a citation like "[1]" alone.
+			$text = preg_replace( '/\[\/?[a-z][a-z0-9_-]*(?:\s[^\]]*)?\]/i', ' ', $text );
 			$text = trim( preg_replace( '/[\s\x{00A0}]+/u', ' ', $text ) );
 			if ( '' === $text ) {
 				continue;
