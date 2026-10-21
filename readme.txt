@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.53.2
+Stable tag: 1.53.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,15 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.53.3 =
+* Fixed: a word and its plural are now always read as the same word. "Perfumes" was read as "perfum" while "perfume" stayed "perfume", so a page that said "perfume" was listed as not answering a search for "perfumes". The same was true of "theme" and "themes", "image" and "images", and "category" and "categories". "Themes" was also read as "them", so a page could count as answering a search it does not.
+* Fixed: a word ending in "-ing" or "-ed" now matches the same word ending in "e", in either direction: "changing" and "change", "updating" and "update", "writing" and "write".
+* Fixed: a shortcode the page did not render, such as "[woocommerce_my_account]", was read as words, so a page holding only that tag could count as answering "my account". Shortcode tags are no longer read as text.
+* Changed: the Visitors screen's "Everyone Who Visited" card says what its numbers mean. It now explains that "people" is who came and "visits" is how many times they came, shows visits per person under the visits, and says that Google Analytics counts each browser as a person. It also says "new" and "had visited before" instead of "first-timers" and "came back", and "stayed 10+ seconds or opened another page" instead of "stayed to read", which is what Google actually measures.
+* Fixed: when Google Analytics stopped updating, the Visitors cards kept their "Last 30 days" tag and only said the numbers were "over two days old". They now show the dates the numbers really cover and when they were last updated.
+* Fixed: a page waiting on Google showed "since" a date, which read as the day its work was finished. The date is when the page joined the list, and it now says so.
+* Note: your site reads its pages again once after updating.
+
 = 1.53.2 =
 * Fixed: words written with a hyphen or an underscore, such as "AI-discovery" or "the_excerpt", now count as the words inside them, and a version such as "5.5.0" or "5.5.x" counts as "5.5". Pages that answered their search in plain words were listed in Your Content as not answering it. A search still needs its whole word: a page that only says "json" does not answer "json-ld".
 * Changed: "pages are one push from page one" now says what each page still lacks: a paragraph that answers the search, the searched words in its title, or a link from another of your posts. It used to give the same two tips every time, even to pages that had done both.
@@ -396,26 +405,13 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: the demoted notice keeps everything the warning had — the date the blocking started, and your fold if you had made one — and it becomes a warning again by itself the moment verified traffic starts being refused.
 * Improved: a connected assistant reading the edge summary sees the same verdict: how many of the blocked requests proved to be the company, how many proved to be impostors, and how many could not be determined.
 
-= 1.48.0 =
-* New: the Request Log records what crawlers read on your pages, not only which AI files they fetched. Until now an AI crawler could read every article on the site and the log showed nothing but its llms.txt fetch. Only machines are recorded — your readers are never logged here, they are counted separately and without a User-Agent — and a switch in Settings turns the whole stream off if you would rather keep a longer history of the files alone. A page served from a CDN or a caching plugin never reaches WordPress, so on a cached site these are a floor rather than a total, and the screen says so.
-* New: a request that arrives cryptographically signed is recorded as signed even when the signature belongs to an operator this plugin does not recognise. The check was already running, and a valid signature from anyone other than Google or OpenAI proved who sent it and then left no trace at all — so the first company to sign your site would have been invisible. It is written down now, without granting anyone standing they have not earned: proof of identity is not a reason to trust someone.
-* New: a Signature filter on the Request Log, including "signed by anyone" — the question an owner asks first, and one no list of names can express, because you cannot pick the name of a company you have never seen. A connected assistant can ask the same question.
-* New: a conflict between your CDN and your own AI policy now appears on the Findings list, dated. A CDN in front of your site can turn an assistant away before the request reaches WordPress, and Agentimus could already see that happening — but only said so on the Request Log, so an owner found out by going and looking. One had been running for weeks unseen. It is a finding now, urgent when the edge is refusing an assistant your policy welcomes, and it carries the date it started rather than only the window it was measured over.
-* Improved: a CDN conflict says when it actually began, worked out from the hourly figures already kept rather than from the moment Agentimus first looked. Installing this feature today would otherwise date a problem that started last week to today. Where the figures cannot answer, the wording changes rather than the date being guessed at: "Started the 26th" when it was derived, "Running since at least the 30th" when it has held for as long as anything was kept, and "First seen today" when there is no history to read.
-* Fixed: the Findings list said "Nothing is blocking AI assistants" whenever every setup check passed. That is a promise it could not keep: the checks measure this plugin's own configuration, and an assistant can be turned away by a CDN sitting in front of the site with every one of them green. It now says what it actually checked — "All N setup checks pass" — and the conflict above it carries the rest.
-* Improved: the weekly email names any live conflict at your CDN, so the one channel that reaches you when you are not in wp-admin says it too.
-* Improved: the conflict notice on the Request Log folds now instead of hiding. Only your CDN changing its behaviour, or your own policy changing, actually ends a conflict — so the notice collapses to one line you can reopen, and the Findings list and the weekly email keep counting it while it lasts. A notice you had hidden before comes back collapsed, not gone.
-* Improved: the three small scripts the plugin adds to your pages are compressed when built, cutting them by about two thirds. Their source ships beside them, as it always has.
-* Fixed: the address filter above the Request Log offered internal names — "markdown", "rest:discovery" — while the table beside it showed the plain ones. One screen, one vocabulary now.
-* Fixed: a crawler could name your own site as its home page and have the plugin fetch you on its behalf, then record that as a visit. It never proved anything — of course your own front page answers — and it is refused outright now.
-* Fixed: where a fake crawler borrows a real engine's name, the review card blended their numbers — it could say the forgeries were seen five hours ago when that request was the real engine's verified visit and the last actual forgery was days old. The failing requests now carry their own count and dates, and the real engine's verified traffic is noted separately.
-* Fixed: a connected assistant's count of clients awaiting review included ones you had already blocked, so it could disagree with the bell in your admin bar; they read one count now. Each client it lists also carries the recorded IP addresses the review advice tells you to block.
-* Fixed: on some hosts — macOS, mainly — text in Cyrillic, Arabic, Greek or Devanagari was corrupted on its way into the search-coverage check, logging PHP warnings and letting a page that contains such text be marked as not answering a search it answers.
-* Improved: a post's structured data now carries its featured image. Machines reading the page's JSON-LD were told the headline, the author and the dates, but not the one picture the author chose for the piece — the field Google lists as recommended for articles. Emitted only when a featured image is set; nothing is borrowed from the body or the site identity to fill the gap.
 
-The most recent releases are listed here, back to 1.48.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.49.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.3 =
+Singular and plural words, like "perfume" and "perfumes", now count as the same word. No breaking changes.
 
 = 1.53.2 =
 Pages with hyphenated words or version numbers are no longer marked as missing them, and the page-one finding names what is left to do. No breaking changes.

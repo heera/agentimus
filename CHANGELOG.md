@@ -4,6 +4,15 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.3
+* Fixed: a word and its plural are now always read as the same word. "Perfumes" was read as "perfum" while "perfume" stayed "perfume", so a page that said "perfume" was listed as not answering a search for "perfumes". The same was true of "theme" and "themes", "image" and "images", and "category" and "categories". "Themes" was also read as "them", so a page could count as answering a search it does not.
+* Fixed: a word ending in "-ing" or "-ed" now matches the same word ending in "e", in either direction: "changing" and "change", "updating" and "update", "writing" and "write".
+* Fixed: a shortcode the page did not render, such as "[woocommerce_my_account]", was read as words, so a page holding only that tag could count as answering "my account". Shortcode tags are no longer read as text.
+* Changed: the Visitors screen's "Everyone Who Visited" card says what its numbers mean. It now explains that "people" is who came and "visits" is how many times they came, shows visits per person under the visits, and says that Google Analytics counts each browser as a person. It also says "new" and "had visited before" instead of "first-timers" and "came back", and "stayed 10+ seconds or opened another page" instead of "stayed to read", which is what Google actually measures.
+* Fixed: when Google Analytics stopped updating, the Visitors cards kept their "Last 30 days" tag and only said the numbers were "over two days old". They now show the dates the numbers really cover and when they were last updated.
+* Fixed: a page waiting on Google showed "since" a date, which read as the day its work was finished. The date is when the page joined the list, and it now says so.
+* Note: your site reads its pages again once after updating.
+
 ## 1.53.2
 * Fixed: words written with a hyphen or an underscore, such as "AI-discovery" or "the_excerpt", now count as the words inside them, and a version such as "5.5.0" or "5.5.x" counts as "5.5". Pages that answered their search in plain words were listed in Your Content as not answering it. A search still needs its whole word: a page that only says "json" does not answer "json-ld".
 * Changed: "pages are one push from page one" now says what each page still lacks: a paragraph that answers the search, the searched words in its title, or a link from another of your posts. It used to give the same two tips every time, even to pages that had done both.

@@ -1003,6 +1003,13 @@ final class Admin {
 				// 2026-10-21. Both are the same story (pages wrongly listed as not
 				// answering), and an owner who skipped 1.53.1 would otherwise never
 				// hear the first half. The one exception to "every release rewrites".
+				// ⭐ 1.53.3 follows the same rule (his "add the old and the new"):
+				// its row on top, 1.53.2's and 1.53.1's below.
+				array(
+					'icon'  => 'search',
+					'title' => 'Plurals Read Correctly',
+					'text'  => 'A word and its plural, like “perfume” and “perfumes”, now count as the same word, so pages are no longer listed for missing a word they use.',
+				),
 				array(
 					'icon'  => 'link',
 					'title' => 'Findings Name the Step Left',
