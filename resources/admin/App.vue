@@ -1481,6 +1481,13 @@ export default {
           this.refreshActivity();
         }
       } catch (e) {
+        // ⛔ A save whose answer couldn't be read may well have landed: rolling
+        // the switch back would show the OLD value while the site holds the
+        // new one. Leave the screen as the owner set it and say to reload.
+        if (e && e.uncertain) {
+          this.flash('error', e.message, 12000); // Long enough to read twice.
+          return;
+        }
         // Roll the autosaved change back to the last saved state, but keep the
         // in-progress identity draft (profile text + services save on their own
         // button, not here) so the failure never discards unsaved typing.

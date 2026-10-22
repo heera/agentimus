@@ -8,27 +8,83 @@ export function createApi(boot) {
     'X-WP-Nonce': boot.nonce || '',
   };
 
+  // ⛔⛔ Every failure says what happened in plain words, never the browser's.
+  // 2026-10-22: another plugin's fatal error made every call answer 200 with
+  // an EMPTY body, and the screen showed "Failed to execute 'json' on
+  // 'Response': Unexpected end of JSON input". Each error carries:
+  //   status    — the HTTP status (0 when nothing answered), so callers can
+  //               react to CLASSES of failure (a 404 = the route is gone)
+  //               without matching message text;
+  //   kind      — 'network' | 'nonce' | 'http' | 'not_json';
+  //   uncertain — a WRITE whose answer could not be read: the server may well
+  //               have done it, so a caller must not roll the screen back as
+  //               if it had refused.
+  function fail(message, status, kind, uncertain = false) {
+    const err = new Error(message);
+    err.status = status;
+    err.kind = kind;
+    err.uncertain = uncertain;
+    return err;
+  }
+
   async function requestUrl(url, options = {}) {
-    const res = await fetch(url, {
-      credentials: 'same-origin',
-      headers,
-      ...options,
-    });
-    if (!res.ok) {
-      let message = `Request failed (${res.status})`;
-      try {
-        const body = await res.json();
-        if (body && body.message) message = body.message;
-      } catch (e) {
-        /* ignore */
-      }
-      // The status rides along so callers can react to CLASSES of failure
-      // (a 404 = the route is gone) without matching localized message text.
-      const err = new Error(message);
-      err.status = res.status;
-      throw err;
+    const write = !!options.method && 'GET' !== String(options.method).toUpperCase();
+    let res;
+    try {
+      res = await fetch(url, {
+        credentials: 'same-origin',
+        headers,
+        ...options,
+      });
+    } catch (e) {
+      throw fail(
+        write
+          ? 'Couldn’t reach your site, so this change may not have been saved. Check your connection and try again.'
+          : 'Couldn’t reach your site. Check your connection and try again.',
+        0,
+        'network',
+        write,
+      );
     }
-    return res.json();
+
+    // Read once, parse once: a body can only be consumed one way.
+    const text = await res.text();
+    let body;
+    let parsed = false;
+    try {
+      body = JSON.parse(text);
+      parsed = true;
+    } catch (e) {
+      /* named below */
+    }
+
+    if (!res.ok) {
+      if (parsed && body && 'rest_cookie_invalid_nonce' === body.code) {
+        throw fail('Your sign-in on this page has expired. Reload the page (you may need to log in again).', res.status, 'nonce');
+      }
+      if (parsed && body && body.message) {
+        throw fail(body.message, res.status, 'http');
+      }
+      // An HTML error page: a fatal error, a proxy, a firewall. Name the
+      // status and the usual cause; nothing here was done on purpose.
+      throw fail(
+        `Your site returned an error (HTTP ${res.status}) — often another plugin failing. Reload to check what happened.`,
+        res.status,
+        'http',
+        write,
+      );
+    }
+    if (!parsed) {
+      // A 2xx that isn't JSON: empty, or something printed into the reply.
+      throw fail(
+        'Your site answered, but not with anything Agentimus can read — usually another plugin or a PHP error printed into the reply.'
+          + (write ? ' The change may or may not have been saved; reload to see what’s stored.' : ''),
+        res.status,
+        'not_json',
+        write,
+      );
+    }
+    return body;
   }
 
   const request = (path, options = {}) => requestUrl(`${base}${path}`, options);

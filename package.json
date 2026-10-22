@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build && npm run build:public",
-    "build:public": "esbuild resources/public/*.js --minify --charset=ascii --legal-comments=none --outdir=assets --log-level=warning"
+    "build:public": "esbuild resources/public/*.js --minify --charset=ascii --legal-comments=none --outdir=assets --log-level=warning",
+    "test:js": "node --test tests/js/"
   },
   "dependencies": {
     "vue": "^3.4.21"

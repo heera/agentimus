@@ -522,7 +522,15 @@ export default {
         this.mcpTokenPlain = (res && res.plaintext) || '';
         this.mcpToken = (res && res.token) || null;
       } catch (e) {
-        this.mcpTokenError = e.message || 'Could not create the token.';
+        if (e && e.uncertain) {
+          // The server may have minted (and, on a rotate, swapped in) a token
+          // whose one-time value never reached us. Say so, and re-read what
+          // the site holds now instead of showing the old token as current.
+          this.mcpTokenError = 'Your site’s answer couldn’t be read, so the token may have been created without being shown. If it was, connected assistants now need a new one: create it again to see it.';
+          this.loadMcpToken();
+        } else {
+          this.mcpTokenError = e.message || 'Could not create the token.';
+        }
       } finally {
         this.mcpTokenBusy = false;
       }
@@ -760,7 +768,10 @@ export default {
       } catch (e) {
         // Core's own message is the honest one here — e.g. a permissions refusal,
         // or application passwords having been switched off since page load.
-        this.mcpKeyError = e && e.message ? e.message : 'Could not create the key.';
+        this.mcpKeyError = e && e.uncertain
+          // A key may exist that was never shown — say where to find it.
+          ? 'Your site’s answer couldn’t be read, so the key may have been created without being shown. Check Users → Profile → Application Passwords, revoke it there if it is listed, and try again.'
+          : (e && e.message ? e.message : 'Could not create the key.');
       } finally {
         this.mcpKeyCreating = false;
       }
