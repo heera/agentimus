@@ -185,6 +185,59 @@ final class CachePurgeListingsDbTest extends DbTestCase {
 		$this->assertContains( untrailingslashit( get_permalink( $this->post_id ) ) . '.md', $queued );
 	}
 
+	/* ------------------------------------------------ a post that leaves */
+
+	/**
+	 * ⛔ A post that leaves its address — unpublished, trashed, or given a new
+	 * slug — leaves its OLD address cached. By the time save_post fires,
+	 * get_permalink() already answers with the new one (?p=ID for a draft or
+	 * the trash), so the purge used to name an address nobody had cached and
+	 * the edge kept serving the old page and its .md for the rest of its TTL.
+	 *
+	 * @dataProvider leaving_provider
+	 */
+	public function test_a_post_that_leaves_its_address_purges_the_old_one( $how ) {
+		$this->set_permalink_structure( '/%postname%/' );
+		$this->arm_edge();
+		$old = get_permalink( $this->post_id );
+		$this->assertStringContainsString( '/a-published-post/', $old );
+		$this->flush_and_capture();
+
+		if ( 'trash' === $how ) {
+			wp_trash_post( $this->post_id );
+		} elseif ( 'slug' === $how ) {
+			wp_update_post( array( 'ID' => $this->post_id, 'post_name' => 'a-new-name' ) );
+		} else {
+			wp_update_post( array( 'ID' => $this->post_id, 'post_status' => $how ) );
+		}
+		$queued = $this->flush_and_capture();
+
+		$this->assertContains( untrailingslashit( $old ) . '.md', $queued, "the old .md twin, after: $how" );
+		$this->assertContains( $old, $queued, "and the old page itself, from the edge, after: $how" );
+	}
+
+	public function leaving_provider() {
+		return array(
+			'unpublished to draft' => array( 'draft' ),
+			'made private'         => array( 'private' ),
+			'trashed'              => array( 'trash' ),
+			'slug changed'         => array( 'slug' ),
+		);
+	}
+
+	/** Without an edge only the .md twin is ours to purge — as for any edit. */
+	public function test_with_no_edge_a_leaving_post_purges_only_its_old_md() {
+		$this->set_permalink_structure( '/%postname%/' );
+		$old = get_permalink( $this->post_id );
+		$this->flush_and_capture();
+
+		wp_update_post( array( 'ID' => $this->post_id, 'post_status' => 'draft' ) );
+		$queued = $this->flush_and_capture();
+
+		$this->assertContains( untrailingslashit( $old ) . '.md', $queued );
+		$this->assertNotContains( $old, $queued );
+	}
+
 	/* ------------------------------------------------------------ term edits */
 
 	/**

@@ -42,6 +42,9 @@ final class CachePurge {
 	/** @var bool Whether the shutdown flush is already scheduled. */
 	private static $scheduled = false;
 
+	/** @var array<int,string> A published post's address before this request changed it. */
+	private static $old_address = array();
+
 	/**
 	 * Whether auto-purge is on. Setting (default true), overridable by code.
 	 *
@@ -68,6 +71,14 @@ final class CachePurge {
 		// the internal caches fire from, so the two never disagree about "content changed".
 		add_action( 'agentimus_cache_flushed', array( __CLASS__, 'queue_site_files' ) );
 		// The edited/removed post's own .md twin — a URL generic cache plugins never purge.
+		// A post leaving its address (unpublished, made private, trashed, or
+		// given a new slug) leaves the OLD address cached — and by save_post
+		// the permalink already names the new one. Note it while it still
+		// resolves; queue_post() purges it.
+		add_action( 'pre_post_update', array( __CLASS__, 'note_old_address' ), 10, 1 );
+		// Trashing renames the slug to `…__trashed` BEFORE pre_post_update, so
+		// the address is noted at wp_trash_post, the hook ahead of that rename.
+		add_action( 'wp_trash_post', array( __CLASS__, 'note_old_address' ), 10, 1 );
 		add_action( 'save_post', array( __CLASS__, 'queue_post' ), 20, 1 );
 		add_action( 'before_delete_post', array( __CLASS__, 'queue_post' ), 20, 1 );
 		// A term edit changes its ARCHIVE PAGE — the description printed on it, its
@@ -138,6 +149,30 @@ final class CachePurge {
 	}
 
 	/**
+	 * `pre_post_update`: remember a PUBLISHED post's address before the update
+	 * lands. ⛔ By save_post, get_permalink() answers with where the post is
+	 * going — `?p=ID` for a draft, a private post or the trash, the new slug
+	 * after a rename — and the address the edge has cached is never named
+	 * (found in the 2026-10-23 audit: an unpublished post kept serving, page
+	 * and .md, until the TTL ran out).
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function note_old_address( $post_id ) {
+		$post_id = (int) $post_id;
+		// The first note of a request wins: a trash notes the address before
+		// core renames the slug, and the pre_post_update that follows must
+		// not replace it with the renamed one.
+		if ( ! $post_id || isset( self::$old_address[ $post_id ] ) || 'publish' !== get_post_status( $post_id ) ) {
+			return;
+		}
+		$link = get_permalink( $post_id );
+		if ( is_string( $link ) && '' !== $link ) {
+			self::$old_address[ $post_id ] = $link;
+		}
+	}
+
+	/**
 	 * Queue one post's `.md` twin, skipping revisions/autosaves and non-public types.
 	 *
 	 * @param int $post_id Post ID.
@@ -149,6 +184,18 @@ final class CachePurge {
 		}
 		if ( ! is_post_type_viewable( get_post_type( $post_id ) ) ) {
 			return; // Nav-menu items, non-public types, … have no public .md.
+		}
+		// The address it had before this save, when that was a different one:
+		// the copy cached there is the one readers are still being served.
+		if ( isset( self::$old_address[ $post_id ] ) ) {
+			$old = self::$old_address[ $post_id ];
+			unset( self::$old_address[ $post_id ] );
+			if ( $old !== get_permalink( $post_id ) ) {
+				self::queue( array( untrailingslashit( $old ) . '.md' ) );
+				if ( Cloudflare\Purge::armed() ) {
+					self::queue( array( $old ) );
+				}
+			}
 		}
 		$permalink = get_permalink( $post_id );
 		if ( $permalink ) {
