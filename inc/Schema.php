@@ -296,7 +296,7 @@ final class Schema {
 		// as-is (validated against entity_types() on save).
 		$stored  = (string) $this->settings->identity( 'entity_type', 'Person' );
 		$type    = '' !== $stored ? $stored : 'Person';
-		$name    = (string) $this->settings->identity( 'name', get_bloginfo( 'name' ) );
+		$name    = $this->settings->display_name();
 		$about   = (string) $this->settings->identity( 'about' );
 		$not     = (string) $this->settings->identity( 'not_description' );
 		$aud     = (string) $this->settings->identity( 'audience' );

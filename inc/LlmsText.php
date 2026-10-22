@@ -36,7 +36,7 @@ final class LlmsText {
 			return $cached;
 		}
 
-		$name    = $this->text( $this->settings->identity( 'name', get_bloginfo( 'name' ) ) );
+		$name    = $this->text( $this->settings->display_name() );
 		$tagline = $this->text( get_bloginfo( 'description' ) );
 
 		$out = '# ' . ( '' !== $name ? $name : home_url( '/' ) ) . "\n\n";
@@ -142,7 +142,7 @@ final class LlmsText {
 	 * @return string
 	 */
 	private function build_llms_full() {
-		$name    = $this->text( $this->settings->identity( 'name', get_bloginfo( 'name' ) ) );
+		$name    = $this->text( $this->settings->display_name() );
 		$tagline = $this->text( get_bloginfo( 'description' ) );
 
 		$out = '# ' . ( '' !== $name ? $name : home_url( '/' ) ) . "\n\n";

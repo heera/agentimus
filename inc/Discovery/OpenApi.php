@@ -69,7 +69,7 @@ final class OpenApi {
 			);
 		}
 
-		$name = (string) $this->settings->identity( 'name', get_bloginfo( 'name' ) );
+		$name = $this->settings->display_name();
 		$name = '' !== $name ? $name : get_bloginfo( 'name' );
 
 		return self::build(

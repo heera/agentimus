@@ -461,6 +461,22 @@ final class Settings {
 	}
 
 	/**
+	 * The name this site goes by: the Identity name, else the site's own name.
+	 *
+	 * ⛔ Not identity( 'name', get_bloginfo( 'name' ) ). The settings form
+	 * always stores the key, so a Name left blank is '' — present, and never
+	 * replaced by that default. llms.txt then headed itself with the site URL
+	 * and discovery.json published an empty name (found in the 2026-10-23
+	 * audit). Every surface that names the site asks here.
+	 *
+	 * @return string
+	 */
+	public function display_name() {
+		$name = trim( (string) $this->identity( 'name', '' ) );
+		return '' !== $name ? $name : trim( (string) get_bloginfo( 'name' ) );
+	}
+
+	/**
 	 * Persist a (raw) settings array after sanitising it.
 	 *
 	 * @param array $input Raw input (e.g. from REST).

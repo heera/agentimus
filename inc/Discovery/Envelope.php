@@ -382,7 +382,7 @@ final class Envelope {
 	 */
 	public function site() {
 		return array(
-			'name'        => $this->clean( $this->settings->identity( 'name', get_bloginfo( 'name' ) ) ),
+			'name'        => $this->clean( $this->settings->display_name() ),
 			'url'         => home_url( '/' ),
 			'description' => $this->clean( get_bloginfo( 'description' ) ),
 			'lang'        => get_bloginfo( 'language' ),
@@ -413,7 +413,7 @@ final class Envelope {
 		}
 		$identity = array(
 			'type'         => 'Person' === $type ? 'person' : 'organization',
-			'name'         => $this->settings->identity( 'name', get_bloginfo( 'name' ) ),
+			'name'         => $this->settings->display_name(),
 			'role'         => (string) $this->settings->identity( 'role', '' ),
 			'about'        => (string) $this->settings->identity( 'about', '' ),
 			'url'          => home_url( '/' ),

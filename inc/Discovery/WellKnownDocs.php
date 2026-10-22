@@ -50,7 +50,7 @@ final class WellKnownDocs {
 			'description' => $built['site']['description'],
 			'url'         => $built['site']['url'],
 			'provider'    => array(
-				'organization' => $this->settings->identity( 'name', $built['site']['name'] ),
+				'organization' => $this->settings->display_name(),
 				'url'          => $built['site']['url'],
 			),
 			'agents'      => $built['agents'],

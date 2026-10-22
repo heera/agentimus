@@ -310,7 +310,7 @@ final class Suggest {
 		if ( '' !== $named ) {
 			return $named;
 		}
-		return self::tidy( $core->identity( 'name', get_bloginfo( 'name' ) ) );
+		return self::tidy( $core->display_name() );
 	}
 
 	/**

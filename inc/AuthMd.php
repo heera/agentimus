@@ -35,7 +35,7 @@ final class AuthMd {
 	 * @return string Markdown.
 	 */
 	public function markdown() {
-		$name = (string) $this->settings->identity( 'name', get_bloginfo( 'name' ) );
+		$name = $this->settings->display_name();
 		$name = '' !== $name ? $name : (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 
 		$out  = '# Authentication — ' . $name . "\n\n";
