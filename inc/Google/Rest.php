@@ -30,7 +30,7 @@ final class Rest {
 	 * @param Settings    $google The Google connection store.
 	 * @param Client|null $client Injectable for tests.
 	 */
-	public function __construct( Settings $google, Client $client = null ) {
+	public function __construct( Settings $google, ?Client $client = null ) {
 		$this->google = $google;
 		$this->client = $client ? $client : new Client();
 	}

@@ -52,7 +52,7 @@ final class Standing {
 	 *                            has always just done it.
 	 * @return bool False whenever anything is unreadable — never a guess.
 	 */
-	public static function done( $post, $kind, array $cover = null ) {
+	public static function done( $post, $kind, ?array $cover = null ) {
 		$post = get_post( $post );
 		if ( ! $post ) {
 			return false;
@@ -75,7 +75,7 @@ final class Standing {
 	 * @param array|null $cover A verdict already measured for this pair.
 	 * @return bool
 	 */
-	public static function near_done( $post, $query, array $cover = null ) {
+	public static function near_done( $post, $query, ?array $cover = null ) {
 		return array() === self::near_gaps( $post, $query, $cover );
 	}
 
@@ -91,7 +91,7 @@ final class Standing {
 	 * @param array|null $cover A verdict already measured for this pair.
 	 * @return string[] Empty when the owner's side is done.
 	 */
-	public static function near_gaps( $post, $query, array $cover = null ) {
+	public static function near_gaps( $post, $query, ?array $cover = null ) {
 		if ( null === $cover ) {
 			$cover = Focus::coverage( $post, $query );
 		}

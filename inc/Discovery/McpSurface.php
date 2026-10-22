@@ -362,7 +362,7 @@ final class McpSurface {
 	 * @param object $server An MCP server object.
 	 * @return array<int,array{name:string,description:string}>
 	 */
-	private static function server_tools( $server, array $publishable = null ) {
+	private static function server_tools( $server, ?array $publishable = null ) {
 		// ⛔⛔ THE SAME PUBLICATION RULE AS EVERY OTHER SURFACE — added 2026-08-24,
 		// after this path was found ignoring it for as long as it has existed.
 		//

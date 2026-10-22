@@ -36,7 +36,7 @@ final class Rest {
 	 * @param \Agentimus\Settings $core       The core settings instance.
 	 * @param Client|null        $client     Injectable for tests.
 	 */
-	public function __construct( Settings $cloudflare, \Agentimus\Settings $core, Client $client = null ) {
+	public function __construct( Settings $cloudflare, \Agentimus\Settings $core, ?Client $client = null ) {
 		$this->cloudflare = $cloudflare;
 		$this->core       = $core;
 		$this->client     = $client ? $client : new Client();
