@@ -458,9 +458,12 @@ final class Reachability {
 
 		$found = isset( $routes[ $route ] ) ? $routes[ $route ] : null;
 		if ( null === $found ) {
-			// Registered routes are patterns; ours is a concrete path.
+			// Registered routes are patterns; ours is a concrete path. Matched
+			// exactly as WP_REST_Server does: patterns are written for its `@`
+			// delimiter and escape it themselves (core's global-styles route
+			// carries `\@`), so escaping again breaks them.
 			foreach ( $routes as $pattern => $handlers ) {
-				if ( preg_match( '@^' . str_replace( '@', '\\@', (string) $pattern ) . '$@i', $route ) ) {
+				if ( preg_match( '@^' . (string) $pattern . '$@i', $route ) ) {
 					$found = $handlers;
 					$route = $pattern;
 					break;

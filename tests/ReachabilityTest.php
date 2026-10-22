@@ -256,6 +256,23 @@ final class ReachabilityTest extends TestCase {
 		$this->assertSame( 'unknown', $this->verdict_for( '/wp-json/acme/v1/things' )['state'], 'A write handler says nothing about reading.' );
 	}
 
+	/**
+	 * Core registers this route with an escaped `\@` inside a character class.
+	 * The pattern is written for core's own `@` delimiter, so it must be matched
+	 * the way core matches it — escaping it again breaks the pattern.
+	 */
+	public function test_a_route_pattern_carrying_an_escaped_delimiter_is_still_found() {
+		$this->route( '/wp/v2/global-styles/themes/(?P<stylesheet>[\/\s%\w\.\(\)\[\]\@_\-]+)/variations', '__return_true' );
+		$this->http( 0 );
+		$GLOBALS['_af_http_queue'] = array( new \WP_Error( 'http_request_failed', 'no route to host' ) );
+
+		Reachability::refresh( array( '/wp-json/wp/v2/global-styles/themes/twentytwentyfive/variations' ) );
+
+		$v = $this->verdict_for( '/wp-json/wp/v2/global-styles/themes/twentytwentyfive/variations' );
+		$this->assertSame( 'public', $v['state'] );
+		$this->assertSame( 'declared-open', $v['why'] );
+	}
+
 	public function test_only_addresses_that_claim_to_need_no_sign_in_are_candidates() {
 		$open   = array( 'url' => '/wp-json/a', 'type' => 'rest', 'auth' => 'none' );
 		$locked = array( 'url' => '/wp-json/b', 'type' => 'rest', 'auth' => 'apikey' );
