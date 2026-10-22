@@ -73,6 +73,31 @@ final class ClientIpTest extends TestCase {
 		$this->assertSame( '2001:4860:4860::8888', ClientIp::resolve() );
 	}
 
+	/**
+	 * A dual-stack server can hand over an IPv4 peer written as IPv6
+	 * (`::ffff:a.b.c.d`). It is the same address, so it must be read as IPv4 —
+	 * or no IPv4 range ever matches it, Cloudflare's own included.
+	 */
+	public function test_an_ipv4_mapped_address_is_read_as_ipv4() {
+		$this->request( '::ffff:66.249.66.1' );
+		$this->assertSame( '66.249.66.1', ClientIp::resolve() );
+	}
+
+	public function test_a_cloudflare_peer_written_ipv4_mapped_is_still_cloudflare() {
+		$this->request( '::ffff:' . self::CF_V4, '66.249.66.1' );
+		$this->assertSame( '66.249.66.1', ClientIp::resolve() );
+	}
+
+	/** Private, loopback and link-local addresses can belong to no crawler. */
+	public function test_is_public_tells_a_proxy_address_from_a_crawler_address() {
+		foreach ( array( '10.0.0.5', '172.16.0.3', '192.168.1.2', '127.0.0.1', '169.254.1.1', '100.64.0.1', '::1', 'fd00::5', 'fe80::1', '::ffff:10.0.0.5' ) as $ip ) {
+			$this->assertFalse( ClientIp::is_public( $ip ), $ip );
+		}
+		foreach ( array( '66.249.66.1', '2001:4860:4860::8888', '::ffff:66.249.66.1' ) as $ip ) {
+			$this->assertTrue( ClientIp::is_public( $ip ), $ip );
+		}
+	}
+
 	public function test_behind_cloudflare_but_no_header_falls_back_to_remote() {
 		$this->request( self::CF_V4, null );
 		$this->assertSame( self::CF_V4, ClientIp::resolve() );

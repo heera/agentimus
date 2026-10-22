@@ -40,6 +40,28 @@ final class BotVerifierTest extends TestCase {
 		add_filter( 'agentimus_forward_dns', static function () use ( $forward_ips ) { return $forward_ips; }, 10, 2 );
 	}
 
+	/* -- claim_verdict: addresses no crawler can have ---------------------- */
+
+	/**
+	 * ⛔ A private or loopback source is a proxy in front of the site, not the
+	 * crawler. Its PTR ("localhost", or none) and its absence from every
+	 * published range prove nothing about who sent the request, so the verdict
+	 * is "unchecked" — never "impostor". Behind a non-Cloudflare proxy this
+	 * once marked every real Googlebot and GPTBot as fake.
+	 */
+	public function test_a_private_or_loopback_address_is_inconclusive_never_an_impostor() {
+		$this->fake_dns( 'localhost', array() );
+		foreach ( array( '10.0.0.5', '127.0.0.1', '192.168.1.2', '172.16.0.3', '100.64.0.1', '::1', 'fd00::5' ) as $ip ) {
+			$this->assertSame( 0, BotVerifier::claim_verdict( self::GOOGLEBOT, $ip ), $ip );
+		}
+	}
+
+	/** An IPv4 address written as IPv6 is judged as the IPv4 address it is. */
+	public function test_an_ipv4_mapped_crawler_address_is_judged_as_ipv4() {
+		$this->fake_dns( 'crawl-66-249-66-1.googlebot.com', array( self::GOOGLE_IP ) );
+		$this->assertSame( 1, BotVerifier::claim_verdict( self::GOOGLEBOT, '::ffff:' . self::GOOGLE_IP ) );
+	}
+
 	/* -- claimed_engine ---------------------------------------------------- */
 
 	public function test_claimed_engine_detects_a_verifiable_engine_only() {

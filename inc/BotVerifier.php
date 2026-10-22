@@ -240,6 +240,14 @@ final class BotVerifier {
 	 */
 	public static function claim_verdict( $ua, $ip, $fresh = false ) {
 		$ua_lc = strtolower( (string) $ua );
+		$ip    = ClientIp::normalize( (string) $ip );
+		// ⛔ A private or loopback source is the proxy in front of the site, not
+		// the crawler: its PTR and its absence from every published list prove
+		// nothing about who sent the request. Unchecked — never an impostor.
+		// Behind a non-Cloudflare proxy this once condemned every real crawler.
+		if ( '' !== $ip && ! ClientIp::is_public( $ip ) ) {
+			return 0;
+		}
 		$r     = $fresh
 			? self::reverify_engine( $ua_lc, (string) $ip )
 			: self::verify_engine( $ua_lc, (string) $ip ); // true | false | null.

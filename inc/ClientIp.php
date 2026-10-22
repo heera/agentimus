@@ -22,6 +22,21 @@ defined( 'ABSPATH' ) || exit;
 
 final class ClientIp {
 
+	/** Addresses no crawler can have: private, loopback, link-local, CGNAT, unspecified. */
+	const NOT_PUBLIC = array(
+		'0.0.0.0/8',
+		'10.0.0.0/8',
+		'100.64.0.0/10',
+		'127.0.0.0/8',
+		'169.254.0.0/16',
+		'172.16.0.0/12',
+		'192.168.0.0/16',
+		'::/128',
+		'::1/128',
+		'fc00::/7',
+		'fe80::/10',
+	);
+
 	/**
 	 * Trusted proxies: the CIDR ranges of a proxy's own IPs => the header it puts the
 	 * real client IP in. Default is Cloudflare — its ranges are public and stable, and it
@@ -100,7 +115,48 @@ final class ClientIp {
 		$raw   = (string) wp_unslash( $_SERVER[ $key ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- validated as an IP below, never output.
 		$parts = explode( ',', $raw );
 		$first = trim( (string) $parts[0] );
-		return false !== filter_var( $first, FILTER_VALIDATE_IP ) ? $first : '';
+		return false !== filter_var( $first, FILTER_VALIDATE_IP ) ? self::normalize( $first ) : '';
+	}
+
+	/**
+	 * An IPv4 address written as IPv6 (`::ffff:a.b.c.d`, what a dual-stack
+	 * server hands over for an IPv4 peer) as the plain IPv4 it is. Every range
+	 * this plugin matches against — Cloudflare's, each crawler's published
+	 * list — is written in IPv4, and the mapped spelling matched none of them.
+	 * Anything else comes back unchanged.
+	 *
+	 * @param string $ip An IP address.
+	 * @return string
+	 */
+	public static function normalize( $ip ) {
+		$ip = (string) $ip;
+		if ( 0 === stripos( $ip, '::ffff:' ) ) {
+			$v4 = substr( $ip, 7 );
+			if ( false !== filter_var( $v4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+				return $v4;
+			}
+		}
+		return $ip;
+	}
+
+	/**
+	 * Whether $ip could be a machine on the open internet — not a private,
+	 * loopback, link-local or carrier-grade NAT address. Those belong to a
+	 * proxy or load balancer in front of the site, never to a crawler, so a
+	 * check that looks the crawler up by address has nothing to look up.
+	 *
+	 * ⚠️ An explicit list, not FILTER_FLAG_NO_RES_RANGE: what that flag covers
+	 * has changed between PHP versions, and this answer must not.
+	 *
+	 * @param string $ip An IP address.
+	 * @return bool
+	 */
+	public static function is_public( $ip ) {
+		$ip = self::normalize( $ip );
+		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+		return ! self::in_any_range( $ip, self::NOT_PUBLIC );
 	}
 
 	/**
