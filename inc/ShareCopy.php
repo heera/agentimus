@@ -207,9 +207,9 @@ final class ShareCopy {
 	 * @return array<string,string> Network key → draft text.
 	 */
 	private function local_drafts( \WP_Post $post ) {
-		$title = (string) get_the_title( $post );
+		$title = self::plain( get_the_title( $post ) );
 		$url   = (string) get_permalink( $post );
-		$desc  = (string) Description::for_post( $post );
+		$desc  = self::plain( Description::for_post( $post ) );
 		$tags  = self::hashtags( $post, 2 );
 
 		$short = trim( $title . ( '' !== $tags ? "\n\n" . $tags : '' ) . "\n\n" . $url );
@@ -271,9 +271,9 @@ final class ShareCopy {
 
 		$prompt = sprintf(
 			"Article title: %s\nLink: %s\nSummary: %s\nTopics: %s\n\nArticle text (excerpt):\n%s\n\nNetwork: %s\nBrief: %s",
-			get_the_title( $post ),
+			self::plain( get_the_title( $post ) ),
 			get_permalink( $post ),
-			Description::for_post( $post ),
+			self::plain( Description::for_post( $post ) ),
 			implode( ', ', Topics::for_post( $post ) ),
 			$body,
 			$network['label'],
@@ -291,6 +291,24 @@ final class ShareCopy {
 		$text = (string) preg_replace( '/^```[a-z]*\s*|\s*```$/i', '', $text ); // A stray code fence, if the model added one.
 		$text = trim( $text, "\"'“”‘’ \t\r\n" );
 		return sanitize_textarea_field( $text );
+	}
+
+	/**
+	 * Text as a person reads it. A draft is plain text bound for a social
+	 * network, never HTML, so `&#038;`, `&rsquo;` and `&nbsp;` — what
+	 * WordPress hands titles and excerpts out with — become the characters
+	 * they stand for, and a no-break space a plain one. (Found in the
+	 * 2026-10-23 audit: drafts posted "Getter &#038; Setter".)
+	 *
+	 * ⛔ Only for these plain-text drafts. Every HTML output escapes on its own;
+	 * decoding there would turn `&lt;script&gt;` into markup.
+	 *
+	 * @param string $text Text from WordPress.
+	 * @return string
+	 */
+	private static function plain( $text ) {
+		$text = html_entity_decode( (string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		return trim( (string) preg_replace( '/[\s\x{00A0}]+/u', ' ', $text ) );
 	}
 
 	/**
