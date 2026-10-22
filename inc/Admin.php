@@ -1005,6 +1005,23 @@ final class Admin {
 				// hear the first half. The one exception to "every release rewrites".
 				// ⭐ 1.53.3 follows the same rule (his "add the old and the new"):
 				// its row on top, 1.53.2's and 1.53.1's below.
+				// ⭐ 1.53.4 likewise: its three rows on top — the Report's new
+				// layout, the security fix, and one fixes row — the older ones kept.
+				array(
+					'icon'  => 'clock',
+					'title' => 'A Calmer Report',
+					'text'  => 'AI reads gets the full width; visits, actions, citations and search share one line each, so a quiet day no longer leaves empty cards. “What acted here” names the latest action.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Connection Keys Stay at Their Door',
+					'text'  => 'A connection key or an approved assistant’s access was honoured on a few addresses outside the MCP endpoint. It counts only there now.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'And a Round of Fixes',
+					'text'  => 'Real crawlers behind a non-Cloudflare proxy are no longer flagged as fakes, unpublished posts leave Cloudflare’s cache, and announcements queued mid-send are kept.',
+				),
 				array(
 					'icon'  => 'search',
 					'title' => 'Plurals Read Correctly',

@@ -4,6 +4,20 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.4
+* Changed: the Report screen is laid out by what it has to show. AI reads takes the full width, with the crawlers that read you in two columns. Visits from AI, What acted here, Citations and In search share one panel, one line each, so a quiet day no longer leaves tall empty cards; a busy line names its top three. The Readiness score card has left the Report: it reads the same whatever days you pick, and the card beside the screen already shows it.
+* Changed: "What acted here" names the latest action and what it came in with, not only how many there were.
+* Security: a connection key, or an approved assistant's access token, was honoured on WordPress addresses outside the REST API — admin-ajax.php, admin-post.php, wp-login.php — whenever the address named the MCP endpoint. No REST request was made there, so the check that holds a key to the MCP endpoint never ran, and the key acted with its owner's full rights, a read-only key included. Found in an internal review. A key now counts only on a request WordPress can route to its REST API, and a path counts only under the REST prefix. Exploiting it needed the MCP server switched on and a valid key or approved grant in hand.
+* Fixed: on a site behind a proxy or load balancer other than Cloudflare, real search and AI crawlers could be recorded as impostors — flagged for review, alerted on, and refused if you block impostors. An address that can only belong to the proxy is now "not checked", never "fake". An IPv4 address written in IPv6 form is also read as IPv4, so Cloudflare's and the crawlers' address lists match it again.
+* Fixed: an announcement queued or cancelled while another one was being sent could be lost, or go out after you cancelled it. Alerts raised during a delivery could be dropped the same way.
+* Fixed: unpublishing a post, making it private, trashing it or changing its address left the old page and its .md copy in Cloudflare's cache until they expired. The old address is purged now.
+* Fixed: when another plugin's error broke your site's replies, screens showed the browser's own words, such as "Unexpected end of JSON input". They now say what happened in plain words. A setting whose save could not be confirmed is no longer switched back as if it had failed; the screen asks you to reload instead.
+* Fixed: Google Analytics stopped refreshing whenever Search Console could not be read, with no error shown. Each one refreshes on its own now.
+* Fixed: the flood limit on the referral beacon never reset under steady traffic, and dropped real visits from AI answers.
+* Fixed: share drafts for X, Facebook and LinkedIn could carry HTML codes such as "&#038;" and "&nbsp;".
+* Fixed: with the Identity name left blank, llms.txt was headed with the site's address and discovery.json gave no name. Both use the site's name now.
+* Fixed: six PHP 8.4 deprecation notices, and a warning logged on every check of the addresses your site advertises.
+
 ## 1.53.3
 * Fixed: a word and its plural are now always read as the same word. "Perfumes" was read as "perfum" while "perfume" stayed "perfume", so a page that said "perfume" was listed as not answering a search for "perfumes". The same was true of "theme" and "themes", "image" and "images", and "category" and "categories". "Themes" was also read as "them", so a page could count as answering a search it does not.
 * Fixed: a word ending in "-ing" or "-ed" now matches the same word ending in "e", in either direction: "changing" and "change", "updating" and "update", "writing" and "write".
