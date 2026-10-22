@@ -112,6 +112,77 @@ final class AnnouncementsTest extends TestCase {
 		$this->assertSame( 'queued', $rows[ $future ]['status'], 'The future is left alone.' );
 	}
 
+	/**
+	 * ⛔ A send takes seconds, and the owner keeps using the screen meanwhile.
+	 * The drain once wrote back the copy it read BEFORE sending, erasing every
+	 * row queued in that gap — a post that silently never went out.
+	 */
+	public function test_a_row_queued_while_the_drain_is_sending_survives() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+		$engine->queue( array( 'network' => 'telegram', 'body' => 'due', 'at' => time() - 10 ) );
+
+		$queued_meanwhile = null;
+		$GLOBALS['_af_http_queue'] = array(
+			function () use ( &$queued_meanwhile ) {
+				$queued_meanwhile = $this->engine()->queue( array( 'network' => 'telegram', 'body' => 'later', 'at' => time() + 3600 ) );
+				return array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() );
+			},
+		);
+		$engine->dispatch();
+
+		$rows = get_option( Announcements::OPTION );
+		$this->assertIsInt( $queued_meanwhile );
+		$this->assertArrayHasKey( $queued_meanwhile, $rows, 'A row queued during the send must not vanish.' );
+		$this->assertSame( 'queued', $rows[ $queued_meanwhile ]['status'] );
+	}
+
+	/** ⛔ And a promise the owner cancels during a send must not come back. */
+	public function test_a_row_cancelled_while_the_drain_is_sending_stays_cancelled() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+		$engine->queue( array( 'network' => 'telegram', 'body' => 'due', 'at' => time() - 10 ) );
+		$later = $engine->queue( array( 'network' => 'telegram', 'body' => 'later', 'at' => time() + 3600 ) );
+
+		$GLOBALS['_af_http_queue'] = array(
+			function () use ( $later ) {
+				$this->engine()->cancel( $later );
+				return array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() );
+			},
+		);
+		$engine->dispatch();
+
+		$this->assertArrayNotHasKey( $later, (array) get_option( Announcements::OPTION, array() ), 'A cancelled post would go out at its time.' );
+	}
+
+	/**
+	 * ⛔ Two rows due at once: if the owner cancels the SECOND while the first
+	 * is sending, the drain must not send it from the copy it read earlier.
+	 */
+	public function test_a_due_row_cancelled_mid_drain_is_not_sent() {
+		$this->arm_telegram();
+		$engine = $this->engine();
+		$engine->queue( array( 'network' => 'telegram', 'body' => 'first', 'at' => time() - 20 ) );
+		$second = $engine->queue( array( 'network' => 'telegram', 'body' => 'second', 'at' => time() - 10 ) );
+
+		$sends = 0;
+		$GLOBALS['_af_http_queue'] = array(
+			function () use ( $second, &$sends ) {
+				++$sends;
+				$this->engine()->cancel( $second );
+				return array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() );
+			},
+			function () use ( &$sends ) {
+				++$sends;
+				return array( 'response' => array( 'code' => 200 ), 'body' => '{"ok":true}', 'headers' => array() );
+			},
+		);
+		$engine->dispatch();
+
+		$this->assertSame( 1, $sends, 'Only the row still queued may be sent.' );
+		$this->assertArrayNotHasKey( $second, (array) get_option( Announcements::OPTION, array() ) );
+	}
+
 	public function test_send_now_sends_that_row_and_retires_its_future_slot() {
 		$this->arm_telegram();
 		$engine = $this->engine();

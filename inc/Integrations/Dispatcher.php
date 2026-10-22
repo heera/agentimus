@@ -199,6 +199,8 @@ final class Dispatcher {
 			$kept[]         = $row;
 		}
 
+		$kept = self::merge_with_stored( $queue, $kept );
+
 		if ( array() === $kept ) {
 			delete_option( self::QUEUE_OPTION );
 			return;
@@ -329,6 +331,53 @@ final class Dispatcher {
 			}
 		}
 		return $n;
+	}
+
+	/**
+	 * The drain's outcome laid over the queue as it stands NOW.
+	 *
+	 * ⛔⛔ Each delivery takes seconds, and the site keeps working meanwhile.
+	 * The drain used to write back the queue it read before it started —
+	 * erasing an event raised in that gap and reviving the rows a disconnect
+	 * had just dropped (found in the 2026-10-23 audit). So: a row the drain
+	 * read that is no longer stored was taken away meanwhile and stays gone;
+	 * a stored row the drain never read arrived meanwhile and keeps its place
+	 * at the back. Rows from before rows carried an id can't be told apart,
+	 * so they keep the drain's verdict as before.
+	 *
+	 * @param array $read The queue as the drain read it.
+	 * @param array $kept The rows the drain decided to keep.
+	 * @return array
+	 */
+	private static function merge_with_stored( array $read, array $kept ) {
+		$stored = get_option( self::QUEUE_OPTION, array() );
+		$stored = is_array( $stored ) ? array_values( $stored ) : array();
+
+		$id_of = static function ( $row ) {
+			return is_array( $row ) && isset( $row['id'] ) ? (string) $row['id'] : '';
+		};
+		$read_ids   = array_filter( array_map( $id_of, $read ) );
+		$stored_ids = array_filter( array_map( $id_of, $stored ) );
+
+		$out = array();
+		foreach ( $kept as $row ) {
+			$id = $id_of( $row );
+			if ( '' === $id || in_array( $id, $stored_ids, true ) ) {
+				$out[] = $row;
+			}
+		}
+		foreach ( $stored as $row ) {
+			$id = $id_of( $row );
+			if ( '' !== $id && ! in_array( $id, $read_ids, true ) ) {
+				$out[] = $row;
+			}
+		}
+
+		// The FIFO cap enqueue() keeps, held here too.
+		if ( count( $out ) > self::MAX_QUEUE ) {
+			$out = array_slice( $out, count( $out ) - self::MAX_QUEUE );
+		}
+		return $out;
 	}
 
 	/**

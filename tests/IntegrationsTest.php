@@ -316,6 +316,50 @@ namespace Agentimus\Tests {
 			$this->assertSame( 2, json_decode( $GLOBALS['_af_http_last']['args']['body'], true )['data']['n'] );
 		}
 
+		/**
+		 * ⛔ An event raised while the drain is delivering (a finding opens, a
+		 * digest goes out) must not be erased by the drain writing back the
+		 * queue it read before it started.
+		 */
+		public function test_an_event_queued_while_the_drain_is_delivering_survives() {
+			$this->connect();
+			$dispatcher = new Dispatcher( $this->settings() );
+			$dispatcher->enqueue( 'finding_opened', Events::envelope( 'finding_opened', array( 'n' => 1 ) ) );
+
+			$GLOBALS['_af_http_queue'] = array(
+				function () {
+					( new Dispatcher( $this->settings() ) )->enqueue( 'digest_sent', Events::envelope( 'digest_sent', array( 'n' => 2 ) ) );
+					return array( 'response' => array( 'code' => 200 ), 'body' => '', 'headers' => array() );
+				},
+			);
+			$dispatcher->drain();
+
+			$queue = $dispatcher->queue();
+			$this->assertCount( 1, $queue, 'The event raised mid-drain must still be waiting.' );
+			$this->assertSame( 2, $queue[0]['envelope']['data']['n'] );
+		}
+
+		/** ⛔ And rows the owner disconnected away mid-drain must not come back. */
+		public function test_rows_dropped_while_the_drain_is_delivering_stay_dropped() {
+			$this->connect();
+			$dispatcher = new Dispatcher( $this->settings() );
+			$dispatcher->enqueue( 'finding_opened', Events::envelope( 'finding_opened', array( 'n' => 1 ) ) );
+			$dispatcher->enqueue( 'finding_opened', Events::envelope( 'finding_opened', array( 'n' => 2 ) ) );
+
+			$GLOBALS['_af_http_queue'] = array(
+				function () {
+					Dispatcher::flush_service( Webhook::ID );
+					return new \WP_Error( 'http_request_failed', 'cURL error 28' );
+				},
+				function () {
+					return new \WP_Error( 'http_request_failed', 'cURL error 28' );
+				},
+			);
+			$dispatcher->drain();
+
+			$this->assertSame( 0, $dispatcher->depth(), 'A disconnected service’s rows must not be written back.' );
+		}
+
 		public function test_failure_backs_off_and_records_the_error() {
 			$this->connect();
 			$GLOBALS['_af_http_queue'] = array( new \WP_Error( 'http_request_failed', 'cURL error 28' ) );

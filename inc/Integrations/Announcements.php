@@ -266,15 +266,25 @@ final class Announcements {
 	 * fires next delivers everything the lost ones owed.
 	 */
 	public function dispatch() {
-		$rows = self::rows_raw();
-		$now  = time();
+		$now = time();
 
-		foreach ( $rows as $id => $row ) {
-			if ( 'queued' !== $row['status'] || $row['scheduled_at'] > $now ) {
+		// ⛔⛔ Each send takes seconds, and the owner keeps using the screen in
+		// the meantime. The drain used to write back the copy it read BEFORE
+		// sending — erasing a row queued in that gap and reviving one cancelled
+		// in it (found in the 2026-10-23 audit). So every row is re-read right
+		// before its send (still queued? still due?) and right after it, and
+		// only that row's own outcome is written — send_now()'s rule.
+		foreach ( array_keys( self::rows_raw() ) as $id ) {
+			$rows = self::rows_raw();
+			if ( ! isset( $rows[ $id ] ) || 'queued' !== $rows[ $id ]['status'] || $rows[ $id ]['scheduled_at'] > $now ) {
 				continue;
 			}
 
-			$verdict = $this->send( $row );
+			$verdict = $this->send( $rows[ $id ] );
+			$rows    = self::rows_raw();
+			if ( ! isset( $rows[ $id ] ) ) {
+				continue; // Taken off the list while it was sending.
+			}
 			if ( is_wp_error( $verdict ) ) {
 				$rows[ $id ]['status'] = 'failed';
 				$rows[ $id ]['error']  = substr( trim( $verdict->get_error_message() ), 0, 300 );
@@ -286,9 +296,8 @@ final class Announcements {
 				$rows[ $id ]['status']  = 'sent';
 				$rows[ $id ]['sent_at'] = time();
 			}
+			self::store_rows( self::capped( $rows ) );
 		}
-
-		self::store_rows( self::capped( $rows ) );
 
 		// Rows still waiting on a future moment: make sure a tick is coming.
 		$queued = self::queued( self::rows_raw() );

@@ -219,7 +219,10 @@ namespace {
 	// parsing, error/shape handling) is testable without a network. wp_remote_post
 	// records the last request in $_af_http_last and returns the next queued response
 	// from $_af_http_queue (a WP_Error or a { response:{code}, body, headers } array).
-	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
+	// A queued Closure stands in for a request that takes time: it runs while
+	// the "network" is busy (so a test can change state mid-send) and its
+	// return value is the response.
+	if ( ! function_exists( 'wp_remote_post' ) )        { function wp_remote_post( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; $r = ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); return $r instanceof \Closure ? $r( $url, $args ) : $r; } }
 	if ( ! function_exists( 'wp_remote_get' ) )         { function wp_remote_get( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	if ( ! function_exists( 'wp_remote_request' ) )     { function wp_remote_request( $url, $args = array() ) { $GLOBALS['_af_http_last'] = array( 'url' => $url, 'args' => $args ); $q = &$GLOBALS['_af_http_queue']; return ! empty( $q ) ? array_shift( $q ) : array( 'response' => array( 'code' => 200 ), 'body' => '{}', 'headers' => array() ); } }
 	// Same queue as the others. Core's real safe_ variant additionally rejects
