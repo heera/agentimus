@@ -509,12 +509,18 @@ final class Module {
 		if ( $max < 1 ) {
 			return true; // Cap disabled.
 		}
-		$key   = 'agentimus_beacon_rate';
+		// ⛔ One key PER CLOCK WINDOW, like every sibling limiter. A single
+		// fixed key got a fresh 60-second life on every hit, so under steady
+		// traffic it never expired: it climbed to the cap and then refused
+		// every hit for a minute, over and over — about 30% of real visits
+		// lost at half the cap (found in the 2026-10-23 audit). Kept for two
+		// windows so a hit at a window's edge still finds its count.
+		$key   = 'agentimus_beacon_rate_' . (int) floor( time() / self::BEACON_RATE_WINDOW );
 		$count = (int) get_transient( $key );
 		if ( $count >= $max ) {
 			return false;
 		}
-		set_transient( $key, $count + 1, self::BEACON_RATE_WINDOW );
+		set_transient( $key, $count + 1, self::BEACON_RATE_WINDOW * 2 );
 		return true;
 	}
 
