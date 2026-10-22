@@ -288,6 +288,24 @@ final class Store {
 	}
 
 	/**
+	 * The events last-active in a half-open GMT window [$from, $to), newest
+	 * first — the same rows {@see count_active_between()} counts, so a report
+	 * that names a few of them can never name one its count left out.
+	 *
+	 * @param string $from  GMT datetime, inclusive.
+	 * @param string $to    GMT datetime, exclusive.
+	 * @param int    $limit Rows to return.
+	 * @return array[] Shaped rows (see Events::shape).
+	 */
+	public static function latest_active_between( $from, $to, $limit = 3 ) {
+		global $wpdb;
+		$table = self::name();
+		$limit = max( 1, min( 50, (int) $limit ) );
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table WHERE last_at >= %s AND last_at < %s ORDER BY last_at DESC, id DESC LIMIT %d", $from, $to, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
+		return array_map( array( Events::class, 'shape' ), (array) $rows );
+	}
+
+	/**
 	 * Distinct credentials that RAN an ability since $from (GMT). The store is a
 	 * rollup keyed on (kind, user, cred, subject) whose last_at moves on use, so
 	 * "a cred with a recent last_at" is exactly "an agent active in the window" —

@@ -10,6 +10,7 @@
 namespace Agentimus\Tests\Integration;
 
 use Agentimus\Activity\Referrals;
+use Agentimus\AgentAccess\Table as AccessTable;
 use Agentimus\Activity\Table as ActivityTable;
 use Agentimus\Digest\Data as DigestData;
 use Agentimus\Report\Data as ReportData;
@@ -21,9 +22,30 @@ final class ReportDbTest extends DbTestCase {
 		parent::set_up();
 		ActivityTable::install();
 		Referrals::install();
+		AccessTable::install();
 		global $wpdb;
 		$wpdb->query( 'TRUNCATE TABLE ' . ActivityTable::name() );
 		$wpdb->query( 'TRUNCATE TABLE ' . Referrals::name() );
+		$wpdb->query( 'TRUNCATE TABLE ' . AccessTable::name() );
+	}
+
+	/** One agent-access event, last active at a given GMT moment. */
+	private function acted( $at, $subject ) {
+		global $wpdb;
+		$wpdb->insert(
+			AccessTable::name(),
+			array(
+				'kind'     => 'ability_used',
+				'user_id'  => 1,
+				'cred'     => '',
+				'subject'  => $subject,
+				'detail'   => '',
+				'hits'     => 1,
+				'first_at' => $at,
+				'last_at'  => $at,
+				'seen'     => 1,
+			)
+		);
 	}
 
 	/** One recorded arrival from an AI answer, on a given GMT day. */
@@ -220,6 +242,27 @@ final class ReportDbTest extends DbTestCase {
 		$this->assertSame(
 			ReportData::today( new Settings() )['reads']['total'],
 			$this->report( gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) )['reads']['total']
+		);
+	}
+
+	/**
+	 * The actions block names what acted, not only how many: the newest few
+	 * of exactly the rows its count counted — never one from outside the window.
+	 */
+	public function test_the_actions_block_names_the_newest_events_in_the_window() {
+		$day  = gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS );
+		$prev = gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS );
+		$this->acted( $day . ' 09:00:00', 'agentimus/read-findings' );
+		$this->acted( $day . ' 15:00:00', 'agentimus/read-readiness' );
+		$this->acted( $prev . ' 23:00:00', 'agentimus/read-content' );
+
+		$access = $this->report( $day, $day )['access'];
+
+		$this->assertSame( 2, $access['events'] );
+		$this->assertSame(
+			array( 'agentimus/read-readiness', 'agentimus/read-findings' ),
+			array_column( $access['latest'], 'subject' ),
+			'Newest first, and the day before stays out.'
 		);
 	}
 

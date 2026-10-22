@@ -96,6 +96,29 @@ export default {
       const s = this.data && this.data.citations && this.data.citations.summary;
       return !!(s && s.checks);
     },
+    // The newest action in the window, in words: what it was, and what it came
+    // in with. The Agent Access screen's own wording, kept short.
+    latestAction() {
+      const e = this.data && this.data.access && (this.data.access.latest || [])[0];
+      if (!e) return '';
+      const what = 0 === String(e.kind).indexOf('ability_')
+        ? `${e.kind === 'ability_refused' ? 'Refused' : 'Ran'} ${e.subject || 'an ability'}`
+        : ({
+          apppw_created: 'A new application password',
+          apppw_used: 'An application password was first used',
+          apppw_renamed: 'An application password was renamed',
+          apppw_deleted: 'An application password was revoked',
+        })[e.kind] || 'An event';
+      const via = e.credName ? ` · via ${e.credName}` : '';
+      return e.kind === 'ability_probed' ? `Probed for abilities that don’t exist${via}` : `${what}${via}`;
+    },
+    // Search shown, summed over the engines that published any of these days;
+    // null when none has, so the line shows a dash rather than a zero.
+    searchShown() {
+      const engines = (this.data && this.data.search && this.data.search.engines) || [];
+      const covered = engines.filter((e) => e.covered);
+      return covered.length ? covered.reduce((n, e) => n + (Number(e.shown) || 0), 0) : null;
+    },
     // Nothing at all happened in this window — said once, plainly, instead of a
     // column of zeros that each have to be read and discarded.
     quiet() {
@@ -217,6 +240,16 @@ export default {
       if (n < p) return { tone: 'down', arrow: '↓', text: `down from ${this.nf(p)}` };
       return { tone: 'flat', arrow: '·', text: `same as the window before` };
     },
+    // "ChatGPT 12 · Perplexity 4 · Gemini 2 · and 2 more" — a busy line names
+    // its top three instead of growing into a card. ⛔ The server sends at most
+    // five (Report\Data::TOP_ROWS), so a full list may be cut: it says "and
+    // more" there rather than a count it cannot know.
+    topList(rows) {
+      const top = rows.slice(0, 3).map((r) => `${r.label || 'Unnamed'} ${this.nf(r.hits)}`).join(' · ');
+      const rest = rows.length - 3;
+      if (rest <= 0) return top;
+      return rows.length >= 5 ? `${top} · and more` : `${top} · and ${rest} more`;
+    },
     engineName(id) {
       return id === 'google' ? 'Google' : 'Bing';
     },
@@ -274,10 +307,20 @@ export default {
     <p v-else-if="error" class="arep__error">{{ error }}</p>
 
     <template v-else-if="data">
-      <div class="arep__blocks">
+      <!-- ⭐ THE LAYOUT, his call 2026-10-23. The six-card grid stretched every
+           card in a row to its tallest neighbour, and on most days only AI reads
+           has a list — so a row was one full card beside two empty boxes. Now:
+           the one block with detail gets the full width, and the blocks that
+           mostly report one figure share a panel, one line each, in fixed
+           columns (name · figure · sentence · way out) so the eye still reads
+           straight down. The layout does not change with the day's numbers —
+           a busy line names its top few inline instead of growing a card.
+           The readiness score is not here: it reads the same for every window,
+           and the AEO/GEO card beside this screen already shows it. -->
 
-        <!-- AI reads ------------------------------------------------------ -->
-        <section class="ar-card arep__block">
+      <!-- AI reads -------------------------------------------------------- -->
+      <section class="ar-card arep__reads">
+        <div class="arep__reads-lead">
           <header class="arep__head">
             <h2 class="arep__title">AI reads</h2>
             <span class="arep__fresh">{{ freshLine(data.reads) }}</span>
@@ -287,145 +330,117 @@ export default {
             <span class="arep__unit">{{ data.reads.total === 1 ? 'read by an AI crawler' : 'reads by AI crawlers' }}</span>
           </p>
           <p v-if="move(data.reads.total, data.reads.prev)" class="arep__move" :class="'is-' + move(data.reads.total, data.reads.prev).tone">
-            <span aria-hidden="true">{{ move(data.reads.total, data.reads.prev).arrow }}</span>{{ move(data.reads.total, data.reads.prev).text }}
+            <span aria-hidden="true">{{ move(data.reads.total, data.reads.prev).arrow }}</span> {{ move(data.reads.total, data.reads.prev).text }}
           </p>
-          <ul v-if="data.reads.byClient && data.reads.byClient.length" class="arep__rows">
-            <li v-for="(row, i) in data.reads.byClient" :key="i">
+        </div>
+        <div class="arep__reads-body">
+          <!-- Ranked DOWN the first column, then the second, as it is read. -->
+          <ul v-if="data.reads.byClient && data.reads.byClient.length" class="arep__rows arep__rows--two" :style="{ '--arep-rows': Math.ceil(data.reads.byClient.length / 2) }">
+            <li v-for="(row, i) in data.reads.byClient" :key="i" :class="{ 'is-colend': i === Math.ceil(data.reads.byClient.length / 2) - 1 }">
               <span class="arep__who">{{ row.label || 'Unnamed' }}</span>
               <span class="arep__count">{{ nf(row.hits) }}</span>
             </li>
           </ul>
           <p v-else class="arep__empty">No crawler fetched anything in these days.</p>
           <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('log')">Open the request log <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
+        </div>
+      </section>
 
-        <!-- People from AI answers ---------------------------------------- -->
-        <section class="ar-card arep__block">
+      <!-- The one-line blocks ---------------------------------------------- -->
+      <section class="ar-card arep__lines">
+
+        <!-- Visits from AI -->
+        <div class="arep__line">
           <header class="arep__head">
             <h2 class="arep__title">Visits from AI</h2>
             <span class="arep__fresh">{{ freshLine(data.visits) }}</span>
           </header>
-          <p class="arep__hero">
-            <span class="arep__num">{{ nf(data.visits.total) }}</span>
-            <span class="arep__unit">{{ data.visits.total === 1 ? 'visit an AI assistant sent you' : 'visits AI assistants sent you' }}</span>
+          <span class="arep__num">{{ nf(data.visits.total) }}</span>
+          <p class="arep__say">
+            <template v-if="data.visits.bySource && data.visits.bySource.length">
+              {{ topList(data.visits.bySource) }}
+            </template>
+            <template v-else>Nobody arrived from an AI answer in these days.</template>
+            <span v-if="move(data.visits.total, data.visits.prev)" class="arep__move-inline" :class="'is-' + move(data.visits.total, data.visits.prev).tone">
+              · <span v-if="move(data.visits.total, data.visits.prev).tone !== 'flat'" aria-hidden="true">{{ move(data.visits.total, data.visits.prev).arrow + ' ' }}</span>{{ move(data.visits.total, data.visits.prev).text }}
+            </span>
           </p>
-          <p v-if="move(data.visits.total, data.visits.prev)" class="arep__move" :class="'is-' + move(data.visits.total, data.visits.prev).tone">
-            <span aria-hidden="true">{{ move(data.visits.total, data.visits.prev).arrow }}</span>{{ move(data.visits.total, data.visits.prev).text }}
-          </p>
-          <ul v-if="data.visits.bySource && data.visits.bySource.length" class="arep__rows">
-            <li v-for="(row, i) in data.visits.bySource" :key="i">
-              <span class="arep__who">{{ row.label || 'Unnamed' }}</span>
-              <span class="arep__count">{{ nf(row.hits) }}</span>
-            </li>
-          </ul>
-          <p v-else class="arep__empty">Nobody arrived from an AI answer in these days.</p>
           <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visitors')">Open Visitors <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
+        </div>
 
-        <!-- What acted here ----------------------------------------------- -->
-        <section class="ar-card arep__block">
+        <!-- What acted here -->
+        <div class="arep__line">
           <header class="arep__head">
             <h2 class="arep__title">What acted here</h2>
             <span class="arep__fresh">{{ freshLine(data.access) }}</span>
           </header>
-          <p class="arep__hero">
-            <span class="arep__num">{{ nf(data.access.events) }}</span>
-            <span class="arep__unit">{{ data.access.events === 1 ? 'assistant action' : 'assistant actions' }}</span>
-          </p>
-          <p v-if="data.impostors.total" class="arep__flag">
-            {{ data.impostors.total }} {{ data.impostors.total === 1 ? 'crawler was' : 'crawlers were' }} caught claiming to be an
-            engine {{ data.impostors.total === 1 ? 'it wasn’t' : 'they weren’t' }}.
-          </p>
-          <p v-else class="arep__empty">No impostor caught in these days.</p>
-          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('agent-access')">Open Agent Access <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
-
-        <!-- In search ------------------------------------------------------ -->
-        <section v-if="data.search.engines.length" class="ar-card arep__block">
-          <header class="arep__head">
-            <h2 class="arep__title">In search</h2>
-            <span class="arep__fresh is-lagging">reported a day or more behind</span>
-          </header>
-          <div v-for="e in data.search.engines" :key="e.source" class="arep__engine">
-            <template v-if="e.covered">
-              <p class="arep__hero">
-                <span class="arep__num">{{ nf(e.shown) }}</span>
-                <span class="arep__unit">times shown on {{ engineName(e.source) }}, {{ e.clicks }} {{ e.clicks === 1 ? 'visit' : 'visits' }}</span>
-              </p>
-              <p class="arep__note">{{ e.covered }} of these days {{ e.covered === 1 ? 'has' : 'have' }} been published.</p>
+          <span class="arep__num">{{ nf(data.access.events) }}</span>
+          <p class="arep__say">
+            <template v-if="latestAction">
+              {{ latestAction }}<template v-if="data.access.events > 1"> · and {{ nf(data.access.events - 1) }} more</template>.
             </template>
-            <!-- ⛔ Never zero. A day the engine has not reported on is not a day
-                 nobody searched, and printing 0 would say exactly that. -->
-            <!-- ⛔ "yet" is only true one way round. A window the engine has
-                 not reached is waiting on it; a window it passed over has
-                 nothing and never will. Saying "yet" about the second one
-                 promises an update that is not coming. -->
-            <p v-else class="arep__empty">
-              <template v-if="!e.latestDay">{{ engineName(e.source) }} hasn’t published anything yet.</template>
-              <template v-else-if="e.latestDay < range.from">
-                {{ engineName(e.source) }} hasn’t reached these days yet — its newest is {{ formatDay(e.latestDay) }}.
-              </template>
-              <template v-else>
-                {{ engineName(e.source) }} has nothing for these days — its newest is {{ formatDay(e.latestDay) }}.
-              </template>
-            </p>
-          </div>
-          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visibility')">Open Search performance <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
+            <template v-else-if="!data.access.events">No assistant acted here in these days.</template>
+            <span v-if="data.impostors.total" class="arep__flag-inline">
+              {{ data.impostors.total }} {{ data.impostors.total === 1 ? 'crawler was' : 'crawlers were' }} caught claiming to be an
+              engine {{ data.impostors.total === 1 ? 'it wasn’t' : 'they weren’t' }}.
+            </span>
+            <template v-else> No impostor caught in these days.</template>
+          </p>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('agent-access')">Open Agent Access <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
+        </div>
 
-        <!-- Citations ------------------------------------------------------ -->
-        <section v-if="data.citations.enabled" class="ar-card arep__block">
+        <!-- Citations -->
+        <div v-if="data.citations.enabled" class="arep__line">
           <header class="arep__head">
             <h2 class="arep__title">Citations</h2>
             <span class="arep__fresh is-lagging">{{ data.citations.runs ? 'checked in these days' : 'no check in these days' }}</span>
           </header>
-          <!-- ⛔ "0 of 0" is not an answer. A run whose every check failed knows
-               nothing about whether AI named you, and printing 0/0 says it
-               does. -->
-          <p v-if="citationsAnswered" class="arep__hero">
-            <span class="arep__num">{{ data.citations.summary.mentions }}<small>/{{ data.citations.summary.checks }}</small></span>
-            <!-- Both numbers explained, or the fraction is a riddle: the 8 is
-                 "questions the AI answered", the 3 is "answers that named you".
-                 His catch, 2026-08-30 — "3/8" with neither number defined. -->
-            <span class="arep__unit">answers named something you track — the last run asked the AI {{ data.citations.summary.checks }} questions</span>
-          </p>
-          <p v-else-if="data.citations.summary && data.citations.summary.errors" class="arep__flag">
-            Every check in the last run failed, so nothing was measured.
-          </p>
-          <p class="arep__note">
-            <template v-if="data.citations.runs">
-              {{ data.citations.runs }} {{ data.citations.runs === 1 ? 'run' : 'runs' }} in these days.
-            </template>
+          <!-- ⛔ "0 of 0" is not an answer: a run whose every check failed knows
+               nothing, so it gets a dash and the reason, never 0/0. -->
+          <span v-if="citationsAnswered" class="arep__num">{{ data.citations.summary.mentions }}<small>/{{ data.citations.summary.checks }}</small></span>
+          <span v-else class="arep__num is-none" aria-hidden="true">—</span>
+          <p class="arep__say">
+            <!-- Both numbers explained, or the fraction is a riddle (his catch,
+                 2026-08-30). -->
+            <template v-if="citationsAnswered">Answers that named something you track, of {{ data.citations.summary.checks }} questions in the last run. </template>
+            <span v-else-if="data.citations.summary && data.citations.summary.errors" class="arep__flag-inline">Every check in the last run failed, so nothing was measured. </span>
+            <template v-if="data.citations.runs">{{ data.citations.runs }} {{ data.citations.runs === 1 ? 'run' : 'runs' }} in these days.</template>
             <template v-else-if="data.citations.lastRunAt">
-              <!-- Say the schedule's REAL state: "checks run on a schedule" told
-                   an owner whose schedule was off that something was running. -->
+              <!-- Say the schedule's REAL state. -->
               <template v-if="data.citations.scheduled">Checks run on a schedule — none in these days. The last was {{ formatDay(data.citations.lastRunAt.slice(0, 10)) }}.</template>
               <template v-else>The schedule is off — a check runs only when you start one. The last was {{ formatDay(data.citations.lastRunAt.slice(0, 10)) }}.</template>
             </template>
             <template v-else>No check has run yet.</template>
           </p>
           <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visibility', 'results')">Open Citations <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
+        </div>
 
-        <!-- Readiness score ------------------------------------------------ -->
-        <section v-if="data.score.now !== null" class="ar-card arep__block">
+        <!-- In search -->
+        <div v-if="data.search.engines.length" class="arep__line">
           <header class="arep__head">
-            <h2 class="arep__title">Readiness score</h2>
-            <span class="arep__fresh">as of now</span>
+            <h2 class="arep__title">In search</h2>
+            <span class="arep__fresh is-lagging">a day or more behind</span>
           </header>
-          <p class="arep__hero">
-            <span class="arep__num">{{ data.score.now }}<small>/100</small></span>
-            <span class="arep__unit">{{ data.score.band }}</span>
+          <!-- ⛔ Never zero. A day the engine has not reported on is not a day
+               nobody searched: with nothing published the figure is a dash. -->
+          <span v-if="searchShown !== null" class="arep__num">{{ nf(searchShown) }}</span>
+          <span v-else class="arep__num is-none" aria-hidden="true">—</span>
+          <p class="arep__say">
+            <template v-for="(e, i) in data.search.engines" :key="e.source">
+              <template v-if="i">{{ ' ' }}</template>
+              <template v-if="e.covered">Shown {{ nf(e.shown) }} times on {{ engineName(e.source) }}, {{ nf(e.clicks) }} {{ e.clicks === 1 ? 'visit' : 'visits' }} — {{ e.covered }} of these days {{ e.covered === 1 ? 'is' : 'are' }} published.</template>
+              <!-- ⛔ "yet" is only true one way round: a window the engine has not
+                   reached is waiting on it; one it passed over never fills. -->
+              <template v-else-if="!e.latestDay">{{ engineName(e.source) }} hasn’t published anything yet.</template>
+              <template v-else-if="e.latestDay < range.from">{{ engineName(e.source) }} hasn’t reached these days yet — its newest is {{ formatDay(e.latestDay) }}.</template>
+              <template v-else>{{ engineName(e.source) }} has nothing for these days — its newest is {{ formatDay(e.latestDay) }}.</template>
+            </template>
           </p>
-          <!-- ⭐ An absence naming itself: there is no history table behind the
-               score, so it reads the same for every window, and says why. -->
-          <p class="arep__note">
-            The score describes your site as it stands, not as it stood on a date — it reads the same
-            whichever days you pick.
-          </p>
-          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('readiness')">Open Readiness <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
-        </section>
+          <button type="button" class="ar-linkbtn ar-linkbtn--go arep__go" @click="go('visibility')">Open Search performance <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg></button>
+        </div>
+      </section>
 
+      <div v-if="data.robots.change || data.nudge.top" class="arep__blocks">
         <!-- robots.txt ------------------------------------------------------ -->
         <section v-if="data.robots.change" class="ar-card arep__block">
           <header class="arep__head">
@@ -520,6 +535,35 @@ export default {
 /* The one card that asks for an action rather than reporting one. */
 .arep__block--wide { grid-column: 1 / -1; }
 
+/* AI reads: the figure on the left, who read on the right in two columns. */
+.arep__reads { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 8px 40px; }
+.arep__reads-lead { display: flex; flex-direction: column; gap: 8px; }
+.arep__reads-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.arep__rows.arep__rows--two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--arep-rows, 3), auto); grid-auto-flow: column; gap: 6px 36px; }
+/* In two columns the foot of EACH column loses its rule, not only the list's
+   last item. */
+.arep__rows.arep__rows--two li.is-colend { border-bottom: 0; padding-bottom: 0; }
+
+/* ⭐ The one-line blocks: four fixed columns shared by every line, so the
+   names, figures, sentences and links each sit in one straight column. */
+.arep__lines { display: flex; flex-direction: column; padding-top: 4px; padding-bottom: 4px; }
+.arep__line {
+  display: grid; grid-template-columns: minmax(170px, 210px) 100px minmax(0, 1fr) auto;
+  gap: 6px 24px; align-items: center;
+  padding: 14px 0; border-bottom: 1px dotted var(--ar-line);
+}
+.arep__line:last-child { border-bottom: 0; }
+.arep__line .arep__head { margin: 0; }
+.arep__line .arep__title { font-size: 17px; }
+.arep__line .arep__num { font-size: 26px; white-space: nowrap; }
+.arep__num.is-none { color: var(--ar-ink-faint); }
+.arep__say { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+.arep__line .arep__go { align-self: center; margin-top: 0; padding-top: 0; justify-self: end; }
+.arep__move-inline.is-up { color: var(--ar-good); }
+.arep__move-inline.is-down { color: var(--ar-bad); }
+.arep__move-inline.is-flat { color: var(--ar-ink-faint); }
+.arep__flag-inline { color: var(--ar-warn); }
+
 /* ⛔ The freshness label sits UNDER the title, never beside it: beside it, a
    long title wraps and the whole card below shifts down by a line while its
    neighbours don't. On its own line the header is one height for every card. */
@@ -583,5 +627,24 @@ export default {
 @media (max-width: 782px) {
   .arep__blocks { grid-template-columns: 1fr; }
   .arep__toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
+/* Narrower than the four columns fit: each line stacks name over figure,
+   then the sentence, then the link — and the reads list goes to one column. */
+@container (max-width: 900px) {
+  .arep__reads { grid-template-columns: 1fr; }
+  .arep__line { grid-template-columns: minmax(0, 1fr) auto; }
+  .arep__line .arep__say { grid-column: 1 / -1; }
+  .arep__line .arep__go { grid-column: 1 / -1; justify-self: end; }
+}
+@container (max-width: 560px) {
+  .arep__rows.arep__rows--two { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+  .arep__rows.arep__rows--two li.is-colend { border-bottom: 1px dotted var(--ar-line); padding-bottom: 6px; }
+}
+@media (max-width: 782px) {
+  .arep__reads { grid-template-columns: 1fr; }
+  .arep__rows.arep__rows--two { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+  .arep__rows.arep__rows--two li.is-colend { border-bottom: 1px dotted var(--ar-line); padding-bottom: 6px; }
+  .arep__line { grid-template-columns: minmax(0, 1fr) auto; }
+  .arep__line .arep__say, .arep__line .arep__go { grid-column: 1 / -1; }
 }
 </style>

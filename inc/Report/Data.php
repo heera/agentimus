@@ -226,6 +226,9 @@ final class Data {
 			'access'    => array(
 				'freshness' => self::LIVE,
 				'events'    => AccessStore::count_active_between( $start, $end ),
+				// The newest few by name, so the screen can say WHAT acted
+				// rather than only how many things did.
+				'latest'    => AccessStore::latest_active_between( $start, $end, 3 ),
 			),
 		);
 	}
