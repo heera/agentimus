@@ -156,9 +156,28 @@ final class Module {
 	 * numbers immediately. The report covers the trailing window ending where
 	 * Search Console's numbers are final; each poll replaces the snapshot.
 	 *
+	 * ⛔ The analytics half runs on EVERY way out of the search half. It is a
+	 * second, independent grant, and the search half returns early on any
+	 * Search Console refusal — which once froze the Visitors numbers, with no
+	 * error on them, whenever the key lost its Search Console access (found
+	 * in the 2026-10-23 audit).
+	 *
 	 * @return void
 	 */
 	public function run_poll() {
+		try {
+			$this->run_search_poll();
+		} finally {
+			$this->poll_analytics();
+		}
+	}
+
+	/**
+	 * The Search Console half of {@see run_poll()}.
+	 *
+	 * @return void
+	 */
+	private function run_search_poll() {
 		$sa_json  = $this->settings->sa_json();
 		$property = (string) $this->settings->get( 'property', '' );
 		if ( '' === $sa_json || '' === $property ) {
@@ -262,8 +281,6 @@ final class Module {
 		}
 
 		update_option( self::TREND_OPTION, $trend, false );
-
-		$this->poll_analytics();
 	}
 
 	/**
