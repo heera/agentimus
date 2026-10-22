@@ -292,12 +292,27 @@ final class McpToken {
 	 *    never the raw URI, so a core route that merely mentions ours in its
 	 *    query string (/wp-json/wp/v2/users?x=/agentimus/v1/mcp) is not ours.
 	 *
+	 *  - The pretty form counts only under the REST prefix
+	 *    (`…/wp-json/agentimus/v1/mcp`): a page path that merely ENDS in the
+	 *    route renders as a page, not a REST call.
+	 *
 	 * Whatever this decides, confine() holds it against the route core really
 	 * matched, so a wrong answer here can seat nobody on any other route.
+	 *
+	 * ⛔⛔ BUT CONFINE() ONLY RUNS WHEN A REST DISPATCH DOES. On admin-ajax.php,
+	 * admin-post.php or wp-login.php nothing reads `rest_route`, nothing is
+	 * dispatched, and a URL naming the MCP route seated the token's owner —
+	 * admin and all, a READ key included — on whatever handler ran there
+	 * (found in the 2026-10-23 audit; the 1.51.1 bug through another door).
+	 * So the URL only counts on WordPress's front controller, the one entry
+	 * point that dispatches REST ({@see is_rest_entry_point()}).
 	 *
 	 * @return bool
 	 */
 	private static function is_mcp_request() {
+		if ( ! self::is_rest_entry_point() ) {
+			return false;
+		}
 		// phpcs:disable WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput -- routing detection only, no state change: compared to a constant, never stored or echoed.
 		if ( isset( $_POST['rest_route'] ) || isset( $_GET['rest_route'] ) ) {
 			$raw = isset( $_POST['rest_route'] ) ? $_POST['rest_route'] : $_GET['rest_route'];
@@ -306,7 +321,32 @@ final class McpToken {
 		// phpcs:enable
 		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		$path = untrailingslashit( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
-		return '' !== $path && self::ROUTE === substr( $path, -strlen( self::ROUTE ) );
+		$tail = '/' . trim( (string) rest_get_url_prefix(), '/' ) . self::ROUTE;
+		return '' !== $path && $tail === substr( $path, -strlen( $tail ) );
+	}
+
+	/**
+	 * Whether this request came in through the one door that can dispatch a
+	 * REST route: WordPress's front controller (`index.php`), outside the
+	 * admin, ajax, cron and XML-RPC.
+	 *
+	 * ⚠️ Not `REST_REQUEST` alone. Core defines it only at `parse_request`, and
+	 * any plugin that asks who the user is during `init` resolves the seat
+	 * before that — which is exactly why core's own application passwords
+	 * fail on such sites. When it IS defined it settles the question; before
+	 * then, `$pagenow` (set by core in wp-includes/vars.php, before any
+	 * plugin loads) names the script that is serving the request.
+	 *
+	 * @return bool
+	 */
+	private static function is_rest_entry_point() {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return true;
+		}
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) ) {
+			return false;
+		}
+		return isset( $GLOBALS['pagenow'] ) && 'index.php' === $GLOBALS['pagenow'];
 	}
 
 	/**

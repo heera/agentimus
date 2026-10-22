@@ -162,6 +162,10 @@ namespace {
 	// for a stub site: nothing scheduled, so nothing due.
 	if ( ! function_exists( '_get_cron_array' ) )       { function _get_cron_array() { return isset( $GLOBALS['_af_cron'] ) ? $GLOBALS['_af_cron'] : array(); } }
 	if ( ! function_exists( 'wp_doing_cron' ) )         { function wp_doing_cron() { return ! empty( $GLOBALS['_af_doing_cron'] ); } }
+	// Core sets this in wp-includes/vars.php before any plugin loads; a
+	// front-end request is served by index.php.
+	$GLOBALS['pagenow'] = 'index.php';
+	if ( ! function_exists( 'wp_doing_ajax' ) )         { function wp_doing_ajax() { return ! empty( $GLOBALS['_af_doing_ajax'] ); } }
 	if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( wp_strip_all_tags( (string) $s ) ); } }
 	if ( ! function_exists( 'sanitize_title' ) )        { function sanitize_title( $t ) { return trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $t ) ), '-' ); } }
 	if ( ! function_exists( 'sanitize_file_name' ) )    { function sanitize_file_name( $n ) { return preg_replace( '/[^A-Za-z0-9._\-]/', '', (string) $n ); } }

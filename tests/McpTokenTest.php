@@ -21,13 +21,15 @@ final class McpTokenTest extends TestCase {
 		McpToken::reset_request();
 		$GLOBALS['_af_users'] = array( 7 => true );
 		$_SERVER['REQUEST_URI'] = '/wp-json/agentimus/v1/mcp';
+		$GLOBALS['pagenow']     = 'index.php';
 		unset( $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	protected function tearDown(): void {
 		\_af_reset_options();
 		McpToken::reset_request();
-		unset( $GLOBALS['_af_users'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
+		$GLOBALS['pagenow'] = 'index.php';
+		unset( $GLOBALS['_af_users'], $GLOBALS['_af_is_admin'], $GLOBALS['_af_doing_ajax'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $_GET['rest_route'], $_POST['rest_route'] );
 	}
 
 	private function bearer( $token ) {
@@ -74,6 +76,51 @@ final class McpTokenTest extends TestCase {
 		$_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/posts';
 		$this->assertFalse( McpToken::authenticate( false ) );
 		$this->assertTrue( McpToken::request_allows_writes() ); // No token in play → settings alone rule.
+	}
+
+	/**
+	 * ⛔ Only WordPress's front controller ever dispatches a REST route. Core
+	 * reads `rest_route` in WP::parse_request(), which admin-ajax.php,
+	 * admin-post.php and wp-login.php never run — so there the URL naming the
+	 * MCP route proves nothing, no REST dispatch follows, and confine() never
+	 * gets its say. A token honored there seated its owner, admin and all, on
+	 * a handler that only checks a capability; a READ key included.
+	 */
+	public function test_the_mcp_route_named_on_a_non_rest_entry_point_seats_nobody() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$cases = array(
+			'admin-ajax.php' => array( '/wp-admin/admin-ajax.php?action=x&rest_route=/agentimus/v1/mcp', true, true ),
+			'admin-post.php' => array( '/wp-admin/admin-post.php?action=x&rest_route=/agentimus/v1/mcp', true, false ),
+			'wp-login.php'   => array( '/wp-login.php?rest_route=/agentimus/v1/mcp', false, false ),
+		);
+		foreach ( $cases as $page => $case ) {
+			McpToken::reset_request();
+			$GLOBALS['pagenow']        = $page;
+			$GLOBALS['_af_is_admin']   = $case[1];
+			$GLOBALS['_af_doing_ajax'] = $case[2];
+			$_SERVER['REQUEST_URI']    = $case[0];
+			$_GET['rest_route']        = '/agentimus/v1/mcp';
+			$this->assertFalse( McpToken::authenticate( false ), "$page must not seat the token's owner" );
+			$this->assertFalse( McpToken::targets_mcp_route(), "and the OAuth grant must not be honored on $page either" );
+			$this->assertFalse( McpToken::used_this_request() );
+		}
+	}
+
+	/**
+	 * The pretty form counts only under the REST prefix. A front-end page whose
+	 * path merely ENDS in the route renders as a page, not a REST call — seated
+	 * as the owner, it would show a token holder what only the owner may see.
+	 */
+	public function test_a_page_path_that_only_ends_in_the_route_is_not_the_route() {
+		$token = McpToken::create( 'read', 7 );
+		$this->bearer( $token );
+		$_SERVER['REQUEST_URI'] = '/hello-world/agentimus/v1/mcp';
+		$this->assertFalse( McpToken::authenticate( false ) );
+
+		// A site under a subfolder keeps its REST prefix after the folder.
+		$_SERVER['REQUEST_URI'] = '/blog/wp-json/agentimus/v1/mcp';
+		$this->assertSame( 7, McpToken::authenticate( false ) );
 	}
 
 	/** Plain permalinks reach the route as ?rest_route= — honored the same. */
