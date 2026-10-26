@@ -97,6 +97,56 @@ final class ThreatsTest extends TestCase {
 		$this->assertTrue( $r['sources'][0]['flags']['heavy'] );
 	}
 
+	/**
+	 * A row heavy ONLY from its last hour leaves when the burst ends, so the card must
+	 * be able to say so (heera.it 10-27: QlyzeBot, 259 requests, "High volume" with no
+	 * word on when it goes). `burst` marks exactly that case.
+	 */
+	public function test_a_burst_only_heavy_row_is_marked_burst() {
+		$ua = 'SomeScraper/2.0';
+		$r  = $this->analyze( array( $this->source( $ua, 'Other bot', 259, 10 * DAY_IN_SECONDS, 0 ) ), array( $ua => 45 ) );
+		$this->assertTrue( $r['sources'][0]['flags']['burst'] );
+	}
+
+	public function test_sustained_volume_is_not_a_burst_even_mid_burst() {
+		$ua = 'BulkBot/1.0';
+		$r  = $this->analyze( array( $this->source( $ua, 'Other bot', 800, 10 * DAY_IN_SECONDS, 0 ) ), array( $ua => 45 ) );
+		$this->assertFalse( $r['sources'][0]['flags']['burst'] );
+		$r = $this->analyze( array( $this->source( $ua, 'Other bot', 800, 10 * DAY_IN_SECONDS, 0 ) ) );
+		$this->assertFalse( $r['sources'][0]['flags']['burst'] );
+	}
+
+	public function test_a_row_that_is_not_heavy_is_not_a_burst() {
+		$r = $this->analyze( array( $this->source( self::NEWBOT, 'Other bot', 3, HOUR_IN_SECONDS, 600 ) ) );
+		$this->assertFalse( $r['sources'][0]['flags']['burst'] );
+	}
+
+	/** One sustained variant keeps the merged row: it is no longer burst-only. */
+	public function test_a_merged_row_with_a_sustained_variant_is_not_a_burst() {
+		$r = $this->analyze(
+			array(
+				$this->source( self::NEWBOT_V1, 'Other bot', 900, 10 * DAY_IN_SECONDS, 1200 ),
+				$this->source( self::NEWBOT_V2, 'Other bot', 40, 10 * DAY_IN_SECONDS, 300 ),
+			),
+			array( self::NEWBOT_V2 => 40 )
+		);
+		$this->assertCount( 1, $r['sources'] );
+		$this->assertTrue( $r['sources'][0]['flags']['heavy'] );
+		$this->assertFalse( $r['sources'][0]['flags']['burst'] );
+	}
+
+	/** Two burst-only variants fold into a burst-only row. */
+	public function test_merged_burst_variants_stay_a_burst() {
+		$r = $this->analyze(
+			array(
+				$this->source( self::NEWBOT_V1, 'Other bot', 100, 10 * DAY_IN_SECONDS, 1200 ),
+				$this->source( self::NEWBOT_V2, 'Other bot', 40, 10 * DAY_IN_SECONDS, 300 ),
+			),
+			array( self::NEWBOT_V1 => 35, self::NEWBOT_V2 => 40 )
+		);
+		$this->assertTrue( $r['sources'][0]['flags']['burst'] );
+	}
+
 	/* -- Spoof ----------------------------------------------------------- */
 
 	public function test_a_spoofed_legacy_device_is_flagged_and_offers_the_class_action() {

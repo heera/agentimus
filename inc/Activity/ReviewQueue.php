@@ -331,6 +331,9 @@ final class ReviewQueue {
 				'flags'     => array(
 					'new'   => $is_new,
 					'heavy' => $is_heavy,
+					// Heavy ONLY from its last hour: the row leaves when the burst ends
+					// (unless something else holds it), so the card can say so.
+					'burst' => $is_heavy && $volume < $heavy_min,
 					'spoof' => $is_spoof,
 				),
 				'severity'  => $severity,
@@ -503,6 +506,10 @@ final class ReviewQueue {
 		if ( '' === ( $keep['signer'] ?? '' ) && '' !== ( $add['signer'] ?? '' ) ) {
 			$keep['signer'] = $add['signer'];
 		}
+		// Burst-only survives the fold only if no variant is heavy on its window volume
+		// alone — one sustained variant holds the merged row past any burst.
+		$sustained              = ( $keep['flags']['heavy'] && ! $keep['flags']['burst'] ) || ( $add['flags']['heavy'] && ! $add['flags']['burst'] );
+		$keep['flags']['burst'] = ! $sustained && ( $keep['flags']['burst'] || $add['flags']['burst'] );
 		foreach ( array( 'new', 'heavy', 'spoof' ) as $flag ) {
 			$keep['flags'][ $flag ] = $keep['flags'][ $flag ] || $add['flags'][ $flag ];
 		}

@@ -27,6 +27,10 @@ final class Repository {
 	const TOP_CLIENTS   = 8;
 	const TOP_ENDPOINTS = 12;
 
+	/** Recent Requests: rows shown, and how many of the newest served hits they are grouped from. */
+	const RECENT_ROWS = 50;
+	const RECENT_SPAN = 2000;
+
 	/** Max distinct values offered per filter dropdown {@see log_facets()}. */
 	const FACET_LIMIT = 200;
 
@@ -179,7 +183,7 @@ final class Repository {
 			'byAgent'      => self::group_counts( 'agent', $month, self::clamp_limit( apply_filters( 'agentimus_activity_clients_limit', self::TOP_CLIENTS ) ) ),
 			'byEndpoint'   => self::group_counts( 'endpoint', $month, self::clamp_limit( apply_filters( 'agentimus_activity_endpoints_limit', self::TOP_ENDPOINTS ) ) ),
 			'daily'        => self::daily(),
-			'recent'       => self::recent( 50 ),
+			'recent'       => self::recent( self::RECENT_ROWS ),
 			'threats'      => self::threats( $settings ),
 			'referrals'    => Referrals::summary( $window ),
 			// What the referral map could NOT name. An empty, disabled shell unless the
@@ -464,21 +468,61 @@ final class Repository {
 	}
 
 	/**
-	 * Most recent hits.
+	 * Most recent activity, grouped by client, address and User-Agent IN THE QUERY.
+	 * Grouping after a 50-hit cut let one crawler's burst fill the card: on heera.it
+	 * 10-27, 47 of 50 hits were one bot and "Latest 50" showed four rows. The groups
+	 * come from the newest RECENT_SPAN served hits — bounded so the query never walks
+	 * the whole log — and each is dated by its newest hit and shows the network of
+	 * its newest hit that has one.
 	 *
-	 * @param int $limit Rows.
-	 * @return array<int,array{endpoint:string,agent:string,ua:string,network:string,verdict:int,at:string}>
+	 * @param int $limit Rows (groups).
+	 * @return array<int,array{endpoint:string,agent:string,ua:string,network:string,verdict:int,at:string,hits:int}>
 	 */
 	private static function recent( $limit ) {
 		global $wpdb;
 		$table = Table::name();
-		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value ($limit) is bound via prepare().
-		$rows  = $wpdb->get_results(
-			$wpdb->prepare( "SELECT endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE refused = 0 ORDER BY id DESC LIMIT %d", $limit ),
+		// phpcs:disable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the values are bound via prepare().
+		$groups = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS hits, MAX(id) AS last_id, MAX(CASE WHEN network <> '' THEN id END) AS net_id
+				FROM ( SELECT id, endpoint, agent, ua, network FROM $table WHERE refused = 0 ORDER BY id DESC LIMIT %d ) AS h
+				GROUP BY agent, endpoint, ua ORDER BY last_id DESC LIMIT %d",
+				self::RECENT_SPAN,
+				$limit
+			),
 			ARRAY_A
 		);
+		$ids = array();
+		foreach ( (array) $groups as $g ) {
+			$ids[] = (int) $g['last_id'];
+			if ( null !== $g['net_id'] ) {
+				$ids[] = (int) $g['net_id'];
+			}
+		}
+		$by_id = array();
+		if ( $ids ) {
+			$in   = implode( ',', array_unique( $ids ) ); // Integers we cast above.
+			$rows = $wpdb->get_results( "SELECT id, endpoint, agent, ua, network, verdict, hit_at FROM $table WHERE id IN ( $in )", ARRAY_A );
+			foreach ( (array) $rows as $r ) {
+				$by_id[ (int) $r['id'] ] = $r;
+			}
+		}
 		// phpcs:enable WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter
-		return array_map( array( self::class, 'hit_row' ), (array) $rows );
+		$out = array();
+		foreach ( (array) $groups as $g ) {
+			$last = (int) $g['last_id'];
+			if ( ! isset( $by_id[ $last ] ) ) {
+				continue; // Pruned between the two reads.
+			}
+			$row = $by_id[ $last ];
+			$net = null !== $g['net_id'] ? (int) $g['net_id'] : 0;
+			if ( '' === (string) $row['network'] && isset( $by_id[ $net ] ) ) {
+				$row['network'] = $by_id[ $net ]['network'];
+				$row['verdict'] = $by_id[ $net ]['verdict'];
+			}
+			$out[] = self::hit_row( $row ) + array( 'hits' => (int) $g['hits'] );
+		}
+		return $out;
 	}
 
 	/**

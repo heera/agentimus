@@ -100,8 +100,8 @@ final class Classifier {
 			return 'Other bot';
 		}
 		// HTTP client libraries / command-line tools — scripts, not agents
-		// (curl, wget, Python requests, Node fetch, Go, Java, Postman, …).
-		if ( preg_match( '#curl|wget|python|node-fetch|\bnode\b|go-http|okhttp|libwww|postman|httpie|axios|guzzle|java/|ruby|^php#', $ua ) ) {
+		// (curl, wget, Python requests, Node/Bun/Deno fetch, Go, Java, Postman, …).
+		if ( preg_match( '#curl|wget|python|node-fetch|\bnode\b|\bbun/|\bdeno/|undici|go-http|okhttp|libwww|postman|httpie|axios|guzzle|java/|ruby|^php#', $ua ) ) {
 			return 'Script/tool';
 		}
 		if ( false !== strpos( $ua, 'mozilla' ) ) {

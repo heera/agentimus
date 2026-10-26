@@ -182,15 +182,11 @@ export default {
     recent() {
       return this.data.recent || [];
     },
+    // Already grouped by the server's query (client + address + UA, newest first,
+    // each with its hit count) — grouping here, after a 50-hit cut, let one burst
+    // fill the card.
     recentGrouped() {
-      const groups = new Map();
-      for (const r of this.recent) {
-        const key = `${r.agent}|${r.endpoint}|${r.ua || ''}`;
-        const g = groups.get(key);
-        if (g) { g.count += 1; if (!g.network && r.network) { g.network = r.network; g.verdict = r.verdict || 0; } }
-        else groups.set(key, { agent: r.agent, endpoint: r.endpoint, ua: r.ua, network: r.network || '', verdict: r.verdict || 0, at: r.at, count: 1 });
-      }
-      return Array.from(groups.values());
+      return this.recent.map((r) => ({ ...r, network: r.network || '', verdict: r.verdict || 0, count: r.hits || 1 }));
     },
     // Whether any recent row carries an owning network — the "Identify every bot" column only
     // appears when there's data for it, so a default install shows a plain table.

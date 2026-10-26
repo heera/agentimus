@@ -46,6 +46,30 @@ final class ClassifierTest extends TestCase {
 		$this->assertSame( 'SomeRandomFetcher', Classifier::classify( 'SomeRandomFetcher/2.0' ) );
 	}
 
+	/**
+	 * JavaScript runtimes and their HTTP client are scripts, like curl and node.
+	 * Regression: "Bun/1.4.4" fell through to its own product token and read "Bun"
+	 * on heera.it, next to "Script/tool" for curl — and earned a one-click Block.
+	 *
+	 * @dataProvider js_runtime_uas
+	 */
+	public function test_js_runtimes_are_scripts( $ua ) {
+		$this->assertSame( 'Script/tool', Classifier::classify( $ua ), $ua );
+	}
+
+	public function js_runtime_uas() {
+		return array(
+			'bun'    => array( 'Bun/1.4.4' ),
+			'deno'   => array( 'Deno/2.1.4' ),
+			'undici' => array( 'undici' ),
+		);
+	}
+
+	/** "bun/" must not match inside a longer word (Ubuntu carries "bun"). */
+	public function test_ubuntu_browser_is_not_a_script() {
+		$this->assertSame( 'Browser', Classifier::classify( 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0' ) );
+	}
+
 	public function test_client_with_no_parseable_name_is_unrecognized() {
 		// Non-empty UA, but nothing to name it by: no known token, no product token,
 		// no browser/bot/script markers. Renamed from "Unidentified".

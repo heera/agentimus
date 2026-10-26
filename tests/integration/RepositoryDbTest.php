@@ -144,6 +144,66 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 2, $endpoints['discovery.json'] );
 	}
 
+	/* -- Recent Requests: grouped in the query, not after a 50-hit cut ----- */
+
+	/**
+	 * Caught on heera.it 10-27: one crawler's burst took 47 of the 50 hits the card
+	 * fetched, so "Latest 50" showed four rows. The query now groups first, so the
+	 * burst is ONE row and the clients before it are still there.
+	 */
+	public function test_a_burst_is_one_row_and_never_crowds_out_older_clients() {
+		$this->hit( 'llms.txt', 'Script/tool', 'curl/8.7.1' );
+		$this->hit( 'discovery.json', 'GPTBot', 'GPTBot/1.0' );
+		$this->hit( 'page', 'UptimeRobot', 'UptimeRobot/2.0' );
+		for ( $i = 0; $i < 60; $i++ ) {
+			$this->hit( 'page', 'QlyzeBot', 'QlyzeBot/1.0' );
+		}
+
+		$recent = Repository::stats( new Settings() )['recent'];
+
+		$this->assertCount( 4, $recent );
+		$this->assertSame( 'QlyzeBot', $recent[0]['agent'], 'newest group first' );
+		$this->assertSame( 60, $recent[0]['hits'] );
+		$this->assertSame( array( 'UptimeRobot', 'GPTBot', 'Script/tool' ), array_column( array_slice( $recent, 1 ), 'agent' ) );
+		$this->assertSame( 1, $recent[3]['hits'] );
+	}
+
+	/** At most 50 rows, newest first — the badge's promise, now counted in rows. */
+	public function test_recent_caps_at_fifty_groups() {
+		for ( $i = 0; $i < 55; $i++ ) {
+			$this->hit( 'page', 'Bot' . $i, 'Bot' . $i . '/1.0' );
+		}
+		$recent = Repository::stats( new Settings() )['recent'];
+		$this->assertCount( 50, $recent );
+		$this->assertSame( 'Bot54', $recent[0]['agent'] );
+	}
+
+	/**
+	 * A group dates itself by its NEWEST hit, and shows the newest network any of its
+	 * hits carried (the card used to do this; it moved into the query with the grouping).
+	 */
+	public function test_a_group_keeps_its_newest_time_and_a_known_network() {
+		global $wpdb;
+		$old = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$wpdb->insert( Table::name(), array( 'endpoint' => 'page', 'agent' => 'X', 'ua' => 'X/1', 'network' => 'example.net', 'verdict' => 1, 'hit_at' => $old ) );
+		$this->hit( 'page', 'X', 'X/1' ); // newer, no network looked up
+
+		$recent = Repository::stats( new Settings() )['recent'];
+		$this->assertCount( 1, $recent );
+		$this->assertSame( 2, $recent[0]['hits'] );
+		$this->assertSame( 'example.net', $recent[0]['network'] );
+		$this->assertSame( 1, $recent[0]['verdict'] );
+		$this->assertGreaterThan( strtotime( $old . ' UTC' ), strtotime( $recent[0]['at'] ) );
+	}
+
+	/** A turned-away request is never shown as served activity. */
+	public function test_recent_leaves_out_refusals() {
+		$this->hit( 'page', 'GPTBot', 'GPTBot/1.0' );
+		$this->refusal( 'page', 'Fake', 'Fake/1.0' );
+		$recent = Repository::stats( new Settings() )['recent'];
+		$this->assertSame( array( 'GPTBot' ), array_column( $recent, 'agent' ) );
+	}
+
 	public function test_week_and_month_windows_are_calendar_days_not_rolling() {
 		// The tile windows are CALENDAR days (UTC), the same clock as "today" and the
 		// daily chart. They used to be rolling (now - N*86400), which made the numbers

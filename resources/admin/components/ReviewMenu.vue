@@ -525,9 +525,10 @@ export default {
     // claim to the queue — such a row leaves by itself when its window lapses, and
     // predicting that beats letting the owner discover a silent disappearance. A row
     // that's also heavy / a spoof / a caught impostor stays past the window, so a
-    // countdown there would promise an exit that isn't coming.
+    // countdown there would promise an exit that isn't coming. A burst-only heavy row
+    // doesn't hold it: the burst ends within the hour, the window is the later exit.
     newChip(s) {
-      const sticky = 'spoofed' === s.verdict || (s.flags && (s.flags.heavy || s.flags.spoof));
+      const sticky = 'spoofed' === s.verdict || (s.flags && ((s.flags.heavy && !s.flags.burst) || s.flags.spoof));
       const first = new Date(s.firstSeen).getTime();
       if (sticky || !first) return 'New';
       const left = first + this.newSecs * 1000 - Date.now();
@@ -644,7 +645,7 @@ export default {
             <div class="ar-rev-body">
               <div class="ar-rev-nameline">
                 <span class="ar-rev-name">{{ rowTitle(s) }}</span>
-                <span v-if="s.flags && s.flags.heavy" class="ar-rev-tag is-heavy">High volume</span>
+                <span v-if="s.flags && s.flags.heavy" class="ar-rev-tag is-heavy" v-tip="s.flags.burst ? 'Busy in the last hour only. The card leaves about an hour after it slows down, unless it’s also new.' : null">{{ s.flags.burst ? 'High volume · this hour' : 'High volume' }}</span>
                 <span v-if="s.flags && s.flags.new" class="ar-rev-tag is-new" v-tip="s.firstSeen ? `First seen ${ago(s.firstSeen)}` : null">{{ newChip(s) }}</span>
               </div>
 
@@ -804,12 +805,12 @@ export default {
       </div>
 
       <!-- Fixed footer — outside the scroll region, so it never moves. Always shown:
-           it explains the queue's one silent exit (the "New" window) AND says flagged rows
-           don't share it, plus offers the client manager, where past decisions live. -->
+           it explains the queue's silent exits (the "New" window, a burst) AND says flagged rows
+           don't share them, plus offers the client manager, where past decisions live. -->
       <div class="ar-rev-foot">
         <p class="ar-rev-foot__note">
-          New clients stay here for {{ newWindowLabel }} after their first visit, then leave on
-          their own — their requests stay in the log. Flagged clients don't leave on a timer:
+          New clients stay here for {{ newWindowLabel }} after their first visit, and a burst
+          stays until it slows down — then they leave on their own; their requests stay in the log. Flagged clients don't leave on a timer:
           they stay until you Allow, Block or Ignore them.
         </p>
         <button type="button" class="ar-linkbtn ar-linkbtn--act ar-rev-foot__manage" @click="$emit('manage'); close()">Manage clients</button>
