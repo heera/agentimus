@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.53.4
+Stable tag: 1.53.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,16 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.53.5 =
+* Fixed: Recent Requests counted its 50 before grouping, so one busy crawler could fill the card — 47 of the 50 on one site — and push every other client off it. Repeat hits are grouped first now: up to 50 rows, each with its count.
+* Fixed: the At Cloudflare panel showed every blocked request as Cloudflare blocking the crawler. Requests for files no reader asks for, such as a .env or a .git folder, are scanners using a crawler's name. The panel counts them apart, marks a crawler red only when Cloudflare turned away one you allow, and "still knocking?" counts a blocked crawler's own requests.
+* Changed: a client in the review queue only because it was busy in the last hour reads "High volume · this hour", and leaves once it slows down.
+* Fixed: Bun, Deno and undici are named Script/tool, like curl. A crawler whose user-agent carries a "+https://" contact link is named by the name it gives, not "Browser", and connected assistants see the same names as the review queue.
+* Fixed: the Audience card said "agent files only" while it also counted page reads.
+* Fixed: the Google Index card could read "105 checked of 104" when a tag page was on its watchlist.
+* Fixed: the Optimized note said "all" of your published pages while the ones you set aside were left out.
+* Changed: more space between each screen's title and its description.
+
 = 1.53.4 =
 * Changed: the Report screen is laid out by what it has to show. AI reads takes the full width, with the crawlers that read you in two columns. Visits from AI, What acted here, Citations and In search share one panel, one line each, so a quiet day no longer leaves tall empty cards; a busy line names its top three. The Readiness score card has left the Report: it reads the same whatever days you pick, and the card beside the screen already shows it.
 * Changed: "What acted here" names the latest action and what it came in with, not only how many there were.
@@ -414,15 +424,13 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Improved: the Client Decisions rows read cleanly — a known crawler's name is no longer printed twice, the decision verb no longer repeats the tab's own name on every row, columns line up, long names shorten instead of pushing the date out of line, and on a phone each client folds to two tidy lines with a proper thumb-sized button.
 * Improved: plain words on the undo buttons — "Stop trusting" and "Stop ignoring" replace the made-up "Un-trust" and "Un-ignore" — and the buttons look like buttons before you hover them, without turning red for what is a routine, reversible act.
 
-= 1.49.0 =
-* New: a warning that your CDN is blocking an AI company is now verified before it may keep saying so. Cloudflare counts crawlers by their User-Agent string, and anyone can wear one — on the site this was built for, a vulnerability scanner wore OpenAI's crawler name through a thousand blocked requests a day, and the warning read "Cloudflare is blocking OpenAI" about a company that never visited. While such a warning is live, the blocked traffic's source addresses are now checked hourly against what the company publishes. When everything checked proves to be an impostor, the warning stands down to a note that your edge is doing its job — nothing needs allowing. One verified request keeps the warning, and so does an inconclusive check: "could not say" is never read as "not them".
-* Improved: the demoted notice keeps everything the warning had — the date the blocking started, and your fold if you had made one — and it becomes a warning again by itself the moment verified traffic starts being refused.
-* Improved: a connected assistant reading the edge summary sees the same verdict: how many of the blocked requests proved to be the company, how many proved to be impostors, and how many could not be determined.
 
-
-The most recent releases are listed here, back to 1.49.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.50.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.5 =
+One busy crawler no longer fills Recent Requests, and scanner probes no longer read as Cloudflare blocking AI crawlers. No breaking changes.
 
 = 1.53.4 =
 Security fix: a connection key or an approved assistant's access token was honoured outside the REST API when the address named the MCP endpoint. Real crawlers behind a non-Cloudflare proxy are no longer flagged as impostors. No breaking changes.

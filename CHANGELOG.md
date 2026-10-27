@@ -4,6 +4,16 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.5
+* Fixed: Recent Requests counted its 50 before grouping, so one busy crawler could fill the card — 47 of the 50 on one site — and push every other client off it. Repeat hits are grouped first now: up to 50 rows, each with its count.
+* Fixed: the At Cloudflare panel showed every blocked request as Cloudflare blocking the crawler. Requests for files no reader asks for, such as a .env or a .git folder, are scanners using a crawler's name. The panel counts them apart, marks a crawler red only when Cloudflare turned away one you allow, and "still knocking?" counts a blocked crawler's own requests.
+* Changed: a client in the review queue only because it was busy in the last hour reads "High volume · this hour", and leaves once it slows down.
+* Fixed: Bun, Deno and undici are named Script/tool, like curl. A crawler whose user-agent carries a "+https://" contact link is named by the name it gives, not "Browser", and connected assistants see the same names as the review queue.
+* Fixed: the Audience card said "agent files only" while it also counted page reads.
+* Fixed: the Google Index card could read "105 checked of 104" when a tag page was on its watchlist.
+* Fixed: the Optimized note said "all" of your published pages while the ones you set aside were left out.
+* Changed: more space between each screen's title and its description.
+
 ## 1.53.4
 * Changed: the Report screen is laid out by what it has to show. AI reads takes the full width, with the crawlers that read you in two columns. Visits from AI, What acted here, Citations and In search share one panel, one line each, so a quiet day no longer leaves tall empty cards; a busy line names its top three. The Readiness score card has left the Report: it reads the same whatever days you pick, and the card beside the screen already shows it.
 * Changed: "What acted here" names the latest action and what it came in with, not only how many there were.

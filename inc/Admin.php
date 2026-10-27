@@ -1007,6 +1007,18 @@ final class Admin {
 				// its row on top, 1.53.2's and 1.53.1's below.
 				// ⭐ 1.53.4 likewise: its three rows on top — the Report's new
 				// layout, the security fix, and one fixes row — the older ones kept.
+				// ⭐ 1.53.5 likewise: two rows on top — the grouped Recent Requests
+				// and the scanner probes counted apart — the older ones kept.
+				array(
+					'icon'  => 'page',
+					'title' => 'One Busy Bot No Longer Fills the List',
+					'text'  => 'Recent Requests groups repeat hits before it counts its 50 rows, so a crawler’s burst is one row and the clients before it stay in view.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Scanner Probes Counted Apart',
+					'text'  => 'Blocked requests for files like .env are scanners using a crawler’s name. The At Cloudflare panel counts them apart, and shows red only when a crawler you allow was turned away.',
+				),
 				array(
 					'icon'  => 'clock',
 					'title' => 'A Calmer Report',
