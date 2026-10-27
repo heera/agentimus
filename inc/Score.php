@@ -568,7 +568,19 @@ final class Score {
 		if ( null === $optimize['score'] ) {
 			return __( 'No published posts read yet — this rung starts measuring as soon as your content has been looked at.', 'agentimus' );
 		}
-		$n = (int) $optimize['posts'];
+		$n     = (int) $optimize['posts'];
+		$aside = count( $this->ignored_list() );
+		// ⚠️ "all N of your published" is false once the owner has set pages aside —
+		// heera.it 10-27 read "all 88" with 13 left out. Name the ones left out instead.
+		if ( $aside > 0 ) {
+			return sprintf(
+				/* translators: 1: number of items graded, 2: the kinds of content graded, 3: number of pages set aside. */
+				_n( 'How easily an assistant, a search engine or a screen reader can read, quote and credit %1$d of your published %2$s — the %3$d you set aside is left out.', 'How easily an assistant, a search engine or a screen reader can read, quote and credit %1$d of your published %2$s — the %3$d you set aside are left out.', $aside, 'agentimus' ),
+				$n,
+				self::graded_noun( $n ),
+				$aside
+			);
+		}
 		return sprintf(
 			// ⚠️ "your %1$d" — the whole graded site now, NOT "your %1$d most
 			// recently edited". The words moved with the measurement; a note that

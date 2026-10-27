@@ -57,7 +57,28 @@ export default {
       return (this.summary && this.summary.companies) || [];
     },
     totals() {
-      return (this.summary && this.summary.totals) || { requests: 0, cached: 0, origin: 0, blocked: 0, bytes: 0 };
+      return (this.summary && this.summary.totals) || { requests: 0, cached: 0, origin: 0, blocked: 0, probes: 0, bytes: 0 };
+    },
+    // The headline Blocked split three ways, because only one part is news. On
+    // heera.it (2026-10-27) 1,431 of 1,741 were scanner probes wearing AI names and
+    // 305 were crawlers the owner blocks himself — 5 were crawlers he lets in.
+    blockedSplit() {
+      let yours = 0;
+      let others = 0;
+      for (const c of this.crawlers) {
+        const real = this.realBlocked(c);
+        if (c.blockedByYou) yours += real;
+        else others += real;
+      }
+      return { probes: Number(this.totals.probes) || 0, yours, others };
+    },
+    blockedNote() {
+      const b = this.blockedSplit;
+      const parts = [];
+      if (b.probes) parts.push(`${this.n(b.probes)} scanner probes`);
+      if (b.yours) parts.push(`${this.n(b.yours)} crawlers you block`);
+      if (b.others && parts.length) parts.push(`${this.n(b.others)} others`);
+      return parts.join(' · ');
     },
     maxCompanyBytes() {
       return this.companies.reduce((m, c) => Math.max(m, Number(c.bytes) || 0), 0);
@@ -105,6 +126,26 @@ export default {
     },
     n(v) {
       return Number(v || 0).toLocaleString();
+    },
+    // What the edge turned away from the crawler itself: its blocked requests less
+    // the probes a scanner sent in its name.
+    realBlocked(c) {
+      return Math.max(0, (Number(c.blocked) || 0) - (Number(c.probes) || 0));
+    },
+    // Red only for a crawler you let in that the edge still turned away. A probe is
+    // a scanner, not the crawler; a crawler you block being blocked is your rule working.
+    blockedBad(c) {
+      return !c.blockedByYou && this.realBlocked(c) > 0;
+    },
+    // A blocked crawler's own requests: the scanner's probes in its name are not it
+    // knocking (heera.it 10-27: 159 of ClaudeBot's 313 were .env-style probes).
+    knocks(c) {
+      return Math.max(0, (Number(c.requests) || 0) - (Number(c.probes) || 0));
+    },
+    probesNote(c) {
+      const p = Number(c.probes) || 0;
+      if (!p) return '';
+      return p >= (Number(c.blocked) || 0) ? 'all probes' : `${this.n(p)} probes`;
     },
     // "updated 25m ago" — lastPollAt is a Unix timestamp in seconds.
     agoMin(ts) {
@@ -252,10 +293,14 @@ export default {
             <div class="ar-wd-stat"><strong>{{ n(totals.requests) }}</strong><span>AI requests Cloudflare saw</span></div>
             <div class="ar-wd-stat"><strong>{{ n(totals.cached) }}</strong><span>Served from Cloudflare’s cache</span></div>
             <div class="ar-wd-stat"><strong>{{ n(totals.origin) }}</strong><span>Reached your server</span></div>
-            <div class="ar-wd-stat"><strong :class="{ 'ar-edge__hot': totals.blocked }">{{ n(totals.blocked) }}</strong><span>Blocked by Cloudflare</span></div>
+            <div class="ar-wd-stat"><strong :class="{ 'ar-edge__hot': blockedSplit.others }">{{ n(totals.blocked) }}</strong><span>Blocked by Cloudflare</span><small v-if="blockedNote">{{ blockedNote }}</small></div>
           </div>
 
           <p class="ar-ai__sub ar-edge__sub">How far each crawler's requests got</p>
+          <p v-if="totals.probes" class="ar-field__hint ar-edge__subnote">
+            Probes are requests for files no reader asks for, like a <code>.env</code> or a <code>.git</code> folder —
+            a scanner using the crawler's name. Cloudflare blocking them is not Cloudflare blocking the crawler.
+          </p>
           <div class="ar-edge__scroll">
             <table class="ar-act-table ar-act-table--cards">
               <thead>
@@ -288,9 +333,10 @@ export default {
                     <svg class="ar-edge__ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7" y2="7.5" /><line x1="7" y1="16.5" x2="7" y2="16.5" /></svg>
                     <span class="ar-edge__v">{{ n(c.origin) }}</span>
                   </td>
-                  <td class="ar-edge__n" data-label="Blocked" :class="{ 'is-bad': c.blocked }">
+                  <td class="ar-edge__n" data-label="Blocked" :class="{ 'is-bad': blockedBad(c) }">
                     <svg class="ar-edge__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z" /></svg>
                     <span class="ar-edge__v">{{ n(c.blocked) }}</span>
+                    <span v-if="probesNote(c)" class="ar-edge__probes">{{ probesNote(c) }}</span>
                   </td>
                   <td class="ar-edge__n" data-label="Data">{{ fmtBytes(c.bytes) }}</td>
                 </tr>
@@ -341,11 +387,11 @@ export default {
             </p>
             <ul v-else class="ar-edge__conduct">
               <li v-for="c in conduct" :key="c.ua">
-                <span class="ar-edge__tag" :class="c.requests ? 'ar-edge__tag--warn' : 'ar-edge__tag--pass'">
-                  {{ c.requests ? 'Knocking' : 'Quiet' }}
+                <span class="ar-edge__tag" :class="knocks(c) ? 'ar-edge__tag--warn' : 'ar-edge__tag--pass'">
+                  {{ knocks(c) ? 'Knocking' : 'Quiet' }}
                 </span>
                 <span class="ar-edge__who">{{ c.name }}</span>
-                <span v-if="c.requests" class="ar-edge__what">made {{ n(c.requests) }} requests even though you block it</span>
+                <span v-if="knocks(c)" class="ar-edge__what">made {{ n(knocks(c)) }} requests even though you block it</span>
               </li>
             </ul>
           </div>

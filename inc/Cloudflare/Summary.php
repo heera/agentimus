@@ -38,7 +38,7 @@ final class Summary {
 		$owner_blocked = array_map( 'strtolower', array_map( 'strval', (array) $core->get( 'blocked_trainers', array() ) ) );
 
 		$crawlers = array();
-		$totals   = array( 'requests' => 0, 'cached' => 0, 'origin' => 0, 'blocked' => 0, 'bytes' => 0 );
+		$totals   = array( 'requests' => 0, 'cached' => 0, 'origin' => 0, 'blocked' => 0, 'probes' => 0, 'bytes' => 0 );
 		foreach ( Table::summary( $days ) as $row ) {
 			$meta       = isset( $catalog[ $row['ua'] ] ) ? (array) $catalog[ $row['ua'] ] : array();
 			$crawlers[] = array_merge( $row, array(
@@ -46,8 +46,8 @@ final class Summary {
 				'operator'     => isset( $meta[1] ) ? (string) $meta[1] : '',
 				'blockedByYou' => in_array( strtolower( (string) $row['ua'] ), $owner_blocked, true ),
 			) );
-			foreach ( array( 'requests', 'cached', 'origin', 'blocked', 'bytes' ) as $k ) {
-				$totals[ $k ] += (int) $row[ $k ];
+			foreach ( array( 'requests', 'cached', 'origin', 'blocked', 'probes', 'bytes' ) as $k ) {
+				$totals[ $k ] += isset( $row[ $k ] ) ? (int) $row[ $k ] : 0;
 			}
 		}
 

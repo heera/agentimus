@@ -267,6 +267,27 @@ final class GoogleIndexTest extends TestCase {
 		$this->assertSame( 4, $view['site']['problemStates']['blocked'] );
 	}
 
+	/**
+	 * A watched page outside the published list (a busy tag archive) is a site page
+	 * too, so it counts toward the total as well as the checked. heera.it 10-27 read
+	 * "105 checked of 104": /tag/navigator-locks was watched but not in the total.
+	 */
+	public function test_a_watched_archive_counts_in_the_total_it_was_checked_against() {
+		$rows = array(
+			array( 'url' => 'https://example.test/', 'post_id' => 0, 'reason' => 'home', 'verdict' => 'PASS', 'inspected_at' => 50, 'error' => '' ),
+			array( 'url' => 'https://example.test/tag/x', 'post_id' => 0, 'reason' => 'busy', 'verdict' => 'PASS', 'inspected_at' => 51, 'error' => '' ),
+		);
+		$cov  = array(
+			'https://example.test/p1' => array( 'url' => 'https://example.test/p1', 'post_id' => 1, 'verdict' => 'PASS', 'inspected_at' => 60 ),
+			'https://example.test/p2' => array( 'url' => 'https://example.test/p2', 'post_id' => 2, 'verdict' => 'PASS', 'inspected_at' => 61 ),
+		);
+		// Two posts plus the homepage = 3 published; the tag archive is the fourth.
+		$view = Index::view( $this->connect( array( 'rows' => $rows, 'cov' => $cov, 'site_total' => 3 ) ) );
+		$this->assertSame( 4, $view['site']['checked'] );
+		$this->assertSame( 4, $view['site']['totalUrls'] );
+		$this->assertSame( 0, $view['site']['notOnGoogle'] );
+	}
+
 	public function test_problems_page_filters_orders_and_pages() {
 		// A watched problem (leads the list), 120 rotation 'crawled' problems,
 		// and one 'discovered' page that must never leak into this listing.

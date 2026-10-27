@@ -147,6 +147,9 @@ final class Repository {
 
 		return array(
 			'enabled'    => (bool) $settings->enabled( 'enable_activity' ),
+			// Whether ordinary page reads are recorded — then every count below holds
+			// pages too, not only the agent files. {@see Audience::limits()}
+			'pageViews'  => (bool) $settings->enabled( 'log_page_views' ),
 			// Two different numbers once an owner keeps more than the dashboard shows: `window`
 			// is what these cards cover, `retention` is what still exists (and what the Request
 			// log can page through). The UI must not use one where it means the other.

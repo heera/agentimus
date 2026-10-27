@@ -851,8 +851,12 @@ final class Index {
 		$healed       = array();
 		$watch_norms  = array();
 		$watch_sick   = array();
+		$off_list     = 0; // Watched pages outside the published list (a busy tag archive).
 		foreach ( $stored['rows'] as $row ) {
 			$watch_norms[ self::norm( (string) $row['url'] ) ] = true;
+			if ( empty( $row['post_id'] ) && 'home' !== ( isset( $row['reason'] ) ? $row['reason'] : '' ) ) {
+				++$off_list;
+			}
 
 			$view_row = self::row_view( $row );
 			if ( '' !== $view_row['error'] ) {
@@ -882,7 +886,10 @@ final class Index {
 		// The whole-site picture: the coverage map plus the watchlist rows —
 		// watched pages are site pages too, they just live in their own list.
 		$site              = &$base['site'];
-		$site['totalUrls'] = $stored['site_total'];
+		// The published list plus the watched pages outside it: a page counted as
+		// checked must be in the total it was checked against (heera.it 10-27 read
+		// "105 checked of 104" — a watched tag archive).
+		$site['totalUrls'] = $stored['site_total'] + $off_list;
 		$site['checked']   = $base['counts']['checked'];
 		$site['onGoogle']  = $base['counts']['onGoogle'];
 		$site['problems']  = $watch_sick;
@@ -909,7 +916,7 @@ final class Index {
 		$site['healedTotal'] = count( $healed );
 		$site['healed']      = array_slice( $healed, 0, self::HEALED_CAP );
 		$site['notOnGoogle'] = max( 0, $site['checked'] - $site['onGoogle'] );
-		$rotating            = max( 0, $site['totalUrls'] - count( $stored['rows'] ) );
+		$rotating            = max( 0, $stored['site_total'] + $off_list - count( $stored['rows'] ) );
 		$site['cycleDays']   = $rotating > 0 ? (int) ceil( $rotating / self::ROTATION_DAILY ) : 0;
 
 		// Bounded payload: a sick 5,000-page site must not ship thousands of

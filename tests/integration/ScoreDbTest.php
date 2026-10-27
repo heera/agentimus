@@ -452,6 +452,32 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertContains( (int) $id, $ignoredIds, 'a set-aside post must show in the visible list' );
 	}
 
+	/**
+	 * "all 88 of your published Posts and Pages" read on heera.it 10-27 beside 13 pages
+	 * set aside: the note claimed every published page while the score left those out.
+	 */
+	public function test_the_optimized_note_never_says_all_when_pages_are_set_aside() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->post( str_repeat( 'A concrete point backed by a real figure: 42% in 2024. ', 30 ) );
+		$this->post( str_repeat( 'Another point with a figure: 17% in 2025. ', 30 ) );
+		$aside = $this->post( 'Too short.' );
+
+		$s   = new Settings();
+		$all = $s->all();
+		$all['optimize_ignored'] = array( $aside );
+		$s->update( $all );
+		$this->regrade();
+
+		$note = '';
+		foreach ( ( new Score( new Settings() ) )->report()['rungs'] as $g ) {
+			if ( 'optimized' === $g['key'] ) {
+				$note = (string) $g['note'];
+			}
+		}
+		$this->assertStringNotContainsString( 'all 2', $note );
+		$this->assertStringContainsString( '1 you set aside', $note );
+	}
+
 	public function test_set_aside_rows_carry_their_flags() {
 		// A thin post keeps, in the aside list, the flags that put it on the worklist.
 		$id = $this->post( 'Too short.' );

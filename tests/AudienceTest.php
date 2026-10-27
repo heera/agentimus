@@ -85,6 +85,27 @@ final class AudienceTest extends TestCase {
 	}
 
 	/**
+	 * With page reads recorded, the count holds pages too, so "agent files only" is
+	 * false. Caught on heera.it 10-27: 11,456 fetches beside that line, with page
+	 * views on — most of them page reads.
+	 */
+	public function test_with_page_reads_recorded_the_limit_says_pages_are_counted() {
+		$out    = Audience::from_stats( $this->stats( array( 'pageViews' => true ) ) );
+		$limits = array_column( $out['limits'], 'text', 'key' );
+		$this->assertArrayNotHasKey( 'machines-endpoints', $limits );
+		$this->assertArrayHasKey( 'machines-pages', $limits );
+		$this->assertStringContainsString( 'pages', $limits['machines-pages'] );
+	}
+
+	/** Without page reads the old line stands: only agent files are counted. */
+	public function test_without_page_reads_the_limit_still_says_agent_files_only() {
+		$out  = Audience::from_stats( $this->stats( array( 'pageViews' => false ) ) );
+		$keys = array_column( $out['limits'], 'key' );
+		$this->assertContains( 'machines-endpoints', $keys );
+		$this->assertNotContains( 'machines-pages', $keys );
+	}
+
+	/**
 	 * ⭐⭐ ONE SOURCE. The impostor figure is READ from the same totals array as
 	 * fetches/today/agents — the log, one window, one query moment — and is never
 	 * recomputed here.

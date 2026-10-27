@@ -210,6 +210,25 @@ final class Registrar {
 	}
 
 	/**
+	 * A review row's name, by the same rule as the owner's queue card (ReviewMenu
+	 * rowTitle): the recognised name, else the name the client declares for itself,
+	 * else the log's label. The tool used to skip the middle step and called
+	 * INITE-AtlasSweep "Browser" while the screen named it (heera.it 10-27).
+	 *
+	 * @param array $row A ReviewQueue row.
+	 * @return string
+	 */
+	public static function client_name( array $row ) {
+		if ( ! empty( $row['known']['name'] ) ) {
+			return (string) $row['known']['name'];
+		}
+		if ( ! empty( $row['guide']['name'] ) ) {
+			return (string) $row['guide']['name'];
+		}
+		return isset( $row['agent'] ) ? (string) $row['agent'] : '';
+	}
+
+	/**
 	 * The single category the admin AI groups our abilities under.
 	 */
 	public function register_category() {
@@ -654,6 +673,7 @@ final class Registrar {
 							'cached'   => self::i(),
 							'origin'   => self::i(),
 							'blocked'  => self::i(),
+							'probes'   => self::i( 'Of `blocked`, the requests for a file no reader fetches — scanners wearing crawler names (see crawlers[].probes). blocked − probes is what the edge turned away from real crawlers.' ),
 							'bytes'    => self::i(),
 						)
 					),
@@ -1719,7 +1739,7 @@ final class Registrar {
 
 					$review[] = array(
 						'ua'            => (string) ( isset( $row['ua'] ) ? $row['ua'] : '' ),
-						'name'          => (string) ( isset( $known['name'] ) ? $known['name'] : ( isset( $row['agent'] ) ? $row['agent'] : '' ) ),
+						'name'          => self::client_name( $row ),
 						'operator'      => (string) ( isset( $known['operator'] ) ? $known['operator'] : '' ),
 						'hits'          => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
 						'recentHits'    => (int) ( isset( $row['recent'] ) ? $row['recent'] : 0 ),

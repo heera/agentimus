@@ -177,13 +177,15 @@
      at the very top of the page") because the rail column is 742px of cards and
      needs the whole viewport under the header to show its last line. */
   --ar-bar-h: 72px;
-  /* The page-head strip below the nav bar. ⭐ 60px, not the nav's 72: the title
-     and its one-line intro measure 44px together, so this still centres them
-     with 8px of air either side, and the 12px it gives back go to the rail.
+  /* The page-head strip below the nav bar. ⭐ 66px, not the nav's 72: the title,
+     an 8px gap and its one-line intro measure ~50px, so this centres them with
+     8px of air either side. It was 60px with NO gap — the intro sat on the
+     title's descenders (his catch 2026-10-27); a 4px gap inside 60px was too
+     small to see, so the strip grew by the gap instead.
      ⛔ ANY RULE THAT POSITIONS SOMETHING BELOW BOTH STRIPS MUST ADD THE TWO
      TOKENS, never double one of them — the sticky rail offset and the anchor
      scroll-margin both did exactly that and are updated with this. */
-  --ar-head-h: 60px;
+  --ar-head-h: 66px;
   /* The air between the header and the first row of content. ⛔ IT IS A TOKEN
      BECAUSE TWO RULES NEED IT: .ar__body sets it as padding, and the sticky rail
      has to ADD it to its own offset or it pins flush to the header while every
@@ -1337,7 +1339,9 @@ body { --ar-bar: var(--ar-accent); }
   background: var(--ar-surface);
   border-bottom: 1px solid var(--ar-line);
 }
-.ar__pagehead-text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+/* A breath between the title and its line: with no gap the description sat on the
+   title's descenders (heera.it 10-27). See --ar-head-h for the arithmetic. */
+.ar__pagehead-text { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; }
 .ar__pagehead-tools { margin-left: auto; flex: 0 1 auto; min-width: 0; }
 .ar__pagehead-tools .ar-about-toc .ar-input { width: 230px; max-width: 30vw; }
 /* #agentimus-app lifts specificity (1,1,0) above wp-admin's core .wrap h1
@@ -1349,8 +1353,8 @@ body { --ar-bar: var(--ar-accent); }
   line-height: 1.1; letter-spacing: -0.01em; color: var(--ar-ink);
 }
 .ar__pagehead-desc {
-  margin: 0; font-size: 13px; line-height: 1.5; color: var(--ar-ink-soft);
-  /* Keep to one line so the header height stays locked to the nav's 72px;
+  margin: 0; font-size: 13px; line-height: 1.35; color: var(--ar-ink-soft);
+  /* Keep to one line so the header height stays locked to --ar-head-h;
      truncates with an ellipsis only on very narrow viewports. */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -2580,6 +2584,8 @@ td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-edge__op { color: var(--ar-ink-faint); font-size: 12px; }
 .ar-edge__hot { color: var(--ar-warn); }
 .ar-edge__subnote { margin: -6px 0 12px; }
+/* "all probes" / "159 probes" under a Blocked count: a quiet aside, never the alarm. */
+.ar-edge__probes { display: block; font-size: 10.5px; font-weight: 400; color: var(--ar-ink-faint); white-space: nowrap; }
 
 /* ── Found by AI Search (Bing) — same shrink discipline as .ar-edge ─────── */
 .ar-bing { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
@@ -7283,6 +7289,7 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
     stroke-linecap: round; stroke-linejoin: round;
   }
   .ar-edge .ar-act-table--cards .ar-edge__v { order: 2; }
+  .ar-edge .ar-act-table--cards .ar-edge__probes { order: 4; margin-top: -4px; }
   .ar-edge .ar-act-table--cards tbody td.ar-edge__n::before {
     order: 3; width: auto; font-family: var(--ar-mono); font-size: 9.5px;
     font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;

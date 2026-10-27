@@ -190,6 +190,13 @@ final class Catalog {
 			}
 		}
 
+		// No "Name/version" pair, but a bot-looking token straight after "compatible;"
+		// ("compatible; archive.org_bot +http://…"). Bot words only, so old IE's
+		// "compatible; MSIE 10.0" never becomes a name.
+		if ( '' === $out['name'] && preg_match( '~compatible;\s*([A-Za-z][A-Za-z0-9._-]{1,40})~i', $ua, $cm ) && preg_match( '~bot|crawl|spider|agent~i', $cm[1] ) ) {
+			$out['name'] = $cm[1];
+		}
+
 		$q = '' !== $out['name'] ? $out['name'] : $out['host'];
 		if ( '' !== $q ) {
 			$out['lookup'] = 'https://duckduckgo.com/?q=' . rawurlencode( $q . ' crawler bot' );

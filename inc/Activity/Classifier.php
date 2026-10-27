@@ -104,6 +104,13 @@ final class Classifier {
 		if ( preg_match( '#curl|wget|python|node-fetch|\bnode\b|\bbun/|\bdeno/|undici|go-http|okhttp|libwww|postman|httpie|axios|guzzle|java/|ruby|^php#', $ua ) ) {
 			return 'Script/tool';
 		}
+		// A "+https://…" contact link is a crawler's signature — no browser sends one.
+		// "Mozilla/5.0 (compatible; INITE-AtlasSweep/1.0; +https://inite.ai)" read
+		// "Browser" in the review queue (heera.it 10-27).
+		if ( false !== strpos( $ua, '+http' ) ) {
+			$declared = Catalog::self_declared( $raw );
+			return '' !== $declared['name'] ? $declared['name'] : 'Other bot';
+		}
 		if ( false !== strpos( $ua, 'mozilla' ) ) {
 			return 'Browser';
 		}

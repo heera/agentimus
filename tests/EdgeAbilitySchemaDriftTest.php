@@ -53,6 +53,9 @@ namespace Agentimus\Tests {
 		);
 
 		/** Mirror of one crawler row: Table::summary() columns + the decoration. */
+		/** Mirror of Summary::build()'s totals literal. */
+		private const TOTALS_KEYS = array( 'requests', 'cached', 'origin', 'blocked', 'probes', 'bytes' );
+
 		private const CRAWLER_KEYS = array( 'ua', 'requests', 'cached', 'origin', 'blocked', 'probes', 'bytes', 'name', 'operator', 'blockedByYou' );
 
 		private function registered(): array {
@@ -95,6 +98,11 @@ namespace Agentimus\Tests {
 
 		public function test_every_crawler_and_company_key_is_declared() {
 			$schema = $this->registered()['output_schema'];
+
+			$totals = $schema['properties']['totals']['properties'];
+			foreach ( self::TOTALS_KEYS as $key ) {
+				$this->assertArrayHasKey( $key, $totals, "totals carry `$key` but the schema does not declare it." );
+			}
 
 			$crawler = $schema['properties']['crawlers']['items']['properties'];
 			foreach ( self::CRAWLER_KEYS as $key ) {

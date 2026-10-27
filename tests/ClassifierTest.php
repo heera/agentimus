@@ -70,6 +70,26 @@ final class ClassifierTest extends TestCase {
 		$this->assertSame( 'Browser', Classifier::classify( 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0' ) );
 	}
 
+	/**
+	 * A "compatible; Name/1.0; +https://…" UA is a crawler naming itself, not a
+	 * browser — no browser carries a "+http" contact link. Caught on heera.it 10-27:
+	 * INITE-AtlasSweep sat in the review queue as "Browser".
+	 */
+	public function test_a_mozilla_ua_with_a_contact_link_is_named_not_a_browser() {
+		$this->assertSame( 'INITE-AtlasSweep', Classifier::classify( 'Mozilla/5.0 (compatible; INITE-AtlasSweep/1.0; +https://inite.ai)' ) );
+	}
+
+	/** A bot token with no "/version" is still its name (archive.org's crawler read "Other bot"). */
+	public function test_a_versionless_compatible_bot_token_is_its_name() {
+		$this->assertSame( 'archive.org_bot', Classifier::classify( 'Mozilla/5.0 (compatible; archive.org_bot +http://archive.org/details/archive.org_bot) Zeno/a97483f warc/v0.8.105' ) );
+	}
+
+	/** Real browsers stay browsers — old IE's "compatible; MSIE" is not a bot name. */
+	public function test_browsers_without_a_contact_link_stay_browsers() {
+		$this->assertSame( 'Browser', Classifier::classify( self::CHROME ) );
+		$this->assertSame( 'Browser', Classifier::classify( 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)' ) );
+	}
+
 	public function test_client_with_no_parseable_name_is_unrecognized() {
 		// Non-empty UA, but nothing to name it by: no known token, no product token,
 		// no browser/bot/script markers. Renamed from "Unidentified".

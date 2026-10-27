@@ -96,7 +96,7 @@ final class Audience {
 				'whole'   => $all['connected'],
 			),
 			'machines' => $machines,
-			'limits'   => self::limits( $search, $ai, $machines, $all ),
+			'limits'   => self::limits( $search, $ai, $machines, $all, ! empty( $stats['pageViews'] ) ),
 		);
 	}
 
@@ -461,9 +461,10 @@ final class Audience {
 	 * @param array $ai       The AI-referral half.
 	 * @param array $machines The machine half.
 	 * @param array $all      The analytics half.
+	 * @param bool  $pages    Whether ordinary page reads are recorded (then counted too).
 	 * @return array<int,array{key:string,text:string}>
 	 */
-	private static function limits( array $search, array $ai, array $machines, array $all = array() ) {
+	private static function limits( array $search, array $ai, array $machines, array $all = array(), $pages = false ) {
 		$out = array();
 
 		// The most important line on the card when analytics is absent: without
@@ -552,11 +553,20 @@ final class Audience {
 		}
 
 		if ( $machines['enabled'] ) {
-			$out[] = array(
-				'key'   => 'machines-endpoints',
-				'scope' => 'machines',
-				'text'  => __( 'Agent files only — not ordinary pages.', 'agentimus' ),
-			);
+			// What the count holds depends on whether page reads are recorded: "agent
+			// files only" beside a count that is mostly page reads (heera.it 10-27,
+			// 11,456 with page views on) says the opposite of the truth.
+			$out[] = $pages
+				? array(
+					'key'   => 'machines-pages',
+					'scope' => 'machines',
+					'text'  => __( 'Agent files and ordinary pages, both counted.', 'agentimus' ),
+				)
+				: array(
+					'key'   => 'machines-endpoints',
+					'scope' => 'machines',
+					'text'  => __( 'Agent files only — not ordinary pages.', 'agentimus' ),
+				);
 			// The freshest instrument on the card, and the only first-party one:
 			// the log writes as requests arrive, so this half runs to NOW while
 			// the engines' half ends before today. The contrast belongs beside
