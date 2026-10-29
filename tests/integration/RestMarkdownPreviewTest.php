@@ -49,6 +49,8 @@ final class RestMarkdownPreviewTest extends RestTestCase {
 	}
 
 	public function test_post_target_previews_its_own_markdown_not_the_index() {
+		// A post has a .md twin only under pretty permalinks (see the plain test below).
+		$this->set_permalink_structure( '/%postname%/' );
 		$post_id = self::factory()->post->create(
 			array(
 				'post_title'   => 'A Real Post',
@@ -68,5 +70,22 @@ final class RestMarkdownPreviewTest extends RestTestCase {
 		$this->assertNotSame( $index, $data['markdown'], 'a post target must not serve the site index' );
 		$this->assertNotSame( home_url( '/index.md' ), $data['mdUrl'], 'a post .md URL is not the home index' );
 		$this->assertStringEndsWith( '.md', $data['mdUrl'] );
+	}
+
+	public function test_plain_permalinks_advertise_no_post_twin() {
+		// "?p=123.md" is a query string, not a path — route() can never answer it.
+		$this->set_permalink_structure( '' );
+		$post_id = self::factory()->post->create(
+			array(
+				'post_title'   => 'A Plain Post',
+				'post_content' => '<p>Body.</p>',
+				'post_status'  => 'publish',
+			)
+		);
+
+		$data = $this->preview( $post_id );
+
+		$this->assertNotSame( '', $data['markdown'], 'the preview itself still renders' );
+		$this->assertSame( '', $data['mdUrl'], 'no live address to link to' );
 	}
 }

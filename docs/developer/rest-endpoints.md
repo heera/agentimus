@@ -58,7 +58,7 @@ The input is passed through `Settings::update()`, which sanitizes and merges aga
 { "settings": { "...": "..." }, "readiness": [ ... ], "score": { "score": 99, "band": "Excellent", "rungs": [ ... ], "content": [ ... ], "...": "..." }, "saved": true }
 ```
 
-The `score` object is `Agentimus\Score::report()` — the blended 0–100 `score`, its `band`, the `rungs` array (Findable/Readable/Trusted/Optimized, plus Cited when `enable_visibility` is on), the per-page `content` worklist and the `ignored` (set-aside) list. It is `null` if the score can't be computed.
+The `score` object is `Agentimus\Score::report()` — the blended 0–100 `score`, its `band`, the `rungs` array (Findable/Readable/Trusted/Optimized, plus Mentioned (key `cited`) when `enable_visibility` is on), the per-page `content` worklist and the `ignored` (set-aside) list. It is `null` if the score can't be computed.
 
 Partial updates are supported for most flags, but note that boolean feature toggles have specific merge semantics in `Settings::update()` (some absent keys reset to default, others are treated as "off"); send the full settings object if you need deterministic results.
 

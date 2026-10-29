@@ -47,11 +47,18 @@ final class LlmsText {
 		// see Endpoints::negotiates_markdown). Advertising it otherwise would send agents
 		// to a page URL asking for markdown, which is both a dead end and, on a CDN that
 		// force-caches page URLs, the request that poisons the cache for human readers.
-		$out .= sprintf(
-			"%s. Plain-text and markdown versions of any page are available by appending `.md` to its URL%s.\n",
-			'' !== $tagline ? $tagline : 'A WordPress site',
-			Endpoints::negotiates_markdown() ? ', or by requesting it with `Accept: text/markdown`' : ''
-		);
+		// The .md route needs pretty permalinks: on plain ones ("?p=123") there is
+		// no path to append it to, so the sentence names only what works.
+		$routes = array();
+		if ( Endpoints::markdown_urls_work() ) {
+			$routes[] = 'by appending `.md` to its URL';
+		}
+		if ( Endpoints::negotiates_markdown() ) {
+			$routes[] = 'by requesting it with `Accept: text/markdown`';
+		}
+		$out .= ( '' !== $tagline ? $tagline : 'A WordPress site' ) . '.'
+			. ( $routes ? ' Plain-text and markdown versions of any page are available ' . implode( ', or ', $routes ) . '.' : '' )
+			. "\n";
 
 		// Bridge agents that enter via llms.txt to the structured manifest. The
 		// manifest is the single source of truth for this site's machine surfaces
@@ -257,7 +264,10 @@ final class LlmsText {
 	private function truncation_note() {
 		return "\n---\n\n> Note: this full-text edition was truncated to stay within a size limit, so not every page is included above. "
 			. 'For the complete list of pages see the index at ' . esc_url_raw( home_url( '/llms.txt' ) )
-			. ', and append `.md` to any page URL' . ( Endpoints::negotiates_markdown() ? ' (or send `Accept: text/markdown`)' : '' ) . ' to fetch that page in full.' . "\n";
+			. ( Endpoints::markdown_urls_work()
+				? ', and append `.md` to any page URL' . ( Endpoints::negotiates_markdown() ? ' (or send `Accept: text/markdown`)' : '' ) . ' to fetch that page in full.'
+				: ( Endpoints::negotiates_markdown() ? ', and request any page with `Accept: text/markdown` to fetch it in full.' : '.' ) )
+			. "\n";
 	}
 
 	/**

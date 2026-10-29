@@ -100,8 +100,17 @@ final class SkillMd {
 			$out .= '- Overview and page index for agents: ' . home_url( '/llms.txt' ) . "\n";
 		}
 		if ( $this->settings->enabled( 'enable_markdown' ) ) {
-			$out .= '- Any page as markdown: append `.md` to its URL'
-				. ( Endpoints::negotiates_markdown() ? ', or request it with `Accept: text/markdown`' : '' ) . "\n";
+			// Only the routes that work here: .md needs pretty permalinks.
+			$routes = array();
+			if ( Endpoints::markdown_urls_work() ) {
+				$routes[] = 'append `.md` to its URL';
+			}
+			if ( Endpoints::negotiates_markdown() ) {
+				$routes[] = 'request it with `Accept: text/markdown`';
+			}
+			if ( $routes ) {
+				$out .= '- Any page as markdown: ' . implode( ', or ', $routes ) . "\n";
+			}
 		}
 		if ( $this->settings->enabled( 'enable_llms_full' ) ) {
 			$out .= '- Full text in one document: ' . home_url( '/llms-full.txt' ) . "\n";

@@ -322,7 +322,7 @@ add_filter( 'agentimus_deny_request', function ( $deny, $ua_lc ) {
 
 ### AEO/GEO score & citability
 
-The dashboard score's **Optimized** (per-page citability) and **Cited** (AI-visibility) rungs. See the [Readiness](../user-manual/readiness.html) and [AI Visibility](../user-manual/ai-visibility.html) manual pages.
+The dashboard score's **Optimized** (per-page citability) and **Mentioned** (AI-visibility) rungs. See the [Readiness](../user-manual/readiness.html) and [AI Visibility](../user-manual/ai-visibility.html) manual pages.
 
 | Hook | Type | Signature | Purpose |
 | --- | --- | --- | --- |
@@ -330,7 +330,7 @@ The dashboard score's **Optimized** (per-page citability) and **Cited** (AI-visi
 | `agentimus_commerce_post_types` | filter | `( string[] $slugs ): string[]` | Post-type slugs treated as commerce and left out of citability grading. Default: `product`, `product_variation`, `download`, `shop_order`, `shop_coupon`, `fluent-products`. |
 | `agentimus_gradeable_post` | filter | `( bool $gradeable, WP_Post $post ): bool` | Whether one page is graded for citability. Return `false` to exclude it — the admin **Set aside** action is the UI for this. |
 | `agentimus_evergreen_categories` | filter | `( int[] $term_ids, WP_Post $post ): int[]` | Category term IDs whose posts are exempt from the **freshness** check (timeless content). Defaults to the owner's *Evergreen content* setting. |
-| `agentimus_cited_stale_days` | filter | `( int $days ): int` | How old (in days) an AI-Visibility reading may be before the **Cited** rung stops counting it toward the score (default `90`). |
+| `agentimus_cited_stale_days` | filter | `( int $days ): int` | How old (in days) an AI-Visibility reading may be before the **Mentioned** rung stops counting it toward the score (default `90`). |
 
 ### Exposure & environment
 

@@ -46,6 +46,14 @@ final class MarkdownTest extends TestCase {
 		);
 	}
 
+	public function test_category_names_are_text_not_html_entities() {
+		$this->fixture( 20, array( 'post_type' => 'post' ) );
+		$GLOBALS['_af_terms'][20] = array( 'category' => array( 'Tips &amp; Tricks' ) );
+		$md = Markdown::post( 20 );
+		$this->assertStringContainsString( 'in Tips & Tricks', $md );
+		$this->assertStringNotContainsString( '&amp;', $md );
+	}
+
 	public function test_password_protected_post_is_not_exposed() {
 		$this->fixture( 1, array( 'post_password' => 'hunter2', 'post_content' => '<p>Members-only secret.</p>' ) );
 		$out = Markdown::post( 1 );

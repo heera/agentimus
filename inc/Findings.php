@@ -1262,7 +1262,7 @@ final class Findings {
 				self::LATER,
 				__( 'You have never measured whether AI assistants cite you', 'agentimus' ),
 				__( 'The one reading that says whether any of this worked.', 'agentimus' ),
-				array( __( 'Cited · no reading yet', 'agentimus' ) ),
+				array( __( 'Mentioned · no reading yet', 'agentimus' ) ),
 				$this->go( __( 'Set up citation checks', 'agentimus' ), 'visibility', 'settings' ),
 				array(
 					__( 'Everything else here is about being READY to be cited.', 'agentimus' ),

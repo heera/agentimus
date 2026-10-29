@@ -14,7 +14,9 @@
  *                    read back from the {@see Grades} store the sweep fills.
  *                    ⚠️ It was a 25-post recency sample until 2026-08-18; the
  *                    number moved when it stopped being one, and it should have.
- *   Cited     (15) — measured citation: the AI-Visibility "seen in answers" rate.
+ *   Mentioned (15) — measured: the AI-Visibility "seen in answers" rate, how often AI
+ *                    names the site. Its key stays `cited` (stored options, the API);
+ *                    the label says what it measures — a link is counted in the note.
  *
  * A pillar with no data yet (no published posts to grade; citation checks not set up)
  * is EXCLUDED and its weight redistributed across the rest — a well-configured new
@@ -143,7 +145,7 @@ final class Score {
 			// setup isn't complete enough to run a check (no engine key / no questions),
 			// otherwise Results.
 			$ready_to_run = '' === ( new Visibility\Runner( new Visibility\Settings() ) )->blocking_reason();
-			$rungs[]      = $this->signal_rung( 'cited', __( 'Cited', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility', $ready_to_run ? 'results' : 'settings' );
+			$rungs[]      = $this->signal_rung( 'cited', __( 'Mentioned', 'agentimus' ), $scores['cited'], $measure['note'], 'visibility', $ready_to_run ? 'results' : 'settings' );
 		}
 
 		return array(
@@ -863,6 +865,7 @@ final class Score {
 		$checks   = 0;
 		$errors   = 0;
 		$mentions = 0;
+		$linked   = 0;
 		$vscore   = 0;
 		$ago      = '';
 		$stale    = false;
@@ -871,6 +874,7 @@ final class Score {
 			$checks   = (int) $summary['checks'];
 			$errors   = (int) $summary['errors'];
 			$mentions = (int) $summary['mentions'];
+			$linked   = (int) $summary['citations'];
 			$vscore   = (int) $summary['visibilityScore'];
 			$ago      = human_time_diff( $run, time() );
 			// A citation reading goes stale with time. Past the cutoff it no longer
@@ -898,11 +902,17 @@ final class Score {
 				);
 				break;
 			case 'ok':
+				// The score counts being named; the note also says how many answers
+				// linked to the site, so a 100 over zero links can't pass for one.
 				$note = sprintf(
-					/* translators: 1: mentions, 2: checks, 3: human-readable time difference. */
-					__( 'AI named you in %1$d of %2$d answers · checked %3$s ago.', 'agentimus' ),
+					/* translators: 1: mentions, 2: checks, 3: "none linked to your site" or "N linked to your site", 4: human-readable time difference. */
+					__( 'AI named you in %1$d of %2$d answers · %3$s · checked %4$s ago.', 'agentimus' ),
 					$mentions,
 					$checks,
+					0 === $linked
+						? __( 'none linked to your site', 'agentimus' )
+						/* translators: %d: answers that linked to the site. */
+						: sprintf( __( '%d linked to your site', 'agentimus' ), $linked ),
 					$ago
 				);
 				// A partial run still measured a real, smaller sample — KEEP that score, but

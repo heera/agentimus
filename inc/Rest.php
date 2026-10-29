@@ -1266,7 +1266,7 @@ final class Rest {
 			$markdown  = Markdown::post( $post->ID );
 			$permalink = (string) get_permalink( $post );
 			// Mirrors Endpoints::markdown_alternate_url(): the permalink with `.md`.
-			$md_url = '' !== $permalink ? untrailingslashit( $permalink ) . '.md' : '';
+			$md_url = Endpoints::markdown_url( $permalink );
 		}
 
 		return rest_ensure_response(

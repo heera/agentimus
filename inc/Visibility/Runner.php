@@ -83,7 +83,7 @@ final class Runner {
 			return array( 'ran' => false, 'reason' => 'already_running' );
 		}
 		try {
-			return $this->do_run();
+			return $this->do_run( $trigger );
 		} finally {
 			self::release_run_lock();
 		}
@@ -94,9 +94,10 @@ final class Runner {
 	 * product × prompt × provider, stores each result, and stops early if the per-run
 	 * check ceiling is reached.
 	 *
+	 * @param string $trigger 'scheduled' or 'manual' — see run().
 	 * @return array
 	 */
-	private function do_run() {
+	private function do_run( $trigger ) {
 		$targets   = array_values( (array) $this->settings->get( 'targets', array() ) );
 		$providers = $this->settings->active_providers();
 
@@ -107,6 +108,7 @@ final class Runner {
 		}
 
 		$run_id     = time();
+		$refused    = array(); // Engines that refused the key this run: provider id => true.
 		$checks     = 0;
 		$capped     = false;
 		$max_checks = $this->max_checks_per_run();
@@ -125,7 +127,7 @@ final class Runner {
 			foreach ( $prompts as $prompt ) {
 				foreach ( $providers as $pid => $cfg ) {
 					$provider = Provider::make( $pid );
-					if ( ! $provider ) {
+					if ( ! $provider || isset( $refused[ $pid ] ) ) {
 						continue;
 					}
 
@@ -155,6 +157,12 @@ final class Runner {
 						)
 					);
 					$checks++;
+
+					// A refused key or a spent quota answers for the rest of the run:
+					// the recorded error says why, and the other engines keep going.
+					if ( Provider::refused( $result ) ) {
+						$refused[ $pid ] = true;
+					}
 
 					// Keep our own lock fresh so a long run isn't judged stale (LOCK_TTL)
 					// and stolen by a scheduled tick mid-flight — which would start a

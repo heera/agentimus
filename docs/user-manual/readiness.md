@@ -93,7 +93,7 @@ If you install a Pro add-on that contributes its own checks, any that don't map 
 
 ## How this feeds your AEO/GEO score
 
-These checks are the foundation of the **[AEO/GEO score](dashboard.html)** on your Dashboard. Its first three rungs *are* the three here — Findable, Readable and Trusted — and when all three are clean your site is **fully agent-ready**. The score then extends them with two more rungs: **Optimized** (the per-page work below) and **Cited** (measured on the [AI Visibility](ai-visibility.html) tab, when you turn it on).
+These checks are the foundation of the **[AEO/GEO score](dashboard.html)** on your Dashboard. Its first three rungs *are* the three here — Findable, Readable and Trusted — and when all three are clean your site is **fully agent-ready**. The score then extends them with two more rungs: **Optimized** (the per-page work below) and **Mentioned** (measured on the [AI Visibility](ai-visibility.html) tab, when you turn it on).
 
 On this tab each rung group shows a small tally like `5/5` and takes the colour of its worst check — one `FAIL` turns it red, one `WARN` amber, an all-clear group green. The single most useful **next step** is always named on the Dashboard score card. (For how the 0–100 number is blended and banded — Needs work / Fair / Strong / Excellent — see the [Dashboard page](dashboard.html).)
 

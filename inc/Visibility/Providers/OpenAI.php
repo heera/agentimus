@@ -54,7 +54,7 @@ final class OpenAI extends Provider {
 		);
 
 		if ( isset( $result['error'] ) ) {
-			return $this->fail( $result['error'] );
+			return $this->fail( $result['error'], $result['status'] ?? 0 );
 		}
 
 		$text = isset( $result['json']['choices'][0]['message']['content'] )
@@ -81,7 +81,7 @@ final class OpenAI extends Provider {
 		);
 
 		if ( isset( $result['error'] ) ) {
-			return $this->fail( $result['error'] );
+			return $this->fail( $result['error'], $result['status'] ?? 0 );
 		}
 
 		list( $text, $citations ) = $this->parse_responses( $result['json'] );

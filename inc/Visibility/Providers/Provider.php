@@ -98,7 +98,8 @@ abstract class Provider {
 	 * @param array  $body    Body to JSON-encode.
 	 * @param int    $timeout Per-request timeout (seconds). Defaults to the plain
 	 *                        TIMEOUT; pass WEB_TIMEOUT for a live web-search call.
-	 * @return array { json?: array, error?: string }
+	 * @return array { json?: array, error?: string, status?: int } — `status` is the
+	 *               HTTP code of a refused call (absent when the call never got one).
 	 */
 	protected function post_json( $url, array $headers, array $body, $timeout = self::TIMEOUT ) {
 		$args = array(
@@ -132,13 +133,13 @@ abstract class Provider {
 			$json = json_decode( $raw, true );
 
 			if ( $code < 200 || $code >= 300 ) {
-				return array( 'error' => $this->error_from( $json, $code ) );
+				return array( 'error' => $this->error_from( $json, $code ), 'status' => $code );
 			}
 			return array( 'json' => is_array( $json ) ? $json : array() );
 		}
 
 		// Unreachable in normal flow (the retry path returns above); a safety net.
-		return array( 'error' => __( 'Rate limited by the provider. Please try again shortly.', 'agentimus' ) );
+		return array( 'error' => __( 'Rate limited by the provider. Please try again shortly.', 'agentimus' ), 'status' => 429 );
 	}
 
 	/**
@@ -231,13 +232,27 @@ abstract class Provider {
 	 * A normalized error result.
 	 *
 	 * @param string $message Error message.
+	 * @param int    $status  HTTP status of the refusal, 0 when there was none.
 	 * @return array
 	 */
-	protected function fail( $message ) {
+	protected function fail( $message, $status = 0 ) {
 		return array(
 			'text'      => '',
 			'citations' => array(),
 			'error'     => (string) $message,
+			'status'    => (int) $status,
 		);
+	}
+
+	/**
+	 * Whether a failed result is the engine refusing this key for now — a wrong
+	 * or revoked key (401/403) or a spent quota (429, after the one Retry-After
+	 * wait). Every later question in the run would get the same answer.
+	 *
+	 * @param array $result A query() result.
+	 * @return bool
+	 */
+	public static function refused( array $result ) {
+		return in_array( (int) ( $result['status'] ?? 0 ), array( 401, 403, 429 ), true );
 	}
 }

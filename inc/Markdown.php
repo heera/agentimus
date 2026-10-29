@@ -57,7 +57,8 @@ final class Markdown {
 			}
 			$cats = wp_get_post_terms( $post->ID, 'category', array( 'fields' => 'names' ) );
 			if ( ! is_wp_error( $cats ) && ! empty( $cats ) ) {
-				$meta[] = 'in ' . implode( ', ', $cats );
+				// Term names are stored HTML-escaped ("Tips &amp; Tricks"); markdown wants text.
+				$meta[] = 'in ' . html_entity_decode( implode( ', ', $cats ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 			}
 		}
 		$meta[] = '<' . $url . '>';

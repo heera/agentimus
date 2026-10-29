@@ -193,7 +193,7 @@ final class IndexNow {
 	public static function serve_key_file() {
 		// The cheap shape test runs first: only a /{32 alnum}.txt path is worth
 		// the option read (autoload is off), so ordinary page views never pay it.
-		$path = (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- path-compared verbatim, never stored or echoed.
+		$path = Request::path(); // Home-relative, so a subdirectory install answers at its keyLocation.
 		if ( ! preg_match( '#^/[a-z0-9]{32}\.txt$#', $path ) || ! self::enabled() ) {
 			return;
 		}

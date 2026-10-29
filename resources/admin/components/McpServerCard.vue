@@ -18,6 +18,7 @@ import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import { copyText } from '../js/clipboard.js';
 import { bindDocEsc } from '../js/docEsc.js';
+import { judgeInitialize } from '../js/mcpTest.js';
 import AppLink from './AppLink.vue';
 
 export default {
@@ -693,24 +694,15 @@ export default {
           checks.push({ state: 'fail', label: 'Server reachable', note: 'the request never got an answer — is the site reachable from this browser?' });
           return;
         }
-        if (res.status === 404) {
-          checks.push({ state: 'fail', label: 'Server reachable', note: 'the address returned “not found” — save the settings with the switch on, then retry' });
-          return;
-        }
-        checks.push({ state: 'ok', label: 'Server reachable' });
-        if (res.status === 401 || res.status === 403) {
-          checks.push({ state: 'fail', label: 'Sign-in accepted', note: `the site refused this key — check the username (${this.mcpUsername}) and the key itself; a wrong username fails exactly like a wrong password` });
-          return;
-        }
-        checks.push({ state: 'ok', label: 'Sign-in accepted', note: `as ${this.mcpUsername}` });
         let init = null;
         try { init = await res.json(); } catch (e) { /* judged below */ }
-        if (!res.ok || !init || !init.result) {
-          checks.push({ state: 'fail', label: 'MCP handshake (initialize)', note: `unexpected answer (HTTP ${res.status})` });
-          return;
-        }
-        const server = init.result.serverInfo || {};
-        checks.push({ state: 'ok', label: 'MCP handshake (initialize)', note: [server.name, server.version].filter(Boolean).join(' ') });
+        const verdict = judgeInitialize(
+          { status: res.status, ok: res.ok, redirected: res.redirected, contentType: res.headers.get('Content-Type') || '' },
+          init,
+          this.mcpUsername,
+        );
+        checks.push(...verdict.checks);
+        if (!verdict.proceed) return;
         let list = null;
         try {
           list = await fetch(url, {

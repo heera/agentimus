@@ -39,7 +39,7 @@ final class Perplexity extends Provider {
 		);
 
 		if ( isset( $result['error'] ) ) {
-			return $this->fail( $result['error'] );
+			return $this->fail( $result['error'], $result['status'] ?? 0 );
 		}
 
 		$json = $result['json'];

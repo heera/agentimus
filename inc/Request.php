@@ -37,4 +37,21 @@ final class Request {
 	public static function uri() {
 		return isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 	}
+
+	/**
+	 * The request path relative to the site's home, always starting with '/'.
+	 * On a subdirectory install (home = https://example.com/blog) the raw path
+	 * of /blog/llms.txt is "/blog/llms.txt"; this returns "/llms.txt", the form
+	 * every surface compares against and builds from with home_url().
+	 *
+	 * @return string
+	 */
+	public static function path() {
+		$path = '/' . ltrim( (string) wp_parse_url( self::uri(), PHP_URL_PATH ), '/' );
+		$base = rtrim( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ), '/' );
+		if ( '' !== $base && ( $path === $base || 0 === strpos( $path, $base . '/' ) ) ) {
+			$path = (string) substr( $path, strlen( $base ) );
+		}
+		return '' === $path ? '/' : $path;
+	}
 }

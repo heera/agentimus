@@ -247,7 +247,7 @@ export default {
     async confirmChecksOff() {
       const ok = await confirm({
         title: 'Turn off citation checks?',
-        message: 'Scheduled runs stop and the “Cited” rung leaves your score. Your targets, keys and history are all kept — turn it back on any time and it picks up where it left off.',
+        message: 'Scheduled runs stop and the “Mentioned” rung leaves your score. Your targets, keys and history are all kept — turn it back on any time and it picks up where it left off.',
         confirmLabel: 'Turn Off',
         cancelLabel: 'Cancel',
         tone: 'danger',
@@ -998,7 +998,7 @@ export default {
               set for you. Agentimus then puts them to ChatGPT, Perplexity, Gemini and
               Claude on a schedule, using your own AI keys. Each answer is graded: you
               were mentioned, you were linked, or a rival was named instead. Those
-              verdicts build your history and the “Cited” rung of your score.
+              verdicts build your history and the “Mentioned” rung of your score.
             </p>
 
             <button type="button" class="ar-btn" @click="setChecks(true)">Set up citation checks</button>
@@ -1019,7 +1019,7 @@ export default {
         <!-- The tenant's key hangs inside its own door: state named, off switch
              beside it — the global Features list no longer carries this toggle. -->
         <div v-if="checksOn && view === 'citations' && citView === 'settings'" class="agv-checkstate">
-          <span>Citation checks are <strong>on</strong> — scheduled runs, the “Cited” rung and the MCP read tool are active. Turning them off keeps your targets and history.</span>
+          <span>Citation checks are <strong>on</strong> — scheduled runs, the “Mentioned” rung and the MCP read tool are active. Turning them off keeps your targets and history.</span>
           <!-- A power mark + a confirm (his call): this link stops a scheduled
                feature and reshapes the score, so it must not fire on a stray
                click — and the dialog is where the "nothing is lost" promise

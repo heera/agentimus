@@ -894,6 +894,98 @@ final class ScoreDbTest extends DbTestCase {
 		$this->assertNotContains( 'measure_setup', $ids );
 	}
 
+	/**
+	 * The rung measures how often AI NAMES the site, so it is called Mentioned, and
+	 * its note says how many answers linked to the site as well. On heera.it it read
+	 * "Cited 100%" over 3 answers that named the site and 0 that linked to it.
+	 */
+	public function test_the_rung_is_named_for_what_it_measures_and_its_note_counts_links() {
+		$this->enable_visibility();
+		update_option(
+			VisibilitySettings::OPTION,
+			array( 'providers' => array( 'openai' => array( 'key' => 'sk-plaintext-test', 'enabled' => true, 'model' => 'gpt-4o-mini', 'web_search' => false ) ) )
+		);
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		$run = time() - HOUR_IN_SECONDS;
+		foreach ( array( 'one', 'two', 'three' ) as $i => $q ) {
+			Store::insert(
+				array(
+					'run_id'      => $run,
+					'brand'       => 'Acme',
+					'provider'    => 'openai',
+					'model'       => 'gpt-4o-mini',
+					'prompt'      => 'acme ' . $q,
+					'mentioned'   => true,
+					'cited'       => 2 === $i, // One answer of three links to the site.
+					'position'    => 1,
+					'competitors' => array(),
+					'answer'      => 'Acme is great.',
+					'sources'     => array(),
+					'error'       => '',
+				)
+			);
+		}
+		update_option( Runner::LAST_RUN_OPTION, $run );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( Runner::LAST_RUN_OPTION );
+		delete_option( VisibilitySettings::OPTION );
+
+		$rung = null;
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$rung = $g;
+			}
+		}
+		$this->assertSame( 'Mentioned', $rung['label'] );
+		$this->assertSame( 100, $rung['score'], 'the number is still the share of answers that named you' );
+		$this->assertStringContainsString( 'AI named you in 3 of 3 answers', $rung['note'] );
+		$this->assertStringContainsString( '1 linked to your site', $rung['note'] );
+	}
+
+	public function test_a_run_with_no_links_says_so() {
+		$this->enable_visibility();
+		update_option(
+			VisibilitySettings::OPTION,
+			array( 'providers' => array( 'openai' => array( 'key' => 'sk-plaintext-test', 'enabled' => true, 'model' => 'gpt-4o-mini', 'web_search' => false ) ) )
+		);
+		Table::install();
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . Table::name() );
+		$run = time() - HOUR_IN_SECONDS;
+		Store::insert(
+			array(
+				'run_id'      => $run,
+				'brand'       => 'Acme',
+				'provider'    => 'openai',
+				'model'       => 'gpt-4o-mini',
+				'prompt'      => 'acme',
+				'mentioned'   => true,
+				'cited'       => false,
+				'position'    => 1,
+				'competitors' => array(),
+				'answer'      => 'Acme is great.',
+				'sources'     => array(),
+				'error'       => '',
+			)
+		);
+		update_option( Runner::LAST_RUN_OPTION, $run );
+
+		$r = ( new Score( new Settings() ) )->report();
+		delete_option( Runner::LAST_RUN_OPTION );
+		delete_option( VisibilitySettings::OPTION );
+
+		$note = '';
+		foreach ( $r['rungs'] as $g ) {
+			if ( 'cited' === $g['key'] ) {
+				$note = $g['note'];
+			}
+		}
+		$this->assertStringContainsString( 'none linked to your site', $note );
+	}
+
 	public function test_cited_rung_appears_only_when_tracking_is_on() {
 		// Explicitly assert the off-state (option state can carry over between tests via
 		// the options cache, so don't rely on the schema default here).

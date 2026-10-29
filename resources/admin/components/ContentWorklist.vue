@@ -515,8 +515,12 @@ export default {
       this.$emit('dismiss-search', { query: i.focus.query });
     },
     setAsideRow(i) {
-      this.$emit('set-aside', { id: i.id, aside: !i.setAside });
-      if (this.extraRows.some((r) => r.id === i.id)) i.setAside = !i.setAside;
+      const aside = !i.setAside;
+      // A row outside the page is ours to update (the parent only knows its own
+      // list) — and only once the save has landed: flipped up front, a failed
+      // save left it reading "Put this back" for a page never set aside.
+      const extra = this.extraRows.some((r) => r.id === i.id);
+      this.$emit('set-aside', { id: i.id, aside, done: extra ? () => { i.setAside = aside; } : null });
     },
     // Only the numbers that mean something on this site. A stat reading "0"
     // teaches nothing and makes the row look broken.

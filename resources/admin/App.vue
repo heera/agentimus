@@ -1611,7 +1611,7 @@ export default {
     },
     // Set aside / bring back one item, through the SAME route the Optimize
     // worklist uses — one decision, one store, honoured in both places.
-    async setAsideItem({ id, aside }) {
+    async setAsideItem({ id, aside, done }) {
       this.settingAside = id;
       try {
         const res = await this.api.ignoreOptimize(id, aside);
@@ -1626,6 +1626,7 @@ export default {
         // one number and the sentence above them another, until the owner
         // happened to leave the tab and come back. One cheap GET, and the whole
         // screen tells one story.
+        if (done) done();
         this.silentRefreshFindings();
         this.flash('success', aside ? 'Set aside.' : 'Back in the list.');
       } catch (e) {

@@ -18,6 +18,7 @@
  * Off state = one quiet pointer at Settings → Data Sources. No form here.
  */
 import { formatDate, relTimeShort } from '../js/wpDate.js';
+import { optimistic } from '../js/optimistic.js';
 import RefreshCrank from './RefreshCrank.vue';
 import PagerBar from './PagerBar.vue';
 
@@ -410,11 +411,10 @@ export default {
     // Fire-and-forget: the link opens in its own tab regardless, and failing to
     // write a note must never interrupt going to Search Console.
     noteOpened(r) {
-      if (!r || !r.url) return;
-      r.openedAt = Math.floor(Date.now() / 1000); // Optimistic — the row is ours to paint.
-      if (this.api && this.api.markGoogleIndexOpened) {
-        this.api.markGoogleIndexOpened(r.url).catch(() => {});
-      }
+      if (!r || !r.url || !this.api || !this.api.markGoogleIndexOpened) return;
+      // Painted now, taken back if the save fails — the link itself already
+      // opened, so the row's date is the only thing that can be wrong.
+      optimistic(r, 'openedAt', Math.floor(Date.now() / 1000), () => this.api.markGoogleIndexOpened(r.url)).catch(() => {});
     },
     // Ratio-bar segment width, of the site pages actually checked.
     pct(n) {

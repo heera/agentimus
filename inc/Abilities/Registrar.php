@@ -266,7 +266,7 @@ final class Registrar {
 			'read-readiness',
 			__( 'Get AI readiness & AEO/GEO score', 'agentimus' ),
 			'Returns the site’s AI-visibility health: the blended 0–100 AEO/GEO score with its band '
-				. '(Findable, Readable, Trusted, Optimized, Cited pillars), the impact-ranked "do this next" '
+				. '(Findable, Readable, Trusted, Optimized, Mentioned pillars — Mentioned has the key `cited`), the impact-ranked "do this next" '
 				. 'action plan, AND the full list of readiness checks with their pass/warn/fail status and the '
 				. 'fix for each ("off" = the feature the check measures is switched off; informational only, '
 				. 'excluded from the score). Use this to answer "how ready is my site to be found and cited '

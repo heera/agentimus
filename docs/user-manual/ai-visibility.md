@@ -6,7 +6,7 @@ nav_order: 20
 
 AI Visibility monitoring is the one part of Agentimus that talks to the outside world. Everything else in the plugin runs quietly on your own site. This feature, when you switch it on and add your own AI keys, actually asks the big AI assistants questions and reports back whether they mention you, link to you, and how you stack up against your rivals — tracked over time so you can see the picture change.
 
-It is built into this plugin — nothing extra to install — but it's **hidden until you ask for it**. Because it's the one feature that spends your own AI credit, it's an explicit opt-in: turn on **Track AI citations** under **Settings → Features** and the **AI Visibility** tab appears, and a **Cited** rung joins your [AEO/GEO score](dashboard.html). Leave it off and neither shows — your score is a clean four-rung ladder.
+It is built into this plugin — nothing extra to install — but it's **hidden until you ask for it**. Because it's the one feature that spends your own AI credit, it's an explicit opt-in: turn on **Track AI citations** under **Settings → Features** and the **AI Visibility** tab appears, and a **Mentioned** rung joins your [AEO/GEO score](dashboard.html). Leave it off and neither shows — your score is a clean four-rung ladder.
 
 ## What it does, in plain terms
 
@@ -159,12 +159,12 @@ Each source is named by the **site that was actually cited**. Some engines hand 
 
 Click the verdict on any answer to **read the whole thing** in a window — the excerpt on the card ends on a full sentence, and the full answer is fetched only when you open it. Each product or brand you track can be **folded away** once you have read it, so a check covering eight items is not half a screen of scrolling.
 
-## How this feeds the "Cited" rung
+## How this feeds the "Mentioned" rung
 
-When **Track AI citations** is on, your latest check's **"Seen in answers"** rate becomes the **Cited** rung of your [AEO/GEO score](dashboard.html) — the one rung that measures a real *outcome* rather than your setup. Two things keep it honest:
+When **Track AI citations** is on, your latest check's **"Seen in answers"** rate becomes the **Mentioned** rung of your [AEO/GEO score](dashboard.html) — the one rung that measures a real *outcome* rather than your setup. Two things keep it honest:
 
 - **It's dated, and it expires.** The rung notes *when* it was last checked, and a reading older than **90 days** stops counting toward the score (it's shown as a dated reference until you re-run). An old measurement never quietly stands in for a current one.
-- **No key, no number.** If you remove a provider key — or haven't run a check yet — Cited reads a grey **"—"** and is simply left out of the score, its weight shared across the other rungs. Clicking the **Cited** rung on the Dashboard takes you straight here: to **Settings** when your setup isn't complete enough to run a check, or to **Results** when it is.
+- **No key, no number.** If you remove a provider key — or haven't run a check yet — Mentioned reads a grey **"—"** and is simply left out of the score, its weight shared across the other rungs. Clicking the **Mentioned** rung on the Dashboard takes you straight here: to **Settings** when your setup isn't complete enough to run a check, or to **Results** when it is.
 
 ## Turn on automatic checks (scheduling)
 
@@ -212,7 +212,7 @@ Where Agentimus genuinely helps is making sure that when an AI *does* look at yo
 
 | Setting | Where | Notes |
 |---|---|---|
-| Show the feature | Settings → Features → **Track AI citations** | Off by default; the tab + the Cited rung appear when on |
+| Show the feature | Settings → Features → **Track AI citations** | Off by default; the tab + the Mentioned rung appear when on |
 | Run checks | Enable an engine + add a key | Bring your own key; each check spends your own credit |
 | What to track | Settings → What you're tracking | Up to 10 items, each with its own name, category, site, rivals, questions |
 | The category | "What kind of thing is it?" per item | The market you sell into, not what you blog about; the suggestions are built from it |

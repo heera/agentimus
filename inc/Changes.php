@@ -192,7 +192,7 @@ final class Changes {
 			'action'    => $raw['action'],
 		);
 
-		$md_url = ( $markdown && '' !== $raw['url'] ) ? untrailingslashit( $raw['url'] ) . '.md' : '';
+		$md_url = $markdown ? Endpoints::markdown_url( $raw['url'] ) : '';
 		if ( '' !== $md_url ) {
 			$item['markdown'] = $md_url;
 		}

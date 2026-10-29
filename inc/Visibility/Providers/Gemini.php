@@ -48,7 +48,7 @@ final class Gemini extends Provider {
 		$result = $this->post_json( $url, array( 'x-goog-api-key' => $key ), $body, $web_search ? self::WEB_TIMEOUT : self::TIMEOUT );
 
 		if ( isset( $result['error'] ) ) {
-			return $this->fail( $result['error'] );
+			return $this->fail( $result['error'], $result['status'] ?? 0 );
 		}
 
 		$json = $result['json'];

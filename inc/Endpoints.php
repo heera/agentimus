@@ -92,8 +92,7 @@ final class Endpoints {
 			return;
 		}
 
-		$uri  = Request::uri();
-		$path = '/' . ltrim( (string) wp_parse_url( $uri, PHP_URL_PATH ), '/' );
+		$path = Request::path();
 
 		// Guarantee a 200 robots.txt. WordPress's virtual robots.txt can come back 404
 		// on some hosts — the body is served but the status is wrong, which a strict
@@ -574,8 +573,34 @@ final class Endpoints {
 		if ( ! $id || ! $this->post_in_scope( $id ) ) {
 			return '';
 		}
-		$permalink = get_permalink( $id );
-		return $permalink ? untrailingslashit( $permalink ) . '.md' : '';
+		return self::markdown_url( (string) get_permalink( $id ) );
+	}
+
+	/**
+	 * The .md twin of a permalink, or '' when it has none. route() answers only a
+	 * PATH ending in .md, so a query-string permalink (plain permalinks' "?p=123",
+	 * or a post type without rewrites) has no twin — "?p=123.md" would be a dead
+	 * address. Every surface that advertises a twin builds it here.
+	 *
+	 * @param string $permalink The page's permalink.
+	 * @return string
+	 */
+	public static function markdown_url( $permalink ) {
+		$permalink = (string) $permalink;
+		if ( '' === $permalink || '' !== (string) wp_parse_url( $permalink, PHP_URL_QUERY ) ) {
+			return '';
+		}
+		return untrailingslashit( $permalink ) . '.md';
+	}
+
+	/**
+	 * Whether pages have .md twins at all: not on plain permalinks, where every
+	 * link is "?p=123". Gates the sentences that tell agents to append .md.
+	 *
+	 * @return bool
+	 */
+	public static function markdown_urls_work() {
+		return '' !== (string) get_option( 'permalink_structure', '' );
 	}
 
 	/**
@@ -736,8 +761,7 @@ final class Endpoints {
 			return;
 		}
 
-		$uri  = Request::uri();
-		$path = strtolower( (string) wp_parse_url( $uri, PHP_URL_PATH ) );
+		$path = strtolower( Request::path() );
 		if ( '/llms.txt' === $path || '/llms-full.txt' === $path || '/robots.txt' === $path
 			|| '.md' === substr( $path, -3 ) || 0 === strpos( $path, '/.well-known/' )
 			|| false !== strpos( $path, '/feed' ) ) {

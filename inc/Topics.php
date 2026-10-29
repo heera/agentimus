@@ -793,7 +793,10 @@ JS;
 		$out  = array();
 		$seen = array();
 		foreach ( (array) $list as $item ) {
-			$item = trim( wp_strip_all_tags( (string) $item ) );
+			// Text, not HTML: WordPress stores a term typed "Tips & Tricks" as
+			// "Tips &amp; Tricks", and topics leave as JSON-LD and markdown.
+			// Strip again after decoding, so "&lt;b&gt;" can't come back as a tag.
+			$item = trim( wp_strip_all_tags( html_entity_decode( wp_strip_all_tags( (string) $item ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
 			if ( '' === $item ) {
 				continue;
 			}
@@ -888,7 +891,10 @@ JS;
 		$out  = array();
 		$seen = array();
 		foreach ( (array) $pool as $item ) {
-			$item = trim( wp_strip_all_tags( (string) $item ) );
+			// Text, not HTML: WordPress stores a term typed "Tips & Tricks" as
+			// "Tips &amp; Tricks", and topics leave as JSON-LD and markdown.
+			// Strip again after decoding, so "&lt;b&gt;" can't come back as a tag.
+			$item = trim( wp_strip_all_tags( html_entity_decode( wp_strip_all_tags( (string) $item ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
 			if ( '' === $item ) {
 				continue;
 			}

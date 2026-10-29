@@ -72,6 +72,22 @@ final class TopicsTest extends TestCase {
 		$this->assertSame( array( 'News', 'WordPress' ), Topics::for_post( 2 ) );
 	}
 
+	public function test_term_names_come_out_as_text_not_html_entities() {
+		// WordPress stores a term name typed "Tips & Tricks" as "Tips &amp; Tricks";
+		// the topics land in JSON-LD and the .md page, where the entity is garbage.
+		$this->fixture(
+			3,
+			array( Topics::META_DERIVE => '1' ),
+			array( 'category' => array( 'Tips &amp; Tricks' ), 'post_tag' => array( 'Rock &#039;n&#039; Roll' ) )
+		);
+		$this->assertSame( array( 'Tips & Tricks', "Rock 'n' Roll" ), Topics::for_post( 3 ) );
+	}
+
+	public function test_a_decoded_entity_never_becomes_a_tag() {
+		$this->fixture( 4, array( Topics::META_TOPICS => array( '&lt;b&gt;Bold&lt;/b&gt; text' ), Topics::META_DERIVE => '0' ) );
+		$this->assertSame( array( 'Bold text' ), Topics::for_post( 4 ) );
+	}
+
 	/* -- Junk numeric terms never become AI topics ------------------------ */
 
 	public function test_purely_numeric_derived_terms_are_skipped() {
