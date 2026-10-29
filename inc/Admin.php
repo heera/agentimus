@@ -1009,6 +1009,23 @@ final class Admin {
 				// layout, the security fix, and one fixes row — the older ones kept.
 				// ⭐ 1.53.5 likewise: two rows on top — the grouped Recent Requests
 				// and the scanner probes counted apart — the older ones kept.
+				// ⭐ 1.53.6 likewise: three rows on top — the Mentioned rung, citation
+				// runs that stop on a refused key, and subfolder sites — the older kept.
+				array(
+					'icon'  => 'search',
+					'title' => 'The Score Says Mentioned, Not Cited',
+					'text'  => 'Its fifth rung measures how often AI names you, so it is called Mentioned now. Its note also says how many of those answers linked to your site.',
+				),
+				array(
+					'icon'  => 'shield',
+					'title' => 'Citation Runs Stop on a Refused Key',
+					'text'  => 'A wrong key or a spent quota is asked once per run, not once per question. A run you start yourself is no longer announced as a scheduled one.',
+				),
+				array(
+					'icon'  => 'link',
+					'title' => 'Sites in a Subfolder Work',
+					'text'  => 'llms.txt, the .md pages and the sitemap now answer on a site installed at an address like example.com/blog.',
+				),
 				array(
 					'icon'  => 'page',
 					'title' => 'One Busy Bot No Longer Fills the List',

@@ -4,6 +4,17 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.6
+* Fixed: on a site installed in a subfolder, such as example.com/blog, llms.txt, llms-full.txt, the .md pages, the sitemap and the IndexNow key file all answered "not found". They answer at the subfolder's address now.
+* Fixed: /.well-known/agent-skills/index.json follows the Agent Skills discovery format. It lists the site's own SKILL.md with its checksum, and no longer answers "not found" on a site with no plugin skills. For developers: the agentimus_agent_skills filter now takes entries in that format.
+* Changed: the score's fifth rung is called Mentioned, because it measures how often AI names you. Its note also says how many of those answers linked to your site.
+* Fixed: a citation run stops asking an engine that refused your key or ran out of quota, instead of paying for the same refusal on every question. The other engines keep going.
+* Fixed: a citation run you started yourself was reported as a scheduled one, so your connected channels announced your own clicks.
+* Fixed: the MCP connection test said "Sign-in accepted" when the site answered with an error or a login page.
+* Fixed: on plain permalinks ("?p=123"), the change feed, a page's markdown link and the preview pointed to .md addresses that cannot work, and llms.txt told agents to append .md. Neither happens there now.
+* Fixed: category and topic names with an ampersand read "&amp;" in the structured data and the .md pages.
+* Fixed: "console opened" on the Google index card, and "Set this aside" on a worklist row, no longer stay changed when the save fails.
+
 ## 1.53.5
 * Fixed: Recent Requests counted its 50 before grouping, so one busy crawler could fill the card — 47 of the 50 on one site — and push every other client off it. Repeat hits are grouped first now: up to 50 rows, each with its count.
 * Fixed: the At Cloudflare panel showed every blocked request as Cloudflare blocking the crawler. Requests for files no reader asks for, such as a .env or a .git folder, are scanners using a crawler's name. The panel counts them apart, marks a crawler red only when Cloudflare turned away one you allow, and "still knocking?" counts a blocked crawler's own requests.

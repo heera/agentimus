@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.53.5
+Stable tag: 1.53.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -298,6 +298,17 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.53.6 =
+* Fixed: on a site installed in a subfolder, such as example.com/blog, llms.txt, llms-full.txt, the .md pages, the sitemap and the IndexNow key file all answered "not found". They answer at the subfolder's address now.
+* Fixed: /.well-known/agent-skills/index.json follows the Agent Skills discovery format. It lists the site's own SKILL.md with its checksum, and no longer answers "not found" on a site with no plugin skills. For developers: the agentimus_agent_skills filter now takes entries in that format.
+* Changed: the score's fifth rung is called Mentioned, because it measures how often AI names you. Its note also says how many of those answers linked to your site.
+* Fixed: a citation run stops asking an engine that refused your key or ran out of quota, instead of paying for the same refusal on every question. The other engines keep going.
+* Fixed: a citation run you started yourself was reported as a scheduled one, so your connected channels announced your own clicks.
+* Fixed: the MCP connection test said "Sign-in accepted" when the site answered with an error or a login page.
+* Fixed: on plain permalinks ("?p=123"), the change feed, a page's markdown link and the preview pointed to .md addresses that cannot work, and llms.txt told agents to append .md. Neither happens there now.
+* Fixed: category and topic names with an ampersand read "&amp;" in the structured data and the .md pages.
+* Fixed: "console opened" on the Google index card, and "Set this aside" on a worklist row, no longer stay changed when the save fails.
+
 = 1.53.5 =
 * Fixed: Recent Requests counted its 50 before grouping, so one busy crawler could fill the card — 47 of the 50 on one site — and push every other client off it. Repeat hits are grouped first now: up to 50 rows, each with its count.
 * Fixed: the At Cloudflare panel showed every blocked request as Cloudflare blocking the crawler. Requests for files no reader asks for, such as a .env or a .git folder, are scanners using a crawler's name. The panel counts them apart, marks a crawler red only when Cloudflare turned away one you allow, and "still knocking?" counts a blocked crawler's own requests.
@@ -411,23 +422,13 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: the "Put this away" link is gone from the Findings screen. Putting a suggestion away only moved it into a fold at the foot of the same list — a collapsible in disguise — and only one kind of row ever carried the control, so part of the list arrived offering to be dismissed while the rest did not. Every finding now simply stays in its list, anything you had put away comes back on its own, and a connected assistant no longer sees a put-away ledger either.
 * Improved: the Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with. The tile row used to sit between Today and everything else, cutting the run of cards in two.
 
-= 1.50.0 =
-* New: you can write your own robots.txt rules from the Crawler Policy card. A plain text box is appended to the end of the generated file, exactly as written — appended, never replacing, so an edit cannot break the Content-Signal line or the crawler blocks the plugin writes, and clearing the box is the whole reset. The live robots.txt is shown right above the box, fetched from your site exactly as a crawler receives it — which also honestly shows when a robots.txt file on disk or an SEO plugin owns the job instead (then the extra rules do not apply, and the box says so), and warns when your server wraps the file in an error code, which a strict crawler may ignore. Write your own Sitemap line and the plugin stops adding its own rather than printing two.
-* New: the review bell's cards now say why a visitor is unchecked, instead of one blank "not verified" covering every case. Each card names its own cause — identity checking is turned off, this bot cannot be checked because its operator publishes nothing to check against, its visits gave no clear answer yet, or it carries a real cryptographic signature from an operator this site does not know. Each cause reads differently on the card, so you can tell at a glance which unchecked rows are waiting for an answer and which will never have one — and the small info icon carries the full reason.
-* New: each recommendation on a review card is now a small labelled chip that names the kind of action it asks for — nothing left to do, one plugin setting, or a rule at your host or CDN — with the full advice shown on hover. Three cards used to read as three similar sentences; now you can see before reading a word that one asks nothing of you, one is a click in Settings, and one needs your hosting panel. The cards are several lines shorter, and on a proven impostor the genuine engine's verified traffic is counted right in the stats line so the fake never wears the real crawler's numbers.
-* New: the Client Decisions dialog opens each list with a plain notice saying what your decision actually reaches. A block is enforced at this plugin's machine files — llms.txt, the markdown pages, discovery — not across your whole site, and it is separate from robots.txt, which is only a request a bot may ignore. Trusting a client sends nothing to the bot and changes nothing in robots.txt. When blocking is switched off in Settings, the Blocked list says so instead of quietly presenting rules that are not being enforced. And a trusted client whose name is also on the robots.txt block list now says so on its row — trusted at the door but publicly asked to stay away can be exactly what you meant, but the two may only disagree out loud.
-* Fixed: the review panel could advise turning on "Verify bot identities" when it was already on — the nudge showed for any unchecked row that claimed a checkable bot, whether or not the setting was enabled. It now knows the setting's live state and only suggests what would actually change something. The same fault was in the forged-signature card, which could recommend "turn on blocking" while blocking was already on; it now says the next attempt will be refused automatically.
-* Fixed: a valid signature from an operator this plugin does not recognise displayed as "Passed" in a card's details, indistinguishable from a recognised operator's. Proof of identity is not a reason to trust someone: it now reads "Not confirmed", names the signer, and says the site cannot vouch for them.
-* Fixed: an entire explanation paragraph on review cards showed the "help" cursor as if it were hoverable — a style collision, and the question-mark cursor now appears only on the icons that actually carry a bubble.
-* Fixed: the readiness card said "Everything looks good" when its advisor simply had no setup step left to suggest — a verdict it could not make, since the Cited figure above it can sit at 38% with every setup box ticked. It now says what it measured: "Nothing left to set up."
-* Fixed: the Report's Citations card said "checks run on a schedule" to owners whose schedule is switched off. It now reads the schedule's real state: off means "a check runs only when you start one." And its "Open Citations" link landed on the Search tab; it now opens the Citations results it names.
-* Improved: the Client Decisions rows read cleanly — a known crawler's name is no longer printed twice, the decision verb no longer repeats the tab's own name on every row, columns line up, long names shorten instead of pushing the date out of line, and on a phone each client folds to two tidy lines with a proper thumb-sized button.
-* Improved: plain words on the undo buttons — "Stop trusting" and "Stop ignoring" replace the made-up "Un-trust" and "Un-ignore" — and the buttons look like buttons before you hover them, without turning red for what is a routine, reversible act.
 
-
-The most recent releases are listed here, back to 1.50.0. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.6 =
+Sites in a subfolder and on plain permalinks get working AI files and links. Citation runs stop asking an engine that refused your key. The score's Cited rung is now called Mentioned. Developers: the agentimus_agent_skills filter takes Agent Skills discovery entries. No other breaking changes.
 
 = 1.53.5 =
 One busy crawler no longer fills Recent Requests, and scanner probes no longer read as Cloudflare blocking AI crawlers. No breaking changes.
