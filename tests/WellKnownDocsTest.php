@@ -3,7 +3,7 @@
  * The newer /.well-known surfaces derived by the Envelope:
  *   - api-catalog (RFC 9727, served as an RFC 9264 link set),
  *   - the MCP Server Card (gated on a real MCP server), and
- *   - the Agent Skills index (projected from agent.skills[], gated + suppressible).
+ *   - the Agent Skills index (agentskills.io discovery: the site's own SKILL.md).
  *
  * The gating is the load-bearing behaviour: a surface is emitted ONLY when the
  * real thing exists — otherwise '' → a clean 404, never a fabricated stub.
@@ -115,66 +115,45 @@ final class WellKnownDocsTest extends TestCase {
 		$this->assertSame( array( 'https://auth.example.com' ), $doc['authorization_servers'] );
 	}
 
-	/* -- Agent Skills index ----------------------------------------------- */
+	/* -- Agent Skills index (agentskills.io discovery 0.2.0) -------------- */
 
-	public function test_agent_skills_index_projects_agent_skills() {
-		Registry::instance()->register(
-			array(
-				'id'    => 'abilities-core',
-				'title' => 'Core abilities',
-				'type'  => 'agent',
-				'agent' => array(
-					'name'   => 'Core',
-					'skills' => array( array( 'id' => 'get-site-info', 'description' => 'Returns site info.' ) ),
-				),
-			)
-		);
-
+	/**
+	 * The index lists the site's own SKILL.md in the discovery spec's shape:
+	 * `$schema` + `skills[]` of name / type / description / url / digest, the
+	 * description matching the SKILL.md frontmatter and the digest taken over the
+	 * exact bytes served there. On heera.it it answered 404 while the SKILL.md it
+	 * should have listed was live.
+	 */
+	public function test_agent_skills_index_lists_the_site_skill_md() {
 		$doc = json_decode( $this->envelope()->agent_skills_index_json(), true );
-		$this->assertSame( '2024-11-05', $doc['schemaVersion'] );
-		$this->assertContains( 'get-site-info', array_column( $doc['skills'], 'id' ) );
-	}
 
-	public function test_agent_skills_index_is_empty_without_skills() {
-		// A plain resource with no agent fragment → no skills → honest '' (404).
-		Registry::instance()->register(
-			array(
-				'id'        => 'plain',
-				'title'     => 'Plain',
-				'type'      => 'rest',
-				'endpoints' => array( array( 'url' => '/wp-json/x/v1', 'type' => 'rest' ) ),
-			)
-		);
-		$this->assertSame( '', $this->envelope()->agent_skills_index_json() );
-	}
+		$this->assertSame( 'https://schemas.agentskills.io/discovery/0.2.0/schema.json', $doc['$schema'] );
+		$this->assertSame( array( '$schema', 'skills' ), array_keys( $doc ) );
+		$this->assertCount( 1, $doc['skills'] );
 
-	public function test_agent_skills_index_respects_owner_suppression() {
-		Registry::instance()->register(
-			array(
-				'id'    => 'abilities-core',
-				'title' => 'Core',
-				'type'  => 'agent',
-				'agent' => array( 'name' => 'Core', 'skills' => array( array( 'id' => 'get-site-info' ) ) ),
-			)
-		);
-		update_option( Settings::OPTION, array( 'suppressed_resources' => array( 'abilities-core' ) ) );
-		$this->assertSame( '', $this->envelope()->agent_skills_index_json() );
+		$skill = $doc['skills'][0];
+		$this->assertSame( array( 'name', 'type', 'description', 'url', 'digest' ), array_keys( $skill ) );
+		$this->assertSame( 'example-test', $skill['name'] );
+		$this->assertSame( 'skill-md', $skill['type'] );
+		$this->assertSame( 'https://example.test/.well-known/agent-skills/example-test/SKILL.md', $skill['url'] );
+
+		$md = $this->envelope()->skill_md();
+		$this->assertSame( 'sha256:' . hash( 'sha256', $md ), $skill['digest'] );
+		$this->assertStringContainsString( 'description: "' . $skill['description'] . '"', $md, 'the index description must match the SKILL.md frontmatter' );
 	}
 
 	/**
-	 * THE REGRESSION. The skills index was the ONE served surface that sourced from the raw
-	 * registry instead of published_resources(), so it filtered owner-suppression but not the
-	 * provider's `public` flag — and leaked every gated ability's id, name and full description
-	 * (scan-exposed-files among them) to anonymous callers, even after they were correctly removed
-	 * from discovery.json, mcp.json and agent-card. A red-team pass caught it; this pins it.
+	 * Ability "skills" have no SKILL.md behind them, so the spec has no entry type
+	 * for them — they stay on the agent card. Neither a public nor a gated one may
+	 * reach this index (the gated one once leaked here; this keeps it pinned).
 	 */
-	public function test_agent_skills_index_omits_non_public_abilities() {
+	public function test_agent_skills_index_carries_no_ability_entries() {
 		Registry::instance()->register(
 			array(
 				'id'     => 'abilities-agentimus',
 				'title'  => 'Agentimus',
 				'type'   => 'agent',
-				'public' => false, // gated — nobody anonymous can run it
+				'public' => false,
 				'agent'  => array(
 					'name'   => 'Agentimus',
 					'skills' => array(
@@ -183,8 +162,6 @@ final class WellKnownDocsTest extends TestCase {
 				),
 			)
 		);
-		// A genuinely public third-party skill, to prove we suppress the gated one WITHOUT nuking
-		// the whole surface.
 		Registry::instance()->register(
 			array(
 				'id'    => 'acme-bookings',
@@ -196,9 +173,39 @@ final class WellKnownDocsTest extends TestCase {
 
 		$json = $this->envelope()->agent_skills_index_json();
 
-		$this->assertStringNotContainsString( 'scan-exposed-files', $json, 'A gated ability must not appear in the anonymous skills index.' );
-		$this->assertStringNotContainsString( 'sensitive paths', $json, 'Nor may its description leak there.' );
-		$this->assertStringContainsString( 'book-slot', $json, 'A public third-party skill must still be advertised.' );
+		$this->assertStringNotContainsString( 'scan-exposed-files', $json );
+		$this->assertStringNotContainsString( 'sensitive paths', $json );
+		$this->assertStringNotContainsString( 'book-slot', $json );
+		$this->assertSame( array( 'example-test' ), array_column( json_decode( $json, true )['skills'], 'name' ) );
+	}
+
+	/**
+	 * The filter takes spec entries. One a client could not use — a bad name, an
+	 * unknown type, no digest — is left out rather than published.
+	 */
+	public function test_agent_skills_filter_keeps_only_spec_entries() {
+		$good = array(
+			'name'        => 'bookings',
+			'type'        => 'archive',
+			'description' => 'Book a slot.',
+			'url'         => '/.well-known/agent-skills/bookings.tar.gz',
+			'digest'      => 'sha256:' . str_repeat( 'a', 64 ),
+		);
+		$bad = array(
+			array_merge( $good, array( 'name' => 'Bad_Name' ) ),
+			array_merge( $good, array( 'type' => 'executable' ) ),
+			array_merge( $good, array( 'digest' => 'md5:abc' ) ),
+			array( 'id' => 'book-slot', 'name' => 'Book slot' ),
+		);
+		add_filter(
+			'agentimus_agent_skills',
+			function ( $skills ) use ( $good, $bad ) {
+				return array_merge( $skills, array( $good ), $bad );
+			}
+		);
+
+		$doc = json_decode( $this->envelope()->agent_skills_index_json(), true );
+		$this->assertSame( array( 'example-test', 'bookings' ), array_column( $doc['skills'], 'name' ) );
 	}
 
 	/* -- Owner suppression must reach EVERY served surface, not just some ---- */

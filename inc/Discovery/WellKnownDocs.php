@@ -196,59 +196,83 @@ final class WellKnownDocs {
 	}
 
 	/**
-	 * The Agent Skills index at /.well-known/agent-skills/index.json — the executable
-	 * skills agents can invoke, projected from the per-namespace `agent.skills[]` the
-	 * Abilities adapter already builds (respecting owner suppression). Served ONLY
-	 * when real skills exist; otherwise '' → a clean 404.
+	 * The Agent Skills index at /.well-known/agent-skills/index.json, in the
+	 * agentskills.io discovery format (0.2.0): `$schema` + `skills[]`, each entry a
+	 * name / type / description / url / digest. It lists the site's own SKILL.md —
+	 * always served, so the index always has an entry — with the description its
+	 * frontmatter carries and a sha256 over the exact bytes served there.
 	 *
-	 * @return string JSON, or '' when no skills are exposed.
+	 * Ability "skills" (`agent.skills[]`) are NOT listed: they have no SKILL.md or
+	 * archive behind them, and the spec has no entry type for them. They stay on
+	 * the agent card, which applies the publication boundary.
+	 *
+	 * @return string JSON.
 	 */
 	public function agent_skills_index_json() {
-		// published_resources(), NOT the raw registry. This is a SERVED, anonymous surface, so it
-		// must apply the full publication boundary — owner suppression AND the provider's `public`
-		// flag. Reading the registry directly filtered suppression alone and leaked every gated
-		// ability's id, name and full description here (scan-exposed-files among them) even after
-		// they were correctly removed from discovery.json, mcp.json and agent-card. Every other
-		// served surface already sources from this one gate; this method was the sole exception.
-		$resources = $this->envelope->published_resources();
+		$skill_md = new SkillMd( $this->settings, $this->envelope );
 
-		$skills = array();
-		foreach ( $resources as $resource ) {
-			$agent = ( isset( $resource['agent'] ) && is_array( $resource['agent'] ) ) ? $resource['agent'] : array();
-			if ( empty( $agent['skills'] ) || ! is_array( $agent['skills'] ) ) {
-				continue;
-			}
-			foreach ( $agent['skills'] as $skill ) {
-				$id = isset( $skill['id'] ) ? (string) $skill['id'] : '';
-				if ( '' === $id ) {
-					continue;
-				}
-				$skills[] = array(
-					'id'          => $id,
-					'name'        => ( isset( $skill['name'] ) && '' !== $skill['name'] ) ? $skill['name'] : $id,
-					'description' => isset( $skill['description'] ) ? (string) $skill['description'] : '',
-					'resource'    => $resource['id'],
-				);
-			}
-		}
+		$skills = array(
+			array(
+				'name'        => SkillMd::name(),
+				'type'        => 'skill-md',
+				'description' => $skill_md->summary(),
+				'url'         => SkillMd::url(),
+				'digest'      => 'sha256:' . hash( 'sha256', $skill_md->markdown() ),
+			),
+		);
 
 		/**
-		 * Filter the Agent Skills index entries.
+		 * Filter the Agent Skills index entries. Each entry follows the discovery
+		 * spec — name (lowercase-hyphen, ≤ 64), type (`skill-md` or `archive`),
+		 * description (≤ 1024), url, and digest (`sha256:` + 64 hex over the
+		 * artifact's bytes). An entry missing any of them is left out.
 		 *
 		 * @param array[] $skills    Skill entries.
-		 * @param array[] $resources Collected resources.
+		 * @param array[] $resources Published resources.
 		 */
-		$skills = (array) apply_filters( 'agentimus_agent_skills', $skills, $resources );
-		if ( empty( $skills ) ) {
-			return '';
-		}
+		$skills = (array) apply_filters( 'agentimus_agent_skills', $skills, $this->envelope->published_resources() );
+		$skills = array_values( array_filter( $skills, array( __CLASS__, 'is_skill_entry' ) ) );
 
 		$doc  = array(
-			'schemaVersion' => '2024-11-05',
-			'site'          => $this->envelope->site()['name'],
-			'skills'        => array_values( $skills ),
+			'$schema' => 'https://schemas.agentskills.io/discovery/0.2.0/schema.json',
+			'skills'  => array_map(
+				function ( $skill ) {
+					return array(
+						'name'        => $skill['name'],
+						'type'        => $skill['type'],
+						'description' => $skill['description'],
+						'url'         => $skill['url'],
+						'digest'      => $skill['digest'],
+					);
+				},
+				$skills
+			),
 		);
 		$json = wp_json_encode( $doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 		return is_string( $json ) ? $json : '';
+	}
+
+	/**
+	 * Whether an index entry carries every field the discovery spec requires, in
+	 * the form it requires — a client skips an entry it cannot use, so we never
+	 * publish one.
+	 *
+	 * @param mixed $skill Candidate entry.
+	 * @return bool
+	 */
+	private static function is_skill_entry( $skill ) {
+		if ( ! is_array( $skill ) ) {
+			return false;
+		}
+		foreach ( array( 'name', 'type', 'description', 'url', 'digest' ) as $key ) {
+			if ( ! isset( $skill[ $key ] ) || ! is_string( $skill[ $key ] ) || '' === $skill[ $key ] ) {
+				return false;
+			}
+		}
+		return strlen( $skill['name'] ) <= 64
+			&& 1 === preg_match( '/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $skill['name'] )
+			&& in_array( $skill['type'], array( 'skill-md', 'archive' ), true )
+			&& mb_strlen( $skill['description'] ) <= 1024
+			&& 1 === preg_match( '/^sha256:[0-9a-f]{64}$/', $skill['digest'] );
 	}
 }

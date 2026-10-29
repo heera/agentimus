@@ -372,7 +372,7 @@ All generated documents are served by `WellKnown::send()`, which sets:
 | `api-catalog`                                   | `application/linkset+json`   | Always — RFC 9727 API catalog as an RFC 9264 link set.        |
 | `mcp/server-card.json`                          | `application/json`           | Only when a real MCP server is detected; otherwise 404.       |
 | `mcp/{id}/server-card.json`                     | `application/json`           | Per-server card for a tool-bearing server matching `{id}`; else 404. |
-| `agent-skills/index.json`                       | `application/json`           | Only when executable skills exist; otherwise 404.             |
+| `agent-skills/index.json`                       | `application/json`           | Always: lists the site's SKILL.md (agentskills.io discovery). |
 | `oauth-protected-resource`                      | `application/json`           | Only when an OAuth authorization server is configured (RFC 9728); else 404. |
 | `oauth-authorization-server/agentimus/mcp`      | `application/json`           | Only when the MCP server is on — RFC 8414 metadata for the plugin's OWN authorization server; else 404. |
 | `oauth-protected-resource/agentimus/mcp`        | `application/json`           | Only when the MCP server is on — RFC 9728 metadata naming that server as the MCP endpoint's authority; else 404. |

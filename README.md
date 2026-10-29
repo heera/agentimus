@@ -182,7 +182,7 @@ Supported output-shaping filters; signatures may evolve between releases.
 | `agentimus_mcp_card_server` | filter | `( string $id, array $servers ): string` | Pin which server the MCP server card describes (`''` = auto). |
 | `agentimus_mcp_server_abilities` | filter | `( string[] $names ): string[]` | The abilities Agentimus exposes over its own MCP server to external agents (default: its nine read-only abilities). Trim to narrow what leaves the site. |
 | `agentimus_bootstrap_mcp_adapter` | filter | `( bool $bootstrap ): bool` | Veto loading the bundled MCP Adapter library entirely (e.g. a host that manages the adapter itself), independent of the owner's `enable_mcp_server` setting. |
-| `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Entries in the Agent Skills index. |
+| `agentimus_agent_skills` | filter | `( array $skills, array $resources ): array` | Entries in the Agent Skills index (agentskills.io discovery format). |
 | `agentimus_post_types` | filter | `( string[] $types, string[] $available ): string[]` | Which post types are agent-visible (each gets an llms.txt section). |
 | `agentimus_post_type_source` | filter | `( string $source, string $post_type ): string` | Attribute a post type's llms.txt section (and the Agent preview picker) to your plugin. |
 | `agentimus_changes_max` | filter | `( int $max ): int` | Size of the change-feed window — newest items it can hold (default 200, max 2000). |

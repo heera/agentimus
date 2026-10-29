@@ -279,7 +279,7 @@ Experimental surfaces (the MCP descriptor, the tool list) are deliberately **not
 
 `/.well-known/agent.json` is a byte-identical **alias** for agents that look there first. Both are served by the same route.
 
-The **Agent Skills** index at `/.well-known/agent-skills/index.json` lists the executable skills projected from each resource's `agent.skills[]`. It is served **only** when real skills exist (otherwise a clean 404), and can be extended with the `agentimus_agent_skills` filter.
+The **Agent Skills** index at `/.well-known/agent-skills/index.json` follows the [agentskills.io discovery spec](https://github.com/cloudflare/agent-skills-discovery-rfc) (0.2.0): a `$schema` and a `skills[]` of `name` / `type` / `description` / `url` / `digest`. It lists the site's own SKILL.md, with the sha256 of the exact bytes served. Ability skills (`agent.skills[]`) have no SKILL.md behind them, so they stay on the agent card. Add entries with the `agentimus_agent_skills` filter; one that misses a required field is left out.
 
 ## mcp.json and the MCP surface
 

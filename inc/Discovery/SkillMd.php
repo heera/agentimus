@@ -143,9 +143,22 @@ final class SkillMd {
 	}
 
 	/**
+	 * The frontmatter description on its own — what the skill does and when to
+	 * use it. The discovery index repeats it, and the spec wants the two to match.
+	 *
+	 * @return string
+	 */
+	public function summary() {
+		$site = $this->envelope->site();
+		$name = '' !== $site['name'] ? $site['name'] : wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$mcp  = $this->envelope->mcp_surface()['mcp'];
+		return $this->description( $name, ! empty( $mcp['available'] ) && ! empty( $mcp['servers'] ) );
+	}
+
+	/**
 	 * The markdown directory listing at /.well-known/agent-skills — what a probe
 	 * of the bare path learns: which skills are packaged here and where the
-	 * machine index of executable skills lives (linked only when it is served).
+	 * machine index lives.
 	 *
 	 * @return string
 	 */
@@ -161,9 +174,7 @@ final class SkillMd {
 		// page a probing agent reads first, and guidance it has to click through
 		// for is guidance it may never see.
 		$out .= '- `' . self::name() . '` — ' . $this->description( $name, $has_mcp ) . "\n  " . self::url() . "\n";
-		if ( '' !== $this->envelope->agent_skills_index_json() ) {
-			$out .= "\nMachine index of executable skills: " . home_url( '/.well-known/agent-skills/index.json' ) . "\n";
-		}
+		$out .= "\nMachine index (agentskills.io discovery): " . home_url( '/.well-known/agent-skills/index.json' ) . "\n";
 		return $out;
 	}
 

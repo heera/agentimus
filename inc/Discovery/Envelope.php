@@ -704,12 +704,10 @@ final class Envelope {
 	}
 
 	/**
-	 * The Agent Skills index at /.well-known/agent-skills/index.json — the executable
-	 * skills agents can invoke, projected from the per-namespace `agent.skills[]` the
-	 * Abilities adapter already builds (respecting owner suppression). Served ONLY
-	 * when real skills exist; otherwise '' → a clean 404.
+	 * The Agent Skills index at /.well-known/agent-skills/index.json, in the
+	 * agentskills.io discovery format — lists the site's own SKILL.md.
 	 *
-	 * @return string JSON, or '' when no skills are exposed.
+	 * @return string JSON.
 	 */
 	public function agent_skills_index_json() {
 		return $this->docs_builder()->agent_skills_index_json();
