@@ -287,6 +287,13 @@ final class ContentEditor {
 			);
 		}
 
+		// ⛔ Checked on the whole body, not on `new`: a tag can be assembled from
+		// a fragment and the text around it.
+		$unsafe = AgentMarkup::refusal( $after, $content );
+		if ( null !== $unsafe ) {
+			return $unsafe;
+		}
+
 		// ⚠️ THE AUTOSAVE TRAP, closed at last. An editor left open sends an
 		// autosave carrying the body as it was when the tab loaded, which lands
 		// minutes after an API write and silently undoes it. It has cost this

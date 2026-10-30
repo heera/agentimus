@@ -45,6 +45,11 @@ Design choices that keep the public surface safe:
 - **Content access control.** Markdown and the discovery enumerations only ever
   surface `publish`-status, non-password-protected, public-post-type content; the
   `.md` handler returns `# Not found` for anything else.
+- **Agent writes can't add scripts.** Content tools refuse scripts, event handlers,
+  `javascript:` links, iframes, style elements and SVG, even under an administrator's
+  login, where WordPress itself would filter nothing. Markup the owner already stored
+  stays. This covers the MCP tools only: an application password can still use the
+  REST API, which follows the user's own permissions.
 - **Parameterized storage.** All database writes/reads use `$wpdb->prepare()` or
   `$wpdb->insert()` format arrays — no string-interpolated SQL.
 - **Escaped output.** Headers use registered relations and `esc_url_raw()`; the Vue

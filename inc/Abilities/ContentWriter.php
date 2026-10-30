@@ -13,6 +13,8 @@
  * wp_update_post), so core's capability-based sanitisation applies unchanged — a
  * user without unfiltered_html gets their markup kses-filtered exactly as they
  * would in the editor, and post_author/attribution work like any other write.
+ * A user WITH unfiltered_html gets nothing from core there, so {@see AgentMarkup}
+ * refuses what an agent may not add under any login.
  *
  * Trust boundaries, in order:
  *   1. The write abilities only EXIST when the owner flipped enable_agent_writes
@@ -106,6 +108,11 @@ final class ContentWriter {
 		);
 		if ( is_wp_error( $status ) ) {
 			return $status;
+		}
+
+		$unsafe = self::unsafe_markup( $input );
+		if ( is_wp_error( $unsafe ) ) {
+			return $unsafe;
 		}
 
 		// Resolve terms and the featured image BEFORE inserting, so a capability
@@ -215,6 +222,11 @@ final class ContentWriter {
 			);
 		}
 
+		$unsafe = self::unsafe_markup( $input, $post );
+		if ( is_wp_error( $unsafe ) ) {
+			return $unsafe;
+		}
+
 		$postarr = array( 'ID' => $post->ID );
 
 		if ( isset( $input['status'] ) && '' !== (string) $input['status'] && (string) $input['status'] !== $post->post_status ) {
@@ -288,6 +300,31 @@ final class ContentWriter {
 		do_action( 'agentimus_agent_wrote_content', $post->ID, 'update' );
 
 		return $this->summarize( $post->ID );
+	}
+
+	/**
+	 * The fields WordPress stores as HTML, checked before anything is written so no
+	 * half of a refused call lands ({@see AgentMarkup}). Meta and term names run
+	 * through their own sanitisers and cannot carry markup.
+	 *
+	 * @param array         $input Ability input.
+	 * @param \WP_Post|null $post  The post being updated, null when creating.
+	 * @return \WP_Error|null
+	 */
+	private static function unsafe_markup( array $input, $post = null ) {
+		foreach ( array(
+			'title'   => 'post_title',
+			'content' => 'post_content',
+			'excerpt' => 'post_excerpt',
+		) as $in => $field ) {
+			if ( isset( $input[ $in ] ) ) {
+				$refusal = AgentMarkup::refusal( (string) $input[ $in ], $post ? (string) $post->$field : '' );
+				if ( null !== $refusal ) {
+					return $refusal;
+				}
+			}
+		}
+		return null;
 	}
 
 	/**

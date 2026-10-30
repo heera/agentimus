@@ -4019,6 +4019,8 @@ final class Registrar {
 		// thresholds), so an external agent sees them at draft time — not only
 		// after a check-page call.
 		$description .= "\n\n" . Assistant::readability_rules();
+		// Stated up front so a draft isn't written twice {@see AgentMarkup}.
+		$description .= "\n\nMARKUP: scripts, event handlers, javascript: links, iframes, style elements, SVG and attributes this site does not allow in post content are refused, even under an administrator’s login, and nothing is written. Markup the owner already stored on the page stays, and is yours to keep or move, not to change or copy. Embed a video or post by its URL in an embed block. Write a literal “<” as &lt;.";
 		$g = Guidelines::brief();
 		if ( '' === $g ) {
 			return $description;
