@@ -2646,6 +2646,45 @@ final class Registrar {
 		);
 
 		$this->add(
+			'read-settings',
+			__( 'Read this site’s Agentimus settings', 'agentimus' ),
+			'Returns the Agentimus settings for what this site publishes to AI assistants and search: which '
+				. 'files and tags are on, the limits on them, and the identity the site publishes about its owner. '
+				. 'Use it to answer "is this switched on?" before suggesting a change. '
+				. '⛔ Not every setting is here. Left out on purpose: connections and their addresses, API keys and '
+				. 'tokens, the switches that control agent access, blocking and robots rules, logging and retention, '
+				. 'and email. A setting missing from this list says nothing about its value.',
+			array(
+				'type'                 => 'object',
+				'properties'           => new \stdClass(),
+				'additionalProperties' => false,
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'settings' => self::obj(
+						array_merge(
+							array_fill_keys( AgentSettings::FLAGS, array( 'type' => 'boolean' ) ),
+							array_fill_keys( AgentSettings::NUMBERS, array( 'type' => 'integer' ) ),
+							array_fill_keys( AgentSettings::LISTS, array( 'type' => 'array' ) ),
+							array_fill_keys( AgentSettings::TEXTS, array( 'type' => 'string' ) )
+						)
+					),
+					'identity' => self::obj(
+						array_merge(
+							array_fill_keys( AgentSettings::IDENTITY_TEXTS, array( 'type' => 'string' ) ),
+							array_fill_keys( AgentSettings::IDENTITY_LISTS, array( 'type' => 'array' ) )
+						)
+					),
+				)
+			),
+			function () {
+				return ( new AgentSettings( $this->settings ) )->read();
+			},
+			array( $this, 'can_manage' )
+		);
+
+		$this->add(
 			'read-integrations',
 			__( 'See what this site is connected to', 'agentimus' ),
 			'Returns the services this site sends its own reports to (Telegram, Slack, Discord, a Google '
@@ -3697,6 +3736,7 @@ final class Registrar {
 			// NAME, so an agent without this list types one from memory and mints
 			// a duplicate of a term the site already has.
 			self::CATEGORY . '/read-terms',
+			self::CATEGORY . '/read-settings',
 			self::CATEGORY . '/check-page',
 			// ⭐ The body an edit is written against. Read-only and gated on the
 			// same edit_post capability as check-page, but it exists FOR the write
