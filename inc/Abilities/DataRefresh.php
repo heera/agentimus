@@ -44,7 +44,7 @@ final class DataRefresh {
 		if ( ! $this->settings->enabled( 'agent_writes_maintenance' ) ) {
 			return new \WP_Error(
 				'agentimus_maintenance_off',
-				__( 'Agents may not refresh data on this site. The owner can allow it under MCP Server, with “Let agents refresh data”. Nothing was fetched.', 'agentimus' ),
+				__( 'Agents may not refresh data on this site. The owner can allow it under MCP Server, with “Let agents refresh data and purge the cache”. Nothing was fetched.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}

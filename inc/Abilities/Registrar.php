@@ -94,12 +94,13 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings', 'refresh-data' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings', 'refresh-data', 'purge-edge-cache' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
 		'update-settings' => 'agent_writes_settings',
 		'refresh-data'    => 'agent_writes_maintenance',
+		'purge-edge-cache' => 'agent_writes_maintenance',
 	);
 
 	/** @var Settings */
@@ -3064,6 +3065,43 @@ final class Registrar {
 	}
 
 	/**
+	 * Empty the Cloudflare cache. Same switch as refresh-data: both are upkeep on the owner's services.
+	 *
+	 * @param callable $manage The site-admin permission callback.
+	 */
+	private function register_purge_edge_cache( $manage ) {
+		$this->add(
+			'purge-edge-cache',
+			__( 'Empty this site’s Cloudflare cache', 'agentimus' ),
+			'Empties the whole Cloudflare cache for this site. Use it when the owner has asked and visitors are seeing '
+				. 'something stale that a normal content save did not clear; saving a post already clears its own pages. '
+				. '⚠️ Until the cache rebuilds, every visitor reaches the server directly, so the site may be slower. Tell the '
+				. 'owner before you do this. Limited to ' . EdgePurge::HOURLY_LIMIT . ' purges an hour for the whole site, across all '
+				. 'connections. A site without Cloudflare connected is refused.',
+			array(
+				'type'                 => 'object',
+				'properties'           => new \stdClass(),
+				'additionalProperties' => false,
+				'default'              => new \stdClass(),
+			),
+			self::obj(
+				array(
+					'purged'   => self::b( 'TRUE when Cloudflare confirmed it.' ),
+					'zone'     => self::s( 'The Cloudflare zone that was purged.' ),
+					'purgedAt' => self::i( 'Unix time of the purge.' ),
+					'message'  => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function () {
+				return ( new EdgePurge( $this->settings ) )->purge();
+			},
+			$manage,
+			false,
+			true
+		);
+	}
+
+	/**
 	 * Register the write abilities — the opt-in tier (see the class doc).
 	 *
 	 * @param callable $manage The site-admin permission callback.
@@ -3076,6 +3114,7 @@ final class Registrar {
 		}
 		if ( $this->settings->enabled( 'agent_writes_maintenance' ) ) {
 			$this->register_refresh_data( $manage );
+			$this->register_purge_edge_cache( $manage );
 		}
 
 		$this->add(

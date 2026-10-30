@@ -835,8 +835,8 @@ export default {
               <input v-model="settings.agent_writes_maintenance" type="checkbox" />
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
-                <strong>Let agents refresh data</strong>
-                <small>Lets an assistant fetch fresh numbers from Cloudflare, Bing and Google when it needs them. This uses your API limits, so each connection can do it 4 times an hour per source. It never runs a Google index sweep.</small>
+                <strong>Let agents refresh data and purge the cache</strong>
+                <small>Lets an assistant fetch fresh numbers from Cloudflare, Bing and Google, 4 times an hour per source for each connection. It never runs a Google index sweep. It can also empty your whole Cloudflare cache, twice an hour across all assistants, and your site may be slower until the cache rebuilds.</small>
               </span>
             </label>
           </div>
