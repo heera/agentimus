@@ -2649,6 +2649,11 @@ export default {
                 Every setting returns to the recommended factory defaults below. Your identity
                 profile — name, about, expertise and links — is cleared. This can’t be undone.
               </p>
+              <p class="ar-modal__lead">
+                Your connections stay: keys for Cloudflare, Bing and Google, AI provider keys, your
+                Telegram bot, your MCP token and approved assistants. Disconnect them on their own
+                screens if you want them gone.
+              </p>
             </div>
 
             <div class="ar-modal__body">

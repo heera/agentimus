@@ -4,6 +4,9 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.54.1
+* Fixed: Reset All said every setting returns to its default, without saying that your keys and connections stay: Cloudflare, Bing and Google keys, AI provider keys, your Telegram bot, your MCP token and approved assistants. The dialog now says so. What the reset does has not changed.
+
 ## 1.54.0
 * Security: an agent can no longer store markup that runs in a reader's browser. Even under an administrator's login, scripts, event handlers, javascript: links, iframes, style elements and SVG are refused and nothing is saved. Markup you added yourself stays, and agent edits leave it in place. Application passwords can still reach WordPress's own REST API.
 * Security: the bundled MCP Adapter moves to 0.6.2, for its fix that limits how much a connecting client can store.

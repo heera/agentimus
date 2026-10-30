@@ -4289,6 +4289,7 @@ html { scrollbar-gutter: stable; }
 .ar-modal__chev { display: block; }
 .ar-modal__title { margin: 0 0 8px; font-size: 19px; letter-spacing: -0.01em; color: var(--ar-ink); }
 .ar-modal__lead { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ar-ink-soft); }
+.ar-modal__lead + .ar-modal__lead { margin-top: 8px; }
 
 .ar-preview { display: grid; gap: 16px; }
 .ar-preview__group { display: grid; gap: 6px; }

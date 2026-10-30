@@ -298,6 +298,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.54.1 =
+* Fixed: Reset All said every setting returns to its default, without saying that your keys and connections stay: Cloudflare, Bing and Google keys, AI provider keys, your Telegram bot, your MCP token and approved assistants. The dialog now says so. What the reset does has not changed.
+
 = 1.54.0 =
 * Security: an agent can no longer store markup that runs in a reader's browser. Even under an administrator's login, scripts, event handlers, javascript: links, iframes, style elements and SVG are refused and nothing is saved. Markup you added yourself stays, and agent edits leave it in place. Application passwords can still reach WordPress's own REST API.
 * Security: the bundled MCP Adapter moves to 0.6.2, for its fix that limits how much a connecting client can store.
@@ -441,6 +444,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.54.1 =
+The Reset All dialog now says that your keys and connections stay. Nothing else changes.
 
 = 1.54.0 =
 Security: agents can no longer store scripts in your pages, even as an administrator. Two new switches, both off, let agents change settings and refresh data.

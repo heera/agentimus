@@ -1003,28 +1003,11 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.54.0: the safety change first, because it is the one every site
-				// with agent writes gets without doing anything. Then what the two new
-				// switches allow, which is off until the owner turns it on.
+				// ⭐ 1.54.1 is one wording fix, so ONE row.
 				array(
 					'icon'  => 'shield',
-					'title' => 'Agents Can’t Add Scripts To Your Pages',
-					'text'  => 'Even with an administrator’s login, an assistant can no longer store code that runs in a reader’s browser. Anything you added yourself stays.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Agents Can Change Settings, If You Allow It',
-					'text'  => 'A new switch lets an assistant turn your AI files on or off, edit your public profile and add citation questions. It’s off until you turn it on.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Agents Can Fetch Fresh Numbers, If You Allow It',
-					'text'  => 'Another switch lets an assistant update your Cloudflare, Bing and Google numbers and empty your Cloudflare cache. Both have hourly limits.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'A Few Smaller Things',
-					'text'  => 'Assistants can test a page against any search before you save it. Stopping Analytics now says truthfully that its stored numbers are removed.',
+					'title' => 'Reset Says What It Keeps',
+					'text'  => 'Reset All now tells you that your keys and connections stay, so you can disconnect them yourself if you want them gone.',
 				),
 			),
 		);
