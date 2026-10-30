@@ -1689,9 +1689,10 @@ final class Registrar {
 						array(
 							// ⚠️ The store keys these by a dismissal identity, not by the
 							// user-agent — so this names the client the way the owner's own
-							// screen does, and there is no `ua` to hand back. Nothing here
-							// is meant to be passed to another tool.
+							// screen does, and there is no `ua` to hand back. `key` is what
+							// review-client takes to undo the ignore.
 							'name' => self::s( 'The client that was set aside, as the owner sees it named.' ),
+							'key'  => self::s( 'Send this as `ua` to review-client with decision=forget and list=ignored to undo it.' ),
 							'at'   => self::i( 'Unix time it was ignored.' ),
 							'hits' => self::i( 'The volume the owner saw when they ignored it — the row returns if the client grows well past this.' ),
 						)
@@ -1782,6 +1783,7 @@ final class Registrar {
 				foreach ( (array) Repository::dismissals() as $row ) {
 					$ignored[] = array(
 						'name' => (string) ( isset( $row['label'] ) ? $row['label'] : '' ),
+						'key'  => (string) ( isset( $row['key'] ) ? $row['key'] : '' ),
 						'at'   => (int) ( isset( $row['at'] ) ? $row['at'] : 0 ),
 						'hits' => (int) ( isset( $row['hits'] ) ? $row['hits'] : 0 ),
 					);
@@ -3685,7 +3687,8 @@ final class Registrar {
 				. 'refused at the door from then on. allow does the opposite and permanently — an allowed client '
 				. 'is never blocked and never queued again. ignore is neither: no policy changes, the row simply '
 				. 'leaves, and it comes back if the client grows well past the volume you saw. forget removes an '
-				. 'earlier block or allow (say which with `list`), putting the client back to undecided. '
+				. 'earlier block, allow or ignore (say which with `list`), putting the client back to undecided. '
+				. 'To forget an ignore, send the row’s `key` from read-clients as `ua`. '
 				. '⭐ It matches on a user-agent FRAGMENT, not on one visitor: blocking "SomeBot" blocks every '
 				. 'client whose user-agent contains it, now and later. Read `suggestedRule` on the row before '
 				. 'you decide — that is the exact fragment, and a row whose suggestedRule is empty cannot be '
@@ -3695,12 +3698,12 @@ final class Registrar {
 				. 'uses.',
 			self::obj(
 				array(
-					'ua'       => self::s( 'The client’s user-agent, exactly as read-clients returned it.' ),
+					'ua'       => self::s( 'The client’s user-agent, exactly as read-clients returned it. For forget on the ignored list, the row’s `key`.' ),
 					'decision' => array(
 						'type'        => 'string',
 						'description' => 'block | allow | ignore | forget.',
 					),
-					'list'     => self::s( 'For forget only: which list to remove it from — "blocked" or "allowed".' ),
+					'list'     => self::s( 'For forget only: which list to remove it from — "blocked", "allowed" or "ignored".' ),
 				),
 				array( 'ua', 'decision' )
 			),

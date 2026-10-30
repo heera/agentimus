@@ -39,7 +39,7 @@ final class Review {
 	 * @param Settings $settings The site settings.
 	 * @param string   $ua       The client's user-agent, as the queue reported it.
 	 * @param string   $decision block | allow | ignore | forget.
-	 * @param string   $list     For forget only: 'blocked' or 'allowed'.
+	 * @param string   $list     For forget only: 'blocked', 'allowed' or 'ignored'.
 	 * @return array|\WP_Error { decided: bool, rule: string, message: string }
 	 */
 	public static function decide( Settings $settings, $ua, $decision, $list = '' ) {
@@ -96,17 +96,21 @@ final class Review {
 	}
 
 	/**
-	 * Undo a standing block or allow, putting the client back to undecided.
+	 * Undo a standing block, allow or ignore, putting the client back to undecided.
 	 *
 	 * @param Settings $settings The site settings.
 	 * @param string   $ua       The client, or the rule itself — both name the same decision.
-	 * @param string   $list     'blocked' or 'allowed'.
+	 *                           For an ignore, also the `key` read-clients lists it under.
+	 * @param string   $list     'blocked', 'allowed' or 'ignored'.
 	 * @return array|\WP_Error
 	 */
 	private static function forget( Settings $settings, $ua, $list ) {
 		$list = strtolower( trim( (string) $list ) );
+		if ( 'ignored' === $list ) {
+			return self::unignore( $ua );
+		}
 		if ( ! in_array( $list, array( 'blocked', 'allowed' ), true ) ) {
-			return new \WP_Error( 'agentimus_review_list', __( 'For forget, say which list: "blocked" or "allowed".', 'agentimus' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'agentimus_review_list', __( 'For forget, say which list: "blocked", "allowed" or "ignored".', 'agentimus' ), array( 'status' => 400 ) );
 		}
 
 		$key    = 'blocked' === $list ? 'blocked_agents' : 'allowed_agents';
@@ -142,6 +146,24 @@ final class Review {
 				__( 'Removed “%s” — this client is undecided again.', 'agentimus' ),
 				$found
 			),
+		);
+	}
+
+	/**
+	 * The owner's "Un-ignore": no policy changes, the client can be queued again.
+	 *
+	 * @param string $ua The client, or its `key` from read-clients.
+	 * @return array|\WP_Error
+	 */
+	private static function unignore( $ua ) {
+		$key = isset( Repository::dismissed_map()[ $ua ] ) ? $ua : ReviewQueue::dismiss_key( $ua );
+		if ( ! Repository::undismiss( $key ) ) {
+			return new \WP_Error( 'agentimus_review_absent', __( 'This client is not on the ignored list, so there is nothing to undo. Nothing was changed.', 'agentimus' ), array( 'status' => 404 ) );
+		}
+		return array(
+			'decided' => true,
+			'rule'    => '',
+			'message' => __( 'No longer ignored. It returns to the review queue if it is still visiting.', 'agentimus' ),
 		);
 	}
 

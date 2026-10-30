@@ -199,6 +199,43 @@ final class ClientAbilitiesDbTest extends DbTestCase {
 		$this->assertGreaterThan( 0, (int) $dismissals[0]['hits'], 'Filed at zero means the row returns on its very next hit.' );
 	}
 
+	/** An ignore is a decision too, and this is the owner's "Un-ignore". */
+	public function test_forget_on_the_ignored_list_brings_the_client_back() {
+		Review::decide( new Settings(), self::UA, 'ignore' );
+		$this->assertNotEmpty( Repository::dismissals() );
+		$before = ( new Settings() )->stored();
+
+		$out = Review::decide( new Settings(), self::UA, 'forget', 'ignored' );
+
+		$this->assertNotWPError( $out );
+		$this->assertTrue( $out['decided'] );
+		$this->assertSame( array(), Repository::dismissals() );
+		$this->assertSame( $before, ( new Settings() )->stored(), 'An un-ignore changes no policy.' );
+	}
+
+	/**
+	 * ⚠️ A dismissal is stored by key and has no user-agent to hand back, so without
+	 * the key an agent could list what was ignored and never undo the row it read.
+	 */
+	public function test_an_ignored_row_read_from_read_clients_can_be_forgotten() {
+		Review::decide( new Settings(), self::UA, 'ignore' );
+
+		$rows = $this->ability( 'read-clients' )['ignored'];
+		$this->assertNotEmpty( $rows[0]['key'] );
+
+		$out = Review::decide( new Settings(), $rows[0]['key'], 'forget', 'ignored' );
+
+		$this->assertNotWPError( $out );
+		$this->assertSame( array(), Repository::dismissals() );
+	}
+
+	public function test_forgetting_an_ignore_nobody_made_is_refused() {
+		$out = Review::decide( new Settings(), self::UA, 'forget', 'ignored' );
+
+		$this->assertWPError( $out );
+		$this->assertSame( 'agentimus_review_absent', $out->get_error_code() );
+	}
+
 	/** A search engine cannot be blocked here, exactly as on the owner's screen. */
 	public function test_a_protected_client_is_refused_with_its_reason() {
 		$out = Review::decide( new Settings(), self::ENGINE_UA, 'block' );
