@@ -144,6 +144,27 @@ final class RepositoryDbTest extends DbTestCase {
 		$this->assertSame( 2, $endpoints['discovery.json'] );
 	}
 
+	/**
+	 * `pages` sits beside `month`, on the same rules: page reads only, in the window,
+	 * and a refused request read nothing.
+	 */
+	public function test_stats_counts_page_reads_apart_from_agent_files() {
+		global $wpdb;
+		$this->hit( 'page', 'GPTBot', 'GPTBot/1.0' );
+		$this->hit( 'page', 'Googlebot', 'Googlebot/2.1' );
+		$this->hit( 'llms.txt', 'GPTBot', 'GPTBot/1.0' );
+		$this->hit( 'page', 'GPTBot', 'GPTBot/1.0', gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ) );
+		$wpdb->insert(
+			Table::name(),
+			array( 'endpoint' => 'page', 'agent' => 'GPTBot', 'ua' => 'GPTBot/1.0', 'refused' => 1, 'hit_at' => gmdate( 'Y-m-d H:i:s' ) ),
+			array( '%s', '%s', '%s', '%d', '%s' )
+		);
+
+		$totals = Repository::stats( new Settings() )['totals'];
+		$this->assertSame( 3, $totals['month'] );
+		$this->assertSame( 2, $totals['pages'] );
+	}
+
 	/* -- Recent Requests: grouped in the query, not after a 50-hit cut ----- */
 
 	/**

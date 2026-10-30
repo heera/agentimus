@@ -106,6 +106,52 @@ final class AudienceTest extends TestCase {
 	}
 
 	/**
+	 * The card's split, from the log's own count. Caught on heera.it 10-30: 12,133
+	 * "fetched your agent files" above a Requests screen of tag archives and posts.
+	 */
+	public function test_the_machine_count_splits_into_pages_and_agent_files() {
+		$out = Audience::from_stats(
+			$this->stats(
+				array(
+					'pageViews' => true,
+					'totals'    => array( 'month' => 166, 'pages' => 120 ),
+				)
+			)
+		);
+		$this->assertSame( 166, $out['machines']['fetches'], 'the headline number does not move' );
+		$this->assertSame( 120, $out['machines']['pages'] );
+		$this->assertSame( 46, $out['machines']['files'] );
+		$this->assertTrue( $out['machines']['pagesCounted'] );
+	}
+
+	/** With page reads never recorded, every request is an agent file. */
+	public function test_without_page_reads_every_request_is_an_agent_file() {
+		$out = Audience::from_stats( $this->stats( array( 'pageViews' => false ) ) );
+		$this->assertSame( 0, $out['machines']['pages'] );
+		$this->assertSame( 166, $out['machines']['files'] );
+		$this->assertFalse( $out['machines']['pagesCounted'] );
+	}
+
+	/**
+	 * Page reads switched off today leave the last 30 days' page reads in the count.
+	 * Following the setting alone would call them "agent files only".
+	 */
+	public function test_page_reads_still_in_the_window_count_after_the_switch_goes_off() {
+		$out  = Audience::from_stats(
+			$this->stats(
+				array(
+					'pageViews' => false,
+					'totals'    => array( 'month' => 166, 'pages' => 120 ),
+				)
+			)
+		);
+		$keys = array_column( $out['limits'], 'key' );
+		$this->assertTrue( $out['machines']['pagesCounted'] );
+		$this->assertContains( 'machines-pages', $keys );
+		$this->assertNotContains( 'machines-endpoints', $keys );
+	}
+
+	/**
 	 * ⭐⭐ ONE SOURCE. The impostor figure is READ from the same totals array as
 	 * fetches/today/agents — the log, one window, one query moment — and is never
 	 * recomputed here.

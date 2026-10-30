@@ -56,9 +56,17 @@ final class Audience {
 		$ai     = self::ai_half( $referral, $window );
 		$all    = self::analytics_half( $window );
 
+		$fetches = isset( $totals['month'] ) ? (int) $totals['month'] : 0;
+		$pages   = isset( $totals['pages'] ) ? min( (int) $totals['pages'], $fetches ) : 0;
+
 		$machines = array(
 			'enabled'  => $logging,
-			'fetches'  => isset( $totals['month'] ) ? (int) $totals['month'] : 0,
+			'fetches'  => $fetches,
+			// What `fetches` holds. Page reads switched off today still leave the last
+			// 30 days' reads in the count, so this follows the rows as well as the switch.
+			'pages'    => $pages,
+			'files'    => $fetches - $pages,
+			'pagesCounted' => ! empty( $stats['pageViews'] ) || $pages > 0,
 			'today'    => isset( $totals['today'] ) ? (int) $totals['today'] : 0,
 			'agents'   => isset( $totals['agents'] ) ? (int) $totals['agents'] : 0,
 			// Clients caught claiming an identity that verification did not
@@ -96,7 +104,7 @@ final class Audience {
 				'whole'   => $all['connected'],
 			),
 			'machines' => $machines,
-			'limits'   => self::limits( $search, $ai, $machines, $all, ! empty( $stats['pageViews'] ) ),
+			'limits'   => self::limits( $search, $ai, $machines, $all, $machines['pagesCounted'] ),
 		);
 	}
 

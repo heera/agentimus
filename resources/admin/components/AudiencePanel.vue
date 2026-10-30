@@ -14,6 +14,8 @@
  * no combined total, because a fetch is not a visit and adding them would invent
  * a number that means nothing.
  */
+import { machinesUnit, machinesSplit } from '../js/audienceWords.js';
+
 // Below this many visits in the PREVIOUS window, a percentage stops being a
 // measurement and becomes an accident of a small denominator — 12 → 114 reads
 // "+850%", which sounds like a finding and is a fortnight of ordinary noise.
@@ -38,6 +40,12 @@ export default {
     },
     limits() {
       return (this.data && this.data.limits) || [];
+    },
+    machinesUnit() {
+      return machinesUnit(this.machines);
+    },
+    machinesSplit() {
+      return machinesSplit(this.machines, this.n);
     },
     // Split by the half each caveat is actually about. Both-scoped caveats are
     // deliberately NOT rendered here: the owner's sketch has no slot for them,
@@ -262,7 +270,7 @@ export default {
           Machines
         </p>
         <p class="ar-aud__n">{{ n(machines.fetches) }}</p>
-        <p class="ar-aud__unit">fetched your agent files</p>
+        <p class="ar-aud__unit">{{ machinesUnit }}</p>
         <!-- Same shape as the humans half: the second cut of the SAME
              instrument sits with the headline, and only the rows that answer
              a different question go below the caption.
@@ -271,7 +279,9 @@ export default {
              Today line owns the day now, so the number was the same fact twice
              on one screen; the CONTRAST it was making is what matters here, and
              it says that in words. -->
-        <p class="ar-aud__second">counted to this minute</p>
+        <!-- ⛔ Two lines, as on the humans half: the split takes this slot when
+             there is one. The Worth Knowing note still says the count is live. -->
+        <p class="ar-aud__second">{{ machinesSplit || 'counted to this minute' }}</p>
 
         <p class="ar-aud__group">Who did the fetching</p>
         <ul class="ar-aud__rows">

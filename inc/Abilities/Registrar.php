@@ -1355,7 +1355,7 @@ final class Registrar {
 				. 'anywhere in this payload and none should be computed from it. `people` is the human half — clicks '
 				. 'the search engines themselves reported, visits AI assistants sent, and, when the owner has '
 				. 'connected Google Analytics, the site’s whole analytics audience with the two named routes as '
-				. 'shares of it. `machines` is AI crawler/agent fetches of the discovery endpoints, with the '
+				. 'shares of it. `machines` is crawler/agent requests to this site, split into ordinary pages and agent files, with the '
 				. 'impostor count. `limits` states what these numbers cannot say, per half — quote them before '
 				. 'generalising about "the audience".',
 			self::no_input(),
@@ -1456,7 +1456,10 @@ final class Registrar {
 					'machines' => self::obj(
 						array(
 							'enabled'   => self::b(),
-							'fetches'   => self::i( 'Requests to the agent-facing endpoints in the window — endpoints (llms.txt, .md twins, discovery documents), never ordinary pages.' ),
+							'fetches'   => self::i( 'Crawler/agent requests in the window, refused ones left out. Holds ordinary pages too when `pagesCounted` is true.' ),
+							'pages'     => self::i( 'Of `fetches`, the ordinary page reads.' ),
+							'files'     => self::i( 'Of `fetches`, the agent files (llms.txt, .md twins, discovery documents, sitemap). pages + files = fetches.' ),
+							'pagesCounted' => self::b( 'Whether `fetches` can hold page reads: page logging is on, or page reads are still in the window. FALSE ⇒ agent files only.' ),
 							'today'     => self::i(),
 							'agents'    => self::i( 'Distinct agents, by the name each declared.' ),
 							'impostors' => self::i( 'Clients caught claiming an identity verification did not support.' ),

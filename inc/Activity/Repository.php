@@ -167,6 +167,9 @@ final class Repository {
 				'today'  => self::count_since( $today ),
 				'week'   => self::count_since( $week ),
 				'month'  => self::count_since( $month ),
+				// Of `month`, the ordinary page reads; the rest are agent files. Same rules
+				// as `month`, so the Machines card's split adds up to its headline.
+				'pages'  => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE refused = 0 AND hit_at >= %s AND endpoint = %s", $month, PageViews::LABEL ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; every value is bound via prepare().
 				'all'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name (not user input); SQL identifiers can't be bound via prepare().
 				'agents' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT agent) FROM $table WHERE refused = 0 AND hit_at >= %s", $month ) ), // phpcs:ignore WordPress.DB, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is our own prefix-derived table name; the value is bound via prepare().
 				// ⭐⭐ COUNTED HERE, BESIDE THE NUMBERS IT SITS NEXT TO — his rule,

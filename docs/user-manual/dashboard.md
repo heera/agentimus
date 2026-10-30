@@ -19,7 +19,7 @@ These counts are UTC calendar days. When that is not the date on your own clock,
 Below that line, the cards describe what your site **is** rather than what today held. It answers one plain question with two sides:
 
 - **Is AI sending readers *to* you?** The **Traffic from AI** card counts real people who clicked through to your site from an AI assistant like ChatGPT or Perplexity.
-- **Is AI reading *from* you?** The **agent activity log** records each time a bot or crawler fetches one of the machine-readable files Agentimus publishes (things like `/llms.txt` or a page's `.md` version).
+- **Is AI reading *from* you?** The **agent activity log** records each time a bot or crawler fetches one of the machine-readable files Agentimus publishes (things like `/llms.txt` or a page's `.md` version), and its reads of your ordinary pages when page logging is on.
 
 Alongside these, the sidebar carries your **AEO/GEO score** — a single 0–100 read on how ready your site is for AI, with the next thing to improve always in view.
 
@@ -42,7 +42,7 @@ Each panel is led by one number and ends in the link that opens its full screen.
 
 ## Who reached your site
 
-Two audiences, counted separately because they are not the same thing and never add up: **humans** who arrived to read (people, visits, where they came from — search clicks and AI referrals), and **machines** that fetched your agent files (how many fetches, how many distinct clients, and how many were caught faking an identity). There is deliberately no combined total — a fetch is not a visit, and adding them would invent a number that means nothing. A "worth knowing" note under the card states what each instrument can and cannot see.
+Two audiences, counted separately because they are not the same thing and never add up: **humans** who arrived to read (people, visits, where they came from — search clicks and AI referrals), and **machines** that made requests to your site (how many, split into ordinary pages and agent files, how many distinct clients, and how many were caught faking an identity). With page logging off and no page reads left in the 30 days, the card counts agent files only and says so. There is deliberately no combined total — a fetch is not a visit, and adding them would invent a number that means nothing. A "worth knowing" note under the card states what each instrument can and cannot see.
 
 ---
 
@@ -131,7 +131,7 @@ When a visit does count, the plugin stores exactly one thing: a **per-day tally 
 
 The activity log is the mirror image of the Traffic-from-AI card: instead of humans arriving *from* AI, it records **bots and crawlers fetching your content** — the AI tools reading your site so they can train on it or answer questions about it.
 
-A hit is logged each time an agent fetches one of the machine-readable documents Agentimus serves, for example:
+A hit is logged each time an agent fetches one of the machine-readable documents Agentimus serves, and each time it reads an ordinary page when page logging is on (those hits are labelled `page`). The documents, for example:
 
 | Endpoint | What it is |
 | --- | --- |
