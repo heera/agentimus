@@ -17,8 +17,12 @@
  * those. Splitting on whitespace read the same section at 5,019, which is the
  * side of the line WP.org saw. So the count here is WHITESPACE TOKENS: it runs
  * slightly HIGH against theirs (a list's "*" bullets and "= 1.x.x =" entry
- * headings count as tokens), which makes the nominal caps carry their own
- * small safety margin. A counter that errs must err toward the warning.
+ * headings count as tokens) on the Changelog, which makes that nominal cap carry
+ * its own small safety margin. A counter that errs must err toward the warning.
+ *
+ * ⚠️⚠️ THE THIRD LESSON: IT RUNS LOW ON THE DESCRIPTION. 1.54.0 read 2,498 of 2,500
+ * here and WP.org still truncated it, cutting into the required External services
+ * disclosure at the end. So the Description has its own lower gate of 2,450.
  *
  * Run:  php bin/check-readme-caps.php readme.txt
  * Exits 1 with a diff-able report when any cap is exceeded.
@@ -73,14 +77,15 @@ for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 }
 
 $caps = array(
-	// ⚠️ Nominal caps, deliberately. Whitespace tokens run slightly HIGH against
+	// ⚠️ Nominal caps on the other two. Whitespace tokens run slightly HIGH against
 	// WP.org's own count (bullets and entry headings are tokens here, markup
 	// there), so the margin is built into the measurement rather than shaved
 	// off the cap. Calibration points: the 1.50.1 Changelog read 5,019 here and
 	// WP.org truncated it; the same import accepted a Description reading 2,457
 	// here. The old str_word_count gate said 4,857 and 2,390 for those — LOW on
 	// exactly the section that got cut.
-	array( 'Description (all folded sections)', $description, 2500, 'words' ),
+	// ⚠️ 2,450, not WP.org's 2,500: 2,485 here was accepted and 2,498 was truncated.
+	array( 'Description (all folded sections)', $description, 2450, 'words' ),
 	array( 'Changelog',                          $changelog,   5000, 'words' ),
 	array( 'Upgrade Notice (newest entry)',      $notice,       600, 'chars' ),
 );

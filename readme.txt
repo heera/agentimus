@@ -49,7 +49,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 **Tell your team — and announce what you publish**
 
 * **Reports where you already look (opt-in)** — send Agentimus's reports to Telegram, Slack, Discord, a Google Sheet or any address of your own. Choose the moments that matter: a new finding, an unfamiliar bot, the weekly digest. Every service stays yours, and nothing is sent until you switch it on.
-* **Announce a new post (opt-in)** — Agentimus offers the words for X and LinkedIn; you approve them or edit them first. Each connection is an app you own, so the post comes from you, not from us. A ledger shows what went out, what is queued and what failed, with the reason.
+* **Announce a new post (opt-in)** — Agentimus offers the words for X and LinkedIn; you approve them or edit them first. Each connection is an app you own, so the post comes from you, not from us.
 
 **Control — who may use your content**
 
@@ -59,7 +59,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 
 **Visibility — who is reading you**
 
-* **Report** — what AI did on your site between any two dates: reads, visits from AI answers, and where you stand. Today, a week, or dates you pick; every block says how fresh its numbers are.
+* **Report** — what AI did on your site between any two dates: reads, visits from AI answers, and where you stand.
 * **Agent activity log** — which AI crawlers and agents actually fetch your content and endpoints (GPTBot, Claude, Perplexity, Googlebot, …), recorded first-party, with no IP logging by default.
 * **Activity to review** — a nav-bar queue surfaces clients worth a second look, with one-click **Block** or **Allow**. Nothing is blocked unless you say so.
 * **Request Log** — every recorded request, one row each — or grouped into visits, so an assistant answering a question stands apart from a crawl. Filter by client, endpoint, network, user-agent and date.
@@ -93,11 +93,11 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 
 * A one-screen score of how machine-readable your site is, with a plain-English checklist of what's enabled and what's still missing.
 * **Agent preview** — see the exact JSON-LD *and* Markdown an AI agent receives for the whole site or any page, then copy it. It shows what would ship even when the feature is off, and a matching preview sits in the post editor.
-* **Readability tips** — as you write, a panel flags what makes a page hard to read, section and quote: thin content, missing headings, no opening summary, a nav-heavy page, images without alt text. Most of those serve search engines and screen readers just as much, and the panel says so. Editor-only — nothing shows to visitors.
+* **Readability tips** — as you write, a panel flags what makes a page hard to read, section and quote: thin content, missing headings, no opening summary, a nav-heavy page, images without alt text. Editor-only — nothing shows to visitors.
 
 **Machine discovery (forward-looking)**
 
-Everything above is read by search engines and AI tools **today**. This part is forward-looking — the conventions the agent ecosystem is converging on, putting identity, capabilities and APIs in one predictable place:
+The conventions the agent ecosystem is converging on, with identity, capabilities and APIs in one predictable place:
 
 * **/.well-known/discovery.json** — an owner-curated document describing the site's identity, capabilities, APIs and agent cards. Other plugins declare themselves through one hook.
 * **/.well-known/agent-card.json** and **/.well-known/mcp.json** — an A2A agent card and an MCP manifest, generated for you.
