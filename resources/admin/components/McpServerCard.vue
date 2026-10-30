@@ -828,7 +828,7 @@ export default {
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
                 <strong>Let agents change settings</strong>
-                <small>Lets an assistant switch on or off what this site publishes for AI and edit your public identity. It can't change connections, keys, these switches, blocking, logs or email. Every change appears in Agent Access.</small>
+                <small>Lets an assistant switch on or off what this site publishes for AI, edit your public identity, and add citation products and questions. It can't change connections, keys, these switches, blocking, logs or email, and it can't remove a product or question. Every change appears in Agent Access.</small>
               </span>
             </label>
             <label id="ar-feat-agent_writes_maintenance" class="ar-toggle ar-toggle--nested">

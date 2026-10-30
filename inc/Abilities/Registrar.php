@@ -96,11 +96,12 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'refresh-data', 'purge-edge-cache' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
 		'update-settings' => 'agent_writes_settings',
+		'save-citation-product' => 'agent_writes_settings',
 		'refresh-data'    => 'agent_writes_maintenance',
 		'purge-edge-cache' => 'agent_writes_maintenance',
 	);
@@ -2734,6 +2735,36 @@ final class Registrar {
 		);
 
 		$this->add(
+			'read-citation-products',
+			__( 'See the products citation checks track', 'agentimus' ),
+			'Returns the products citation checks ask about: name, category, website, whether it is active, its rivals and '
+				. 'its questions, plus the limits. `active` false means runs skip that product. Results are in read-ai-visibility. '
+				. 'No provider key or schedule is returned.',
+			self::no_input(),
+			self::obj(
+				array(
+					'products'     => self::arr(
+						array(
+							'name'        => self::s(),
+							'category'    => self::s(),
+							'domain'      => self::s(),
+							'active'      => self::b(),
+							'competitors' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+							'prompts'     => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+						)
+					),
+					'questions'    => self::i( 'Questions across all products.' ),
+					'maxProducts'  => self::i(),
+					'maxQuestions' => self::i( 'The most one product can hold.' ),
+				)
+			),
+			function () {
+				return ( new CitationProducts( $this->settings ) )->read();
+			},
+			array( $this, 'can_manage' )
+		);
+
+		$this->add(
 			'suggest-citation-questions',
 			__( 'Suggest questions to track for a product', 'agentimus' ),
 			'Returns template questions a citation check could ask about a product, from its name, category and '
@@ -3153,6 +3184,54 @@ final class Registrar {
 	}
 
 	/**
+	 * Add a citation product, or add to one. Same switch as update-settings.
+	 *
+	 * @param callable $manage The site-admin permission callback.
+	 */
+	private function register_save_citation_product( $manage ) {
+		$strings = array(
+			'type'  => 'array',
+			'items' => array( 'type' => 'string' ),
+		);
+		$this->add(
+			'save-citation-product',
+			__( 'Add a citation product, or add to one', 'agentimus' ),
+			'Adds a product for citation checks to track, or adds questions and rivals to one, found by name in any case. '
+				. 'Read read-citation-products first, and use suggest-citation-questions for questions to offer the owner. '
+				. '⚠️ Each question makes every later citation run use more of the owner’s AI credit, so agree the list with the owner. '
+				. '⛔ It only adds. It cannot remove or replace a product, question or rival, pause a product, start a run, or '
+				. 'touch the schedule or keys; the owner does those on the Citations screen. Going past a limit refuses the whole call. '
+				. 'Limited to ' . CitationProducts::HOURLY_LIMIT . ' changing calls an hour per connection.',
+			self::obj(
+				array(
+					'name'            => self::s( 'The product to add, or the one to add to.' ),
+					'category'        => self::s( 'What kind of thing it is, as a buyer would say it. Sets it when sent; blank leaves it.' ),
+					'domain'          => self::s( 'Its website. Sets it when sent; blank leaves it.' ),
+					'add_competitors' => $strings,
+					'add_prompts'     => $strings,
+				),
+				array( 'name' )
+			),
+			self::obj(
+				array(
+					'created'          => self::b( 'TRUE when this made a new product.' ),
+					'changed'          => self::b( 'FALSE when it already had all of that.' ),
+					'name'             => self::s(),
+					'addedQuestions'   => self::i(),
+					'addedCompetitors' => self::i(),
+					'questionsNow'     => self::i( 'Questions across all products now.' ),
+					'message'          => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				return ( new CitationProducts( $this->settings ) )->save( is_array( $input ) ? $input : array() );
+			},
+			$manage,
+			false
+		);
+	}
+
+	/**
 	 * Fetch a data source now. Behind its own switch because it spends the owner's API limits.
 	 *
 	 * @param callable $manage The site-admin permission callback.
@@ -3240,6 +3319,7 @@ final class Registrar {
 
 		if ( $this->settings->enabled( 'agent_writes_settings' ) ) {
 			$this->register_update_settings( $manage );
+			$this->register_save_citation_product( $manage );
 		}
 		if ( $this->settings->enabled( 'agent_writes_maintenance' ) ) {
 			$this->register_refresh_data( $manage );
@@ -4067,6 +4147,7 @@ final class Registrar {
 			self::CATEGORY . '/read-settings',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/check-focus',
+			self::CATEGORY . '/read-citation-products',
 			self::CATEGORY . '/suggest-citation-questions',
 			// ⭐ The body an edit is written against. Read-only and gated on the
 			// same edit_post capability as check-page, but it exists FOR the write
