@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.53.6
+Stable tag: 1.53.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,7 +246,7 @@ Yes. The discovery document implements the **WP_Discovery Protocol**, an openly-
 
 = Does Agentimus store IP addresses? =
 
-Not by default. The agent-activity log records who fetched your endpoints with no IP addresses at all. One opt-in setting — *Store IP addresses for flagged clients* — records the IP only of clients flagged as impersonating or spoofed crawlers (never ordinary traffic), so you can block them at your host or CDN. When on, those IPs are personal data: stored on your own site only, kept for a short retention period, cleared when you clear the activity log, and deleted if you turn the setting back off. Nothing is ever sent off your server. If you enable it, disclose it in your privacy policy (Agentimus adds suggested text at Settings → Privacy).
+Not by default. The agent-activity log records who fetched your endpoints and pages with no IP addresses at all. One opt-in setting — *Store IP addresses for flagged clients* — records the IP only of clients flagged as impersonating or spoofed crawlers (never ordinary traffic), so you can block them at your host or CDN. When on, those IPs are personal data: stored on your own site only, kept for a short retention period, cleared when you clear the activity log, and deleted if you turn the setting back off. Nothing is ever sent off your server. If you enable it, disclose it in your privacy policy (Agentimus adds suggested text at Settings → Privacy).
 
 = Is the admin interface built from source I can inspect? =
 
@@ -297,6 +297,11 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.53.7 =
+* Fixed: the Who Reached Your Site card said machines "fetched your agent files" while its number also counted ordinary pages. It now says "requests to your site" and shows the two apart, for example "9,417 pages · 2,720 agent files".
+* Fixed: with page logging switched off, the note under that card said "agent files only" while page reads from the last 30 days were still in the count. It follows what the count holds now.
+* Changed: the MCP audience tool returns pages and agent files as separate numbers, and its description no longer says ordinary pages are left out.
 
 = 1.53.6 =
 * Fixed: on a site installed in a subfolder, such as example.com/blog, llms.txt, llms-full.txt, the .md pages, the sitemap and the IndexNow key file all answered "not found". They answer at the subfolder's address now.
@@ -426,6 +431,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.53.7 =
+The Machines number on the Dashboard says what it holds: pages and agent files, shown apart. No breaking changes.
 
 = 1.53.6 =
 Sites in a subfolder and on plain permalinks get working AI files and links. Citation runs stop asking an engine that refused your key. The score's Cited rung is now called Mentioned. Developers: the agentimus_agent_skills filter takes Agent Skills discovery entries. No other breaking changes.

@@ -999,77 +999,15 @@ final class Admin {
 				// AI" is the name for people an AI sent, everywhere — never "visits".
 				// ⭐ 1.53.1 is one fix, so ONE row: classic-editor posts were
 				// flagged for searches they answer, and leave the list on their own.
-				// ⭐ 1.53.2 KEEPS 1.53.1's row under its own two — his call,
-				// 2026-10-21. Both are the same story (pages wrongly listed as not
-				// answering), and an owner who skipped 1.53.1 would otherwise never
-				// hear the first half. The one exception to "every release rewrites".
-				// ⭐ 1.53.3 follows the same rule (his "add the old and the new"):
-				// its row on top, 1.53.2's and 1.53.1's below.
-				// ⭐ 1.53.4 likewise: its three rows on top — the Report's new
-				// layout, the security fix, and one fixes row — the older ones kept.
-				// ⭐ 1.53.5 likewise: two rows on top — the grouped Recent Requests
-				// and the scanner probes counted apart — the older ones kept.
-				// ⭐ 1.53.6 likewise: three rows on top — the Mentioned rung, citation
-				// runs that stop on a refused key, and subfolder sites — the older kept.
-				array(
-					'icon'  => 'search',
-					'title' => 'The Score Says Mentioned, Not Cited',
-					'text'  => 'Its fifth rung measures how often AI names you, so it is called Mentioned now. Its note also says how many of those answers linked to your site.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Citation Runs Stop on a Refused Key',
-					'text'  => 'A wrong key or a spent quota is asked once per run, not once per question. A run you start yourself is no longer announced as a scheduled one.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'Sites in a Subfolder Work',
-					'text'  => 'llms.txt, the .md pages and the sitemap now answer on a site installed at an address like example.com/blog.',
-				),
+				// ⭐ ONLY THIS RELEASE'S ROWS — his call, 2026-10-30, ending the run of
+				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
+				// for a one-fix release). Older news is under "Older releases" in the
+				// dialog, read from the changelog.
+				// ⭐ 1.53.7 is one fix, so ONE row: the Machines number names what it holds.
 				array(
 					'icon'  => 'page',
-					'title' => 'One Busy Bot No Longer Fills the List',
-					'text'  => 'Recent Requests groups repeat hits before it counts its 50 rows, so a crawler’s burst is one row and the clients before it stay in view.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Scanner Probes Counted Apart',
-					'text'  => 'Blocked requests for files like .env are scanners using a crawler’s name. The At Cloudflare panel counts them apart, and shows red only when a crawler you allow was turned away.',
-				),
-				array(
-					'icon'  => 'clock',
-					'title' => 'A Calmer Report',
-					'text'  => 'AI reads gets the full width; visits, actions, citations and search share one line each, so a quiet day no longer leaves empty cards. “What acted here” names the latest action.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Connection Keys Stay at Their Door',
-					'text'  => 'A connection key or an approved assistant’s access was honoured on a few addresses outside the MCP endpoint. It counts only there now.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'And a Round of Fixes',
-					'text'  => 'Real crawlers behind a non-Cloudflare proxy are no longer flagged as fakes, unpublished posts leave Cloudflare’s cache, and announcements queued mid-send are kept.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Plurals Read Correctly',
-					'text'  => 'A word and its plural, like “perfume” and “perfumes”, now count as the same word, so pages are no longer listed for missing a word they use.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'Findings Name the Step Left',
-					'text'  => '“One push from page one” now says what each page still lacks — often just a link from another of your posts — instead of repeating advice you have already followed.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'More Searches Read Correctly',
-					'text'  => 'Words joined by a hyphen or underscore, like “AI-discovery”, and versions like “5.5.0” now count as the words inside them. Pages wrongly listed as not answering their search leave Your Content by themselves.',
-				),
-				array(
-					'icon'  => 'search',
-					'title' => 'Classic Posts Read Correctly',
-					'text'  => 'Posts written in the classic editor were listed as not answering searches they do answer. They are read properly now, and the wrong ones leave Your Content by themselves.',
+					'title' => 'The Machines Number Says What It Holds',
+					'text'  => 'It counts your pages as well as your agent files, so it now says requests to your site and shows the two apart.',
 				),
 			),
 		);

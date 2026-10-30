@@ -4,6 +4,11 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.53.7
+* Fixed: the Who Reached Your Site card said machines "fetched your agent files" while its number also counted ordinary pages. It now says "requests to your site" and shows the two apart, for example "9,417 pages · 2,720 agent files".
+* Fixed: with page logging switched off, the note under that card said "agent files only" while page reads from the last 30 days were still in the count. It follows what the count holds now.
+* Changed: the MCP audience tool returns pages and agent files as separate numbers, and its description no longer says ordinary pages are left out.
+
 ## 1.53.6
 * Fixed: on a site installed in a subfolder, such as example.com/blog, llms.txt, llms-full.txt, the .md pages, the sitemap and the IndexNow key file all answered "not found". They answer at the subfolder's address now.
 * Fixed: /.well-known/agent-skills/index.json follows the Agent Skills discovery format. It lists the site's own SKILL.md with its checksum, and no longer answers "not found" on a site with no plugin skills. For developers: the agentimus_agent_skills filter now takes entries in that format.
