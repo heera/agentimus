@@ -94,7 +94,13 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings', 'refresh-data' );
+
+	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
+	const SWITCHED_TOOLS = array(
+		'update-settings' => 'agent_writes_settings',
+		'refresh-data'    => 'agent_writes_maintenance',
+	);
 
 	/** @var Settings */
 	private $settings;
@@ -3017,6 +3023,47 @@ final class Registrar {
 	}
 
 	/**
+	 * Fetch a data source now. Behind its own switch because it spends the owner's API limits.
+	 *
+	 * @param callable $manage The site-admin permission callback.
+	 */
+	private function register_refresh_data( $manage ) {
+		$this->add(
+			'refresh-data',
+			__( 'Fetch fresh numbers from a data source', 'agentimus' ),
+			'Fetches one connected data source now instead of waiting for its next scheduled poll: `cloudflare` '
+				. '(polls hourly), `bing` and `google` (daily), or `analytics` (Google Analytics, daily). Use it when the '
+				. 'owner asks about numbers that look stale, then read them with the matching read tool. '
+				. '⚠️ It uses the owner’s API limits, so it is limited to ' . DataRefresh::HOURLY_LIMIT . ' a source per hour for each '
+				. 'connection, and a burst is refused rather than queued. '
+				. '⛔ It does not run a Google index sweep and cannot connect a source. A source that is not connected is refused.',
+			self::obj(
+				array(
+					'source' => array(
+						'type'        => 'string',
+						'enum'        => DataRefresh::SOURCES,
+						'description' => 'Which data source to fetch.',
+					),
+				),
+				array( 'source' )
+			),
+			self::obj(
+				array(
+					'source'     => self::s(),
+					'refreshed'  => self::b( 'FALSE when nothing new was fetched, usually because another refresh was running.' ),
+					'lastPollAt' => self::i( 'Unix time of the last successful fetch.' ),
+					'message'    => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				return ( new DataRefresh( $this->settings ) )->refresh( is_array( $input ) && isset( $input['source'] ) ? (string) $input['source'] : '' );
+			},
+			$manage,
+			false
+		);
+	}
+
+	/**
 	 * Register the write abilities — the opt-in tier (see the class doc).
 	 *
 	 * @param callable $manage The site-admin permission callback.
@@ -3026,6 +3073,9 @@ final class Registrar {
 
 		if ( $this->settings->enabled( 'agent_writes_settings' ) ) {
 			$this->register_update_settings( $manage );
+		}
+		if ( $this->settings->enabled( 'agent_writes_maintenance' ) ) {
+			$this->register_refresh_data( $manage );
 		}
 
 		$this->add(
@@ -3842,9 +3892,7 @@ final class Registrar {
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {
-				// Its own switch: a connection that could write before this tool
-				// existed gains nothing from an upgrade.
-				if ( 'update-settings' === $slug && ! $this->settings->enabled( 'agent_writes_settings' ) ) {
+				if ( isset( self::SWITCHED_TOOLS[ $slug ] ) && ! $this->settings->enabled( self::SWITCHED_TOOLS[ $slug ] ) ) {
 					continue;
 				}
 				$names[] = self::CATEGORY . '/' . $slug;

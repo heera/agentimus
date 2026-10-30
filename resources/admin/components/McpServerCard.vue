@@ -831,6 +831,14 @@ export default {
                 <small>Lets an assistant switch on or off what this site publishes for AI and edit your public identity. It can't change connections, keys, these switches, blocking, logs or email. Every change appears in Agent Access.</small>
               </span>
             </label>
+            <label id="ar-feat-agent_writes_maintenance" class="ar-toggle ar-toggle--nested">
+              <input v-model="settings.agent_writes_maintenance" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>Let agents refresh data</strong>
+                <small>Lets an assistant fetch fresh numbers from Cloudflare, Bing and Google when it needs them. This uses your API limits, so each connection can do it 4 times an hour per source. It never runs a Google index sweep.</small>
+              </span>
+            </label>
           </div>
         </div>
 

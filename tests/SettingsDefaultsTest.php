@@ -183,6 +183,7 @@ final class SettingsDefaultsTest extends TestCase {
 		'enable_agent_writes'  => array( 'enable_mcp_server' ),
 		'agent_writes_publish' => array( 'enable_mcp_server', 'enable_agent_writes' ),
 		'agent_writes_settings' => array( 'enable_mcp_server', 'enable_agent_writes' ),
+		'agent_writes_maintenance' => array( 'enable_mcp_server', 'enable_agent_writes' ),
 	);
 
 	/**
