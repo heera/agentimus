@@ -79,6 +79,8 @@ use Agentimus\Google\Settings as GoogleSettings;
 use Agentimus\Google\Index as GoogleIndex;
 use Agentimus\Worklist;
 use Agentimus\Seo;
+use Agentimus\Focus;
+use Agentimus\Search\Coverage;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -2655,6 +2657,83 @@ final class Registrar {
 		);
 
 		$this->add(
+			'check-focus',
+			__( 'Check whether a page answers a search', 'agentimus' ),
+			'Measures ONE page against a search you name, the same check as the Focus box in the editor. Use it before '
+				. 'writing: try a search the page is not set for yet, or send `content` to test a rewrite before saving it. '
+				. 'Nothing is written, and the page’s focus stays as it is; write-search-fields sets that. check-page answers '
+				. 'for the focus the page already has. Comma-separate several searches to measure each on its own. '
+				. '`state` is answered (one passage carries it), scattered (the words are on the page but never together), '
+				. 'barely, missing, or unreadable (the search is in a form this check cannot compare, which says nothing '
+				. 'against the page).',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The post or page to measure.' ),
+					'focus'   => self::s( 'The search to measure against. Comma-separate several.' ),
+					'content' => self::s( 'Optional draft body to measure instead of the saved one. Block markup or HTML.' ),
+					'title'   => self::s( 'Optional draft title. An SEO title on the page still wins, because that is what a search result shows.' ),
+				),
+				array( 'post_id', 'focus' )
+			),
+			self::obj(
+				array(
+					'postId'   => self::i(),
+					'measured' => self::s( 'saved or draft: which body this measured.' ),
+					'searches' => self::arr(
+						array(
+							'search'    => self::s(),
+							'state'     => self::s( 'answered · scattered · barely · missing · unreadable.' ),
+							'label'     => self::s( 'The word the owner sees.' ),
+							'why'       => self::s( 'The reason, in a sentence for the owner.' ),
+							'words'     => self::i( 'How many words of the search were compared.' ),
+							'inPassage' => self::i( 'The most of them found together in one passage.' ),
+							'onPage'    => self::i( 'How many are anywhere on the page.' ),
+							'inTitle'   => self::i( 'How many are in the title a search result shows.' ),
+							'heading'   => self::s( 'The heading above the best passage, when it has one.' ),
+						)
+					),
+				)
+			),
+			function ( $input ) {
+				$in      = is_array( $input ) ? $input : array();
+				$post    = get_post( (int) ( $in['post_id'] ?? 0 ) );
+				$phrases = Focus::phrases( (string) ( $in['focus'] ?? '' ) );
+				if ( ! $post instanceof \WP_Post ) {
+					return new \WP_Error( 'agentimus_not_found', __( 'Post not found.', 'agentimus' ), array( 'status' => 404 ) );
+				}
+				if ( ! $phrases ) {
+					return new \WP_Error( 'agentimus_no_focus', __( '`focus` is required: the search to measure this page against.', 'agentimus' ), array( 'status' => 400 ) );
+				}
+
+				$content  = isset( $in['content'] ) ? (string) $in['content'] : null;
+				$title    = isset( $in['title'] ) ? (string) $in['title'] : null;
+				$searches = array();
+				foreach ( $phrases as $phrase ) {
+					$cover      = (array) Focus::coverage( $post, $phrase, $content, $title );
+					$said       = Coverage::explain( $cover );
+					$searches[] = array(
+						'search'    => (string) $phrase,
+						'state'     => (string) ( $cover['state'] ?? '' ),
+						'label'     => (string) $said['label'],
+						'why'       => (string) $said['why'],
+						'words'     => (int) ( $cover['words'] ?? 0 ),
+						'inPassage' => (int) ( $cover['in_passage'] ?? 0 ),
+						'onPage'    => (int) ( $cover['on_page'] ?? 0 ),
+						'inTitle'   => (int) ( $cover['in_title'] ?? 0 ),
+						'heading'   => (string) ( $cover['heading'] ?? '' ),
+					);
+				}
+
+				return array(
+					'postId'   => (int) $post->ID,
+					'measured' => null === $content ? 'saved' : 'draft',
+					'searches' => $searches,
+				);
+			},
+			array( $this, 'can_edit_post' )
+		);
+
+		$this->add(
 			'read-settings',
 			__( 'Read this site’s Agentimus settings', 'agentimus' ),
 			'Returns the Agentimus settings for what this site publishes to AI assistants and search: which '
@@ -3895,6 +3974,7 @@ final class Registrar {
 			self::CATEGORY . '/read-terms',
 			self::CATEGORY . '/read-settings',
 			self::CATEGORY . '/check-page',
+			self::CATEGORY . '/check-focus',
 			// ⭐ The body an edit is written against. Read-only and gated on the
 			// same edit_post capability as check-page, but it exists FOR the write
 			// tier the way search-media and read-terms do: edit-content matches an
