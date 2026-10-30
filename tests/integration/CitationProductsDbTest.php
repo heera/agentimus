@@ -205,6 +205,19 @@ final class CitationProductsDbTest extends DbTestCase {
 		$this->assertSame( $before, $this->visibility->get( 'targets' ) );
 	}
 
+	/** Typed in another case, it is still the owner's product, under the owner's spelling. */
+	public function test_the_answer_and_the_log_use_the_stored_name() {
+		Table::install();
+		$out = $this->tool()->save( array( 'name' => 'AGENTIMUS', 'add_prompts' => array( 'One?' ) ) );
+
+		$this->assertSame( 'Agentimus', $out['name'] );
+		$subjects = array();
+		foreach ( Store::recent( 50, 'setting_changed' ) as $row ) {
+			$subjects[] = ( (array) $row )['subject'];
+		}
+		$this->assertContains( 'citation product Agentimus: +1 questions, +0 rivals', $subjects );
+	}
+
 	public function test_the_owner_can_see_what_was_added() {
 		Table::install();
 		$this->tool()->save( array( 'name' => 'Agentimus', 'add_prompts' => array( 'One?', 'Two?' ), 'add_competitors' => array( 'Rival' ) ) );

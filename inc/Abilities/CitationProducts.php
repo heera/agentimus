@@ -112,7 +112,7 @@ final class CitationProducts {
 		}
 
 		if ( ! $created && $product === $before ) {
-			return $this->answer( false, false, $name, 0, 0, __( 'This product already has all of that. Nothing was changed.', 'agentimus' ) );
+			return $this->answer( false, false, (string) $before['name'], 0, 0, __( 'This product already has all of that. Nothing was changed.', 'agentimus' ) );
 		}
 
 		$limited = self::over_limit();
@@ -135,14 +135,14 @@ final class CitationProducts {
 				Events::KIND_SETTING_CHANGED,
 				get_current_user_id(),
 				Module::current_credential(),
-				sprintf( 'citation product %s: +%d questions, +%d rivals', mb_substr( $name, 0, 40 ), $questions, $rivals )
+				sprintf( 'citation product %s: +%d questions, +%d rivals', mb_substr( (string) $product['name'], 0, 40 ), $questions, $rivals )
 			);
 		}
 
 		return $this->answer(
 			$created,
 			true,
-			$name,
+			(string) $product['name'],
 			$questions,
 			$rivals,
 			__( 'Saved, and no check was run. Each new question makes every later citation run use more of the owner’s AI credit. Tell the owner what was added.', 'agentimus' )
