@@ -16,11 +16,11 @@ Everything needed ships with the plugin. There is nothing else to install, no ac
 
 ## What it can and cannot do
 
-**Can:** read the twenty Agentimus reports listed above. With the write switch on (below), also the six write tools — and nothing else.
+**Can:** read the Agentimus reports listed above. With the write switch on (below), also the write tools — and nothing else.
 
 **Cannot:** act anonymously — nothing about this is public. And until you flip the write switch, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
-A key can be read-only on its own, too. An assistant connected with a read-only key is shown the twenty read tools and nothing else; a read-and-write key is shown all twenty-six. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
+A key can be read-only on its own, too. An assistant connected with a read-only key is shown the read tools and nothing else; a read-and-write key is shown all of them. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
 
 Three locks stand between the internet and those reports:
 
@@ -32,7 +32,7 @@ And one camera: every call an AI tool makes is recorded under **More → Agent A
 
 ## Letting agents write (optional)
 
-Below the server switch sits a second one: **Let connected agents write**. It starts off, and while it's off the write tools don't exist on any surface. Turn it on and five more tools appear:
+Below the server switch sits a second one: **Let connected agents write**. It starts off, and while it's off the write tools don't exist on any surface. Turn it on and the write tools appear, including:
 
 - **Create a post or page** — a complete draft in one call: title, body, categories, tags, a featured image (from your media library, or imported from an image URL), plus its AI description and Topics for AI.
 - **Update a post or page** — only the fields the agent passes change; everything else is left alone. Body edits keep a normal revision on posts and pages.
@@ -43,6 +43,7 @@ The rules that travel with every write:
 
 - **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **Let agents publish without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
 - **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
+- **No scripts, under any login.** An assistant can't store a script, an event handler, a `javascript:` link, an iframe, a style element or SVG, even when it signs in as an administrator. The write is refused and nothing is saved. Markup you added yourself stays on the page. To show a video or post, the assistant uses its URL in an embed block. This covers the Agentimus tools only: an application password can still reach WordPress's own REST API.
 - **Settings need their own switch.** **Let agents change settings** lets an assistant turn on or off what your site publishes for AI, edit your public identity, and add citation products and questions. Each new question makes later citation runs use more of your AI credit. It can't reach connections, keys, these switches, blocking, logs or email, and any such request is refused whole. It can't remove a product or question, or start a run. Every change shows its before and after in Agent Access, with long values cut short, and there's a limit of 20 changing calls an hour per connection.
 - **So does upkeep.** **Let agents refresh data and purge the cache** lets an assistant fetch fresh numbers from Cloudflare, Bing, Google Search Console and Google Analytics. This uses your API limits, so each connection can do it 4 times an hour per source, and it never runs a Google index sweep. It can also empty your whole Cloudflare cache, twice an hour across all assistants, and your site may be slower until the cache rebuilds.
 - **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.

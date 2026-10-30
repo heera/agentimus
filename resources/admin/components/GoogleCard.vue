@@ -165,7 +165,7 @@ export default {
       if (this.ga4Busy || !this.api) return;
       const ok = await confirm({
         title: 'Stop Reading Analytics?',
-        message: 'The dashboard goes back to counting only the readers search or an AI answer sent — not direct, social or email. The audience numbers already stored stay in your database, the key is untouched, and resuming is one paste of the property ID.',
+        message: 'The dashboard goes back to counting only the readers search or an AI answer sent — not direct, social or email. The audience numbers stored here are removed, the key is untouched, and resuming is one paste of the property ID, which fetches them again.',
         confirmLabel: 'Stop Reading',
         cancelLabel: 'Cancel',
         tone: 'danger',

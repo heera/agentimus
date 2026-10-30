@@ -2864,8 +2864,8 @@ final class Registrar {
 				. 'a Slack or Discord webhook URL IS the power to post in that channel, and a Telegram chat '
 				. 'id plus the bot token is the same. `connected` tells you whether one is set; nothing here '
 				. 'hands over the means to use it. '
-				. '⛔ Read-only. Connecting, disconnecting and turning a channel off all ask the owner to '
-				. 'confirm in the admin, so no tool here can do them.',
+				. '⛔ Read-only. Connecting, disconnecting and turning a channel off are the owner’s to do in the '
+				. 'admin, so no tool here can do them.',
 			array(
 				'type'                 => 'object',
 				'properties'           => new \stdClass(),

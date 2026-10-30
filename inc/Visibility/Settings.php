@@ -379,7 +379,8 @@ final class Settings {
 
 	/**
 	 * The browser-safe view of settings: real keys are replaced with a boolean
-	 * "hasKey" and the mask placeholder, so a stored secret never leaves the server.
+	 * "hasKey" and the mask placeholder, so a stored secret never leaves in this view.
+	 * The one way out is the owner's own POST /visibility/reveal-key.
 	 *
 	 * @return array
 	 */

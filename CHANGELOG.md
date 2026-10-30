@@ -4,6 +4,16 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.54.0
+* Security: an agent can no longer store markup that runs in a reader's browser. Even under an administrator's login, scripts, event handlers, javascript: links, iframes, style elements and SVG are refused and nothing is saved. Markup you added yourself stays, and agent edits leave it in place. Application passwords can still reach WordPress's own REST API.
+* Security: the bundled MCP Adapter moves to 0.6.2, for its fix that limits how much a connecting client can store.
+* New: "Let agents change settings", off by default. An assistant can change what your site publishes for AI and your public identity through a fixed list, and add citation products and questions. It can't reach connections, keys, agent switches, blocking, logs or email, and it can't remove a product or question. Each change shows its before and after in Agent Access.
+* New: "Let agents refresh data and purge the cache", off by default. An assistant can fetch fresh numbers from Cloudflare, Bing and Google, and empty your Cloudflare cache, within hourly limits. It never runs a Google index sweep.
+* New MCP read tools: read-settings, check-focus (test a page against any search, or a draft, before saving), read-citation-products and suggest-citation-questions. None of them spends anything.
+* New MCP write tool: set-aside-search-page. review-client can now also undo an ignore.
+* Fixed: setting a page aside from the search list could save values another plugin only adds on read.
+* Fixed: stopping Google Analytics said its stored numbers stay, while they are removed. The dialog now says so.
+
 ## 1.53.7
 * Fixed: the Who Reached Your Site card said machines "fetched your agent files" while its number also counted ordinary pages. It now says "requests to your site" and shows the two apart, for example "9,417 pages · 2,720 agent files".
 * Fixed: with page logging switched off, the note under that card said "agent files only" while page reads from the last 30 days were still in the count. It follows what the count holds now.

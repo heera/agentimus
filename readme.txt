@@ -38,7 +38,7 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 * **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each gets its own key and Disconnect. OAuth 2.1 with PKCE, nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
 * **Read your site's data** — connected agents run the read-only tools — score, AI traffic, request log, bot identification, page previews — and your llms.txt, discovery and agent-card documents are offered as readable **resources**.
 * **Draft, edit and publish posts — behind two more switches** — turn on **Let connected agents write** and an agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions), apply Readiness fixes, and reuse pictures from your media library. A third switch lets it publish; otherwise it leaves drafts for review.
-* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the switch off the write tools do not exist.
+* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and with the switch off the write tools do not exist. Agents can't store scripts. Further switches let agents change settings and refresh data.
 
 **Write with AI in wp-admin — the built-in assistant (opt-in)**
 
@@ -298,6 +298,16 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.54.0 =
+* Security: an agent can no longer store markup that runs in a reader's browser. Even under an administrator's login, scripts, event handlers, javascript: links, iframes, style elements and SVG are refused and nothing is saved. Markup you added yourself stays, and agent edits leave it in place. Application passwords can still reach WordPress's own REST API.
+* Security: the bundled MCP Adapter moves to 0.6.2, for its fix that limits how much a connecting client can store.
+* New: "Let agents change settings", off by default. An assistant can change what your site publishes for AI and your public identity through a fixed list, and add citation products and questions. It can't reach connections, keys, agent switches, blocking, logs or email, and it can't remove a product or question. Each change shows its before and after in Agent Access.
+* New: "Let agents refresh data and purge the cache", off by default. An assistant can fetch fresh numbers from Cloudflare, Bing and Google, and empty your Cloudflare cache, within hourly limits. It never runs a Google index sweep.
+* New MCP read tools: read-settings, check-focus (test a page against any search, or a draft, before saving), read-citation-products and suggest-citation-questions. None of them spends anything.
+* New MCP write tool: set-aside-search-page. review-client can now also undo an ignore.
+* Fixed: setting a page aside from the search list could save values another plugin only adds on read.
+* Fixed: stopping Google Analytics said its stored numbers stay, while they are removed. The dialog now says so.
+
 = 1.53.7 =
 * Fixed: the Who Reached Your Site card said machines "fetched your agent files" while its number also counted ordinary pages. It now says "requests to your site" and shows the two apart, for example "9,417 pages · 2,720 agent files".
 * Fixed: with page logging switched off, the note under that card said "agent files only" while page reads from the last 30 days were still in the count. It follows what the count holds now.
@@ -431,6 +441,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.54.0 =
+Security: agents can no longer store scripts in your pages, even as an administrator. Two new switches, both off, let agents change settings and refresh data.
 
 = 1.53.7 =
 The Machines number on the Dashboard says what it holds: pages and agent files, shown apart. No breaking changes.
