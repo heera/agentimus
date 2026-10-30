@@ -94,7 +94,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings' );
 
 	/** @var Settings */
 	private $settings;
@@ -2954,12 +2954,77 @@ final class Registrar {
 	}
 
 	/**
+	 * The one write tool with a switch of its own.
+	 *
+	 * @param callable $manage The site-admin permission callback.
+	 */
+	private function register_update_settings( $manage ) {
+		$any = array( 'type' => array( 'boolean', 'integer', 'string', 'array' ) );
+
+		$this->add(
+			'update-settings',
+			__( 'Change this site’s Agentimus settings', 'agentimus' ),
+			'Changes the settings read-settings returns, and only those. Send only what should change: '
+				. '`settings` for files, tags and limits, `identity` for the public details about the owner. '
+				. 'A list you send replaces the whole list. Read first, and tell the owner what you are about to change. '
+				. 'Turning a file off stops AI assistants finding it. '
+				. '⛔ Any other key refuses the whole call and nothing is written, including connections, keys, agent '
+				. 'switches, blocking and robots rules, logs and email. The answer lists what really changed, and '
+				. '`adjusted` names any value the site cleaned on saving. The owner sees every change in Agent Access. '
+				. 'Limited to ' . AgentSettings::HOURLY_LIMIT . ' changing calls an hour per connection.',
+			self::obj(
+				array(
+					'settings' => self::obj(
+						array_merge(
+							array_fill_keys( AgentSettings::FLAGS, array( 'type' => 'boolean' ) ),
+							array_fill_keys( AgentSettings::NUMBERS, array( 'type' => 'integer' ) ),
+							array_fill_keys( AgentSettings::LISTS, array( 'type' => 'array' ) ),
+							array_fill_keys( AgentSettings::TEXTS, array( 'type' => 'string' ) )
+						)
+					),
+					'identity' => self::obj(
+						array_merge(
+							array_fill_keys( AgentSettings::IDENTITY_TEXTS, array( 'type' => 'string' ) ),
+							array_fill_keys( AgentSettings::IDENTITY_LISTS, array( 'type' => 'array' ) )
+						)
+					),
+				)
+			),
+			self::obj(
+				array(
+					'changed'  => self::arr(
+						array(
+							'key'    => self::s(),
+							'before' => $any,
+							'after'  => $any,
+						)
+					),
+					'adjusted' => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'message'  => self::s(),
+				)
+			),
+			function ( $input ) {
+				return ( new AgentSettings( $this->settings ) )->update( is_array( $input ) ? $input : array() );
+			},
+			$manage,
+			false
+		);
+	}
+
+	/**
 	 * Register the write abilities — the opt-in tier (see the class doc).
 	 *
 	 * @param callable $manage The site-admin permission callback.
 	 */
 	private function register_write_abilities( $manage ) {
 		$summary = self::written_post_schema();
+
+		if ( $this->settings->enabled( 'agent_writes_settings' ) ) {
+			$this->register_update_settings( $manage );
+		}
 
 		$this->add(
 			'create-content',
@@ -3774,6 +3839,11 @@ final class Registrar {
 		);
 		if ( $this->settings->enabled( 'enable_agent_writes' ) ) {
 			foreach ( self::WRITE_SLUGS as $slug ) {
+				// Its own switch: a connection that could write before this tool
+				// existed gains nothing from an upgrade.
+				if ( 'update-settings' === $slug && ! $this->settings->enabled( 'agent_writes_settings' ) ) {
+					continue;
+				}
 				$names[] = self::CATEGORY . '/' . $slug;
 			}
 		}

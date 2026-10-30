@@ -428,7 +428,7 @@ final class Module {
 	 *
 	 * @return string
 	 */
-	private static function current_credential() {
+	public static function current_credential() {
 		// The connection token first: it authenticates without an application
 		// password, and without this branch its runs would wear the misleading
 		// "logged-in session" fallback.

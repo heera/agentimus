@@ -182,6 +182,7 @@ final class SettingsDefaultsTest extends TestCase {
 	private const PARENT_FLAGS = array(
 		'enable_agent_writes'  => array( 'enable_mcp_server' ),
 		'agent_writes_publish' => array( 'enable_mcp_server', 'enable_agent_writes' ),
+		'agent_writes_settings' => array( 'enable_mcp_server', 'enable_agent_writes' ),
 	);
 
 	/**

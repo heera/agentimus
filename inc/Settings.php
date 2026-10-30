@@ -98,6 +98,7 @@ final class Settings {
 			'enable_mcp_server' => false,   // Opt-in: boot the BUNDLED WordPress MCP Adapter and publish the scoped, read-only Agentimus MCP server at /wp-json/agentimus/v1/mcp (application-password/OAuth authenticated; every tool keeps its own permission check). OFF by default — it opens an authenticated machine endpoint, so it ships only when the owner asks. No-ops below WP 6.9 (needs the Abilities API). See Abilities\AdapterBootstrap + Abilities\Registrar::register_mcp_server().
 			'enable_agent_writes' => false, // Second, separate opt-in on top of the MCP server: register the WRITE abilities (create/edit drafts, set a page's AI topics/description, apply a readiness fix). OFF by default so "the MCP server is read-only" stays true until the owner deliberately says otherwise. Gates REGISTRATION, not just MCP exposure — off means the write abilities don't exist on any surface (MCP, abilities REST, the in-admin assistant). Requires enable_mcp_server: it renders as a sub-toggle of the MCP card, so sanitize() cascades it off when the server is off (no invisible armed switch). Every write still runs as the authenticated user with that user's capabilities. See Abilities\Registrar::register_write_abilities().
 			'agent_writes_publish' => false, // Sub-option of enable_agent_writes (and cascaded off with it, same rule): allow an agent to PUBLISH (status=publish) rather than only draft/pending. OFF by default — "write drafts I review" and "publish to my live site" are different levels of trust, so going live stays a human decision until this is flipped. The user's publish_posts capability is still required on top. See Abilities\ContentWriter::validate_status().
+			'agent_writes_settings' => false, // Sub-option of enable_agent_writes (and cascaded off with it): adds update-settings, which changes the allowlist in Abilities\AgentSettings and nothing else. An agent can never reach this switch itself.
 			'webmcp_hidden_tools' => array(), // Owner opt-OUT: names of WebMCP tools to hide from browser agents (deny-list; empty = expose every registered tool). Lets the owner curate per-tool which to expose.
 			'llms_full_posts'  => 50,
 			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
@@ -798,7 +799,8 @@ final class Settings {
 			$clean['enable_agent_writes'] = false;
 		}
 		if ( empty( $clean['enable_agent_writes'] ) ) {
-			$clean['agent_writes_publish'] = false;
+			$clean['agent_writes_publish']  = false;
+			$clean['agent_writes_settings'] = false;
 		}
 
 		// Per-page AI topics: the two toggles are handled by the boolean loop above; only

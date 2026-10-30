@@ -823,6 +823,14 @@ export default {
                 <small>Lets an assistant put content live. It still needs a user who is allowed to publish. Off is the safe default: assistants then only create drafts and pending posts for you to review. Either way, editing something already published follows that user’s normal edit permission.</small>
               </span>
             </label>
+            <label id="ar-feat-agent_writes_settings" class="ar-toggle ar-toggle--nested">
+              <input v-model="settings.agent_writes_settings" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>Let agents change settings</strong>
+                <small>Lets an assistant switch on or off what this site publishes for AI and edit your public identity. It can't change connections, keys, these switches, blocking, logs or email. Every change appears in Agent Access.</small>
+              </span>
+            </label>
           </div>
         </div>
 

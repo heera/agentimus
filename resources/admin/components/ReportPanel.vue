@@ -108,6 +108,7 @@ export default {
           apppw_used: 'An application password was first used',
           apppw_renamed: 'An application password was renamed',
           apppw_deleted: 'An application password was revoked',
+          setting_changed: `Changed ${e.subject || 'a setting'}`,
         })[e.kind] || 'An event';
       const via = e.credName ? ` · via ${e.credName}` : '';
       return e.kind === 'ability_probed' ? `Probed for abilities that don’t exist${via}` : `${what}${via}`;

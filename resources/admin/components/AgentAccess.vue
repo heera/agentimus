@@ -262,6 +262,7 @@ export default {
         case 'apppw_deleted':  return 'Application password revoked';
         case 'ability_used':   return 'Ability used';
         case 'ability_refused':return 'Ability refused';
+        case 'setting_changed':return 'Setting changed';
         case 'ability_probed': return 'Probed for abilities that don’t exist';
         default:               return 'Event';
       }

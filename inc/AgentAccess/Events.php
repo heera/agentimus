@@ -44,6 +44,9 @@ final class Events {
 	/** Someone poking at the ability surface: guessing names, or malformed anonymous requests. */
 	const KIND_ABILITY_PROBED = 'ability_probed';
 
+	/** An agent changed a plugin setting. One row per setting and connection, holding the latest change. */
+	const KIND_SETTING_CHANGED = 'setting_changed';
+
 	/* -- Ability-coverage states (see ability_coverage) --------------------- */
 
 	/** Every ability is observable — ours and other plugins'. */
@@ -89,6 +92,7 @@ final class Events {
 			self::KIND_APPPW_RENAMED,
 			self::KIND_ABILITY_USED,
 			self::KIND_ABILITY_REFUSED,
+			self::KIND_SETTING_CHANGED,
 			self::KIND_ABILITY_PROBED,
 		);
 	}
