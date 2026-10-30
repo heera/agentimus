@@ -44,11 +44,11 @@ final class AgentMarkup {
 		$before = (string) $before;
 
 		// Below WP 6.5 there is no parser to tell the owner's markup from the
-		// agent's, so a value kses would change at all is refused. Only the in-admin
+		// agent's, so anything kses would REMOVE is refused. Only the in-admin
 		// assistant reaches this (the MCP tools need 6.9), and its text has already
 		// been through kses.
 		if ( ! method_exists( 'WP_HTML_Tag_Processor', 'next_token' ) ) {
-			return wp_kses_post( $after ) === $after ? null : self::error( array() );
+			return self::kses_fingerprint( wp_kses_post( $after ) ) === self::kses_fingerprint( $after ) ? null : self::error( array() );
 		}
 
 		$found = self::findings( $after );
@@ -68,6 +68,29 @@ final class AgentMarkup {
 		}
 
 		return $added ? self::error( $added ) : null;
+	}
+
+	/**
+	 * The parts of a value kses removes when it objects: tag names, attribute names
+	 * and script links.
+	 *
+	 * ⚠️ NOT the bytes. kses also tidies what it keeps, quoting attributes and encoding
+	 * "&", so comparing bytes refused ordinary edits. It is a regex and not a parser,
+	 * which is why it is only the fallback.
+	 *
+	 * @param string $html A value.
+	 * @return string
+	 */
+	private static function kses_fingerprint( $html ) {
+		$plain = html_entity_decode( $html, ENT_QUOTES );
+
+		preg_match_all( '/<\s*([a-z][a-z0-9:-]*)|\s([a-z_:@][a-z0-9_:.@-]*)\s*=/i', $plain, $found );
+		$parts = array_map( 'strtolower', array_filter( array_merge( $found[1], $found[2] ) ) );
+		sort( $parts );
+
+		$parts[] = substr_count( strtolower( (string) preg_replace( '/[\s\x00-\x1f]+/', '', $plain ) ), 'javascript:' );
+
+		return implode( ' ', $parts );
 	}
 
 	/**
