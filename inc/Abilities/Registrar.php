@@ -2734,6 +2734,56 @@ final class Registrar {
 		);
 
 		$this->add(
+			'suggest-citation-questions',
+			__( 'Suggest questions to track for a product', 'agentimus' ),
+			'Returns template questions a citation check could ask about a product, from its name, category and '
+				. 'competitors: "What is the best …?", "… vs …". Questions the product already tracks are left out. '
+				. 'Show them to the owner to choose from. '
+				. 'It saves nothing, runs no check, and calls no AI, so it costs nothing. Without a category it offers '
+				. 'questions about the brand only, because it will not invent a market for the product.',
+			self::obj(
+				array(
+					'name'        => self::s( 'The product. Falls back to the site’s own name.' ),
+					'category'    => self::s( 'What kind of thing it is, as a buyer would say it, such as "WordPress SEO plugin".' ),
+					'competitors' => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+					'prompts'     => array(
+						'type'        => 'array',
+						'items'       => array( 'type' => 'string' ),
+						'description' => 'Questions already tracked, to leave out.',
+					),
+				)
+			),
+			self::obj(
+				array(
+					'questions' => array(
+						'type'  => 'array',
+						'items' => array( 'type' => 'string' ),
+					),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return array(
+					'questions' => array_values(
+						\Agentimus\Visibility\Suggest::for_product(
+							array(
+								'name'        => (string) ( $in['name'] ?? '' ),
+								'category'    => (string) ( $in['category'] ?? '' ),
+								'competitors' => (array) ( $in['competitors'] ?? array() ),
+								'prompts'     => (array) ( $in['prompts'] ?? array() ),
+							),
+							$this->settings
+						)
+					),
+				);
+			},
+			array( $this, 'can_manage' )
+		);
+
+		$this->add(
 			'read-settings',
 			__( 'Read this site’s Agentimus settings', 'agentimus' ),
 			'Returns the Agentimus settings for what this site publishes to AI assistants and search: which '
@@ -4017,6 +4067,7 @@ final class Registrar {
 			self::CATEGORY . '/read-settings',
 			self::CATEGORY . '/check-page',
 			self::CATEGORY . '/check-focus',
+			self::CATEGORY . '/suggest-citation-questions',
 			// ⭐ The body an edit is written against. Read-only and gated on the
 			// same edit_post capability as check-page, but it exists FOR the write
 			// tier the way search-media and read-terms do: edit-content matches an
