@@ -96,7 +96,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'update-settings', 'refresh-data', 'purge-edge-cache' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'refresh-data', 'purge-edge-cache' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
@@ -3732,6 +3732,48 @@ final class Registrar {
 			// the ability is exactly as reachable as the button, and no more.
 			$manage,
 			false
+		);
+
+		$this->add(
+			'set-aside-search-page',
+			__( 'Set a page aside from the search worklist, or put it back', 'agentimus' ),
+			'Takes ONE page off the search opportunities list from read-search-opportunities, or puts it back with '
+				. 'aside=false. Send `post_id`, or `url` for a row with no post behind it. '
+				. 'This is a different list from set-aside-page: that one stops a page being graded for AI, and this one '
+				. 'stops it being offered as a search opportunity. Neither changes the page. '
+				. 'Use it when the owner has no interest in that page ranking, such as a legal page. '
+				. '⛔ Not a way to clear the list: leaving out a page because the work is hard hides it from the owner. '
+				. 'To drop a bad search rather than a page, use dismiss-search.',
+			self::obj(
+				array(
+					'post_id' => self::i( 'The page, from a read-search-opportunities row. Omit it for a row with no post.' ),
+					'url'     => self::s( 'The page’s address on this site, for a row with no post.' ),
+					'aside'   => array(
+						'type'        => 'boolean',
+						'description' => 'True (the default) sets the page aside; false puts it back.',
+						'default'     => true,
+					),
+				)
+			),
+			self::obj(
+				array(
+					'postId'  => self::i( '0 when the page is held by its address.' ),
+					'url'     => self::s( 'The stored address, empty when the page is held by its post.' ),
+					'aside'   => self::b( 'Whether it is set aside NOW.' ),
+					'changed' => self::b( 'Whether THIS call put it there.' ),
+					'message' => self::s( 'Plain sentence for the owner.' ),
+				)
+			),
+			function ( $input ) {
+				$in = is_array( $input ) ? $input : array();
+				return ( new Triage( $this->settings ) )->set_search_page_aside(
+					(int) ( $in['post_id'] ?? 0 ),
+					(string) ( $in['url'] ?? '' ),
+					isset( $in['aside'] ) ? (bool) $in['aside'] : true
+				);
+			},
+			$manage,
+			false // Writes.
 		);
 
 		$this->add(

@@ -35,6 +35,7 @@ use Agentimus\Settings;
 use Agentimus\Gradeability;
 use Agentimus\Worklist;
 use Agentimus\Search\Noise;
+use Agentimus\Search\Pages;
 use Agentimus\Search\Table;
 
 defined( 'ABSPATH' ) || exit;
@@ -317,6 +318,87 @@ final class Triage {
 	 * @param string $message   What happened, in the site's own words.
 	 * @return array
 	 */
+	/**
+	 * Set a page aside from the SEARCH worklist, or put it back.
+	 *
+	 * Its own list, not the citability one: excusing a page from "improve this for
+	 * quoting" and from "improve this for search" are different calls. A page with
+	 * no post behind it (the homepage on some sites, an archive, a gone permalink)
+	 * is held by its address.
+	 *
+	 * @param int    $post_id The page, 0 when it has no post.
+	 * @param string $url     Its address, used when $post_id is 0.
+	 * @param bool   $aside   True to set aside, false to put back.
+	 * @return array|\WP_Error { postId, url, aside, changed, message }.
+	 */
+	public function set_search_page_aside( $post_id, $url, $aside ) {
+		$post_id = (int) $post_id;
+		$url     = trim( (string) $url );
+		$aside   = (bool) $aside;
+
+		if ( $post_id > 0 ) {
+			// Putting back stays possible for a post that has since gone.
+			if ( $aside && ! get_post( $post_id ) ) {
+				return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
+			}
+			$field = 'search_ignored';
+			$value = $post_id;
+		} elseif ( '' !== $url ) {
+			// Same host only: this ledger names OUR pages, and must not become a
+			// store of arbitrary strings.
+			$value = Pages::key( esc_url_raw( $url ) );
+			$host  = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+			if ( '' === $value || strtolower( (string) wp_parse_url( $value, PHP_URL_HOST ) ) !== $host ) {
+				return new \WP_Error( 'agentimus_bad_url', __( 'Invalid page address.', 'agentimus' ), array( 'status' => 400 ) );
+			}
+			$field = 'search_ignored_urls';
+		} else {
+			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+
+		$all  = $this->settings->stored();
+		$list = isset( $all[ $field ] ) && is_array( $all[ $field ] ) ? $all[ $field ] : array();
+		$list = 'search_ignored' === $field ? array_map( 'intval', $list ) : array_map( 'strval', $list );
+
+		$was = in_array( $value, $list, true );
+		if ( $was === $aside ) {
+			return array(
+				'postId'  => $post_id,
+				'url'     => $post_id > 0 ? '' : (string) $value,
+				'aside'   => $aside,
+				'changed' => false,
+				'message' => $aside
+					? __( 'This page was already set aside from the search worklist. Nothing changed.', 'agentimus' )
+					: __( 'This page was not set aside from the search worklist. Nothing changed.', 'agentimus' ),
+			);
+		}
+
+		$list = array_values( array_diff( $list, array( $value ) ) );
+		if ( $aside ) {
+			$list[] = $value;
+		}
+		$all[ $field ] = $list;
+		$this->settings->update( $all );
+
+		// ⭐ READ IT BACK. The save caps this list, and a page the cap dropped has not
+		// been set aside, whatever this call says.
+		$now = $this->settings->stored();
+		$now = isset( $now[ $field ] ) && is_array( $now[ $field ] ) ? $now[ $field ] : array();
+		if ( in_array( $value, 'search_ignored' === $field ? array_map( 'intval', $now ) : array_map( 'strval', $now ), true ) !== $aside ) {
+			return new \WP_Error( 'agentimus_search_aside_failed', __( 'The site did not keep this change, so the page’s place on the search worklist has not changed. The list may be full.', 'agentimus' ), array( 'status' => 409 ) );
+		}
+
+		return array(
+			'postId'  => $post_id,
+			'url'     => $post_id > 0 ? '' : (string) $value,
+			'aside'   => $aside,
+			'changed' => true,
+			'message' => $aside
+				? __( 'Set aside from the search worklist. The page itself is unchanged, and the owner sees it in the list of pages set aside.', 'agentimus' )
+				: __( 'Back on the search worklist.', 'agentimus' ),
+		);
+	}
+
 	private function search_result( $query, $dismissed, $changed, $message ) {
 		$all = Noise::dismissed();
 		sort( $all );

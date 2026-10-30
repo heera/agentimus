@@ -98,38 +98,14 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function ignore( \WP_REST_Request $request ) {
-		$id     = absint( $request->get_param( 'post' ) );
-		$url    = trim( (string) $request->get_param( 'url' ) );
-		$ignore = (bool) $request->get_param( 'ignored' );
-
-		$all = $this->core->all();
-		if ( $id > 0 ) {
-			$list = ( isset( $all['search_ignored'] ) && is_array( $all['search_ignored'] ) ) ? array_map( 'intval', $all['search_ignored'] ) : array();
-			$list = array_values( array_diff( $list, array( $id ) ) );
-			if ( $ignore ) {
-				$list[] = $id;
-			}
-			$all['search_ignored'] = $list;
-		} elseif ( '' !== $url ) {
-			// URL-keyed: the only identity an unmapped page (the homepage on some
-			// sites, an archive, a gone permalink) has. Same host only — this
-			// ledger names OUR pages, and must not become a store of arbitrary
-			// strings.
-			$key  = Pages::key( esc_url_raw( $url ) );
-			$host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
-			if ( '' === $key || strtolower( (string) wp_parse_url( $key, PHP_URL_HOST ) ) !== $host ) {
-				return new \WP_Error( 'agentimus_bad_url', __( 'Invalid page address.', 'agentimus' ), array( 'status' => 400 ) );
-			}
-			$list = ( isset( $all['search_ignored_urls'] ) && is_array( $all['search_ignored_urls'] ) ) ? array_map( 'strval', $all['search_ignored_urls'] ) : array();
-			$list = array_values( array_diff( $list, array( $key ) ) );
-			if ( $ignore ) {
-				$list[] = $key;
-			}
-			$all['search_ignored_urls'] = $list;
-		} else {
-			return new \WP_Error( 'agentimus_bad_post', __( 'Invalid post.', 'agentimus' ), array( 'status' => 400 ) );
+		$done = ( new \Agentimus\Abilities\Triage( $this->core ) )->set_search_page_aside(
+			absint( $request->get_param( 'post' ) ),
+			trim( (string) $request->get_param( 'url' ) ),
+			(bool) $request->get_param( 'ignored' )
+		);
+		if ( is_wp_error( $done ) ) {
+			return $done;
 		}
-		$this->core->update( $all );
 
 		return $this->report( $request ); // The worklist the caller is looking at, already refreshed.
 	}

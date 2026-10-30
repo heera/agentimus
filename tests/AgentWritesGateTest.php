@@ -89,6 +89,7 @@ namespace Agentimus\Tests {
 			'agentimus/retry-announcement',
 			'agentimus/review-client',
 			'agentimus/recheck-client',
+			'agentimus/set-aside-search-page',
 		);
 
 		private function server_args( array $settings ): array {
