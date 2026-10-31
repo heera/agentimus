@@ -4,6 +4,12 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.55.0
+* New: block bots at Cloudflare, off by default. Agentimus's own block covers only your AI files. With this switch on and the Zone WAF: Edit permission on your token, blocking from the review queue also adds the client to one Cloudflare rule, which challenges it on every page. It uses one of your custom rules and never changes your others.
+* New: a name goes to Cloudflare only after checks, because a user agent alone proves little. It must be the client's own product name, and the rule must catch nothing else in your log or at Cloudflare. Your own services, search engines and clients you allowed are refused, and the screen says why. The rule skips bots Cloudflare has verified and always lets through robots.txt and certificate checks.
+* New: Client Decisions shows where each blocked client stands, and blocks earlier ones at Cloudflare one at a time or all that pass. Nothing is sent by itself. Unblocking removes a client from both places; turning the switch off, disconnecting or deleting the plugin removes the rule.
+* Fixed: a confirmation asked from inside another dialog now opens on top of it.
+
 ## 1.54.1
 * Fixed: Reset All said every setting returns to its default, without saying that your keys and connections stay: Cloudflare, Bing and Google keys, AI provider keys, your Telegram bot, your MCP token and approved assistants. The dialog now says so. What the reset does has not changed.
 

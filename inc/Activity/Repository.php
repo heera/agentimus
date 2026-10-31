@@ -585,6 +585,33 @@ final class Repository {
 	}
 
 	/**
+	 * Every different user agent in the log, busiest first.
+	 *
+	 * ⚠️ Reads the whole table, so this belongs behind an owner's click and nowhere
+	 * on a public request. The table is capped, which keeps that bounded.
+	 *
+	 * @param int $limit Most different user agents to return.
+	 * @return array<int,array{ua:string,hits:int,verified:int,last:string}>
+	 */
+	public static function ua_index( $limit = 5000 ) {
+		global $wpdb;
+		$table = Table::name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- our own table name.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ua, COUNT(*) AS hits, SUM( verdict = 1 ) AS verified, MAX( hit_at ) AS last_at FROM {$table} GROUP BY ua ORDER BY hits DESC LIMIT %d", (int) $limit ), ARRAY_A );
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[] = array(
+				'ua'       => (string) $row['ua'],
+				'hits'     => (int) $row['hits'],
+				'verified' => (int) $row['verified'],
+				'last'     => (string) $row['last_at'],
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * The distinct values the log's filters can offer, so the UI can present dropdowns
 	 * instead of asking an owner to type a crawler's exact name from memory.
 	 *

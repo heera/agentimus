@@ -21,6 +21,7 @@ import AppLink from './AppLink.vue';
 export default {
   name: 'CloudflareCard',
   components: { ConnectionRail, CardSkeleton, AppLink },
+  emits: ['manage-clients'],
   props: {
     settings: { type: Object, required: true },
     api: { type: Object, default: null },
@@ -44,11 +45,22 @@ export default {
     active(on) {
       if (on && !this.cf) this.loadCloudflare();
     },
+    // A saved switch-off removes the rule on the server, so what was loaded goes stale.
+    'settings.cf_edge_block'() {
+      this.refreshStatus();
+    },
   },
   mounted() {
     // Covers a deep-link that opens straight on the sources tab (the watch only
     // fires on a change). The !cf guard keeps it from double-loading.
     if (this.active && !this.cf) this.loadCloudflare();
+  },
+  computed: {
+    edgeCountText() {
+      const n = this.cf && this.cf.edgeNames ? this.cf.edgeNames.length : 0;
+      if (!n) return 'No clients blocked at Cloudflare yet.';
+      return n === 1 ? '1 client blocked at Cloudflare.' : `${n} clients blocked at Cloudflare.`;
+    },
   },
   methods: {
     edgeBadge,
@@ -101,7 +113,7 @@ export default {
       if (this.cfDisconnecting || !this.api) return;
       const ok = await confirm({
         title: 'Disconnect Cloudflare?',
-        message: 'Agentimus forgets the token and stops polling right away. The Cloudflare numbers already stored stay in your database, and reconnecting resumes where it left off.',
+        message: (this.cf && this.cf.edgeNames && this.cf.edgeNames.length ? 'Agentimus’s block rule is removed from Cloudflare first. ' : '') + 'Agentimus forgets the token and stops polling right away. The Cloudflare numbers already stored stay in your database, and reconnecting resumes where it left off.',
         confirmLabel: 'Disconnect',
         cancelLabel: 'Cancel',
         tone: 'danger',
@@ -112,10 +124,22 @@ export default {
       try {
         this.cf = await this.api.disconnectCloudflare();
         this.cfJustConnected = false;
+        if (this.cf && this.cf.edgeRuleLeft && this.cf.edgeRuleLeft.length) {
+          this.cfError = `Disconnected, but Cloudflare would not remove the block rule. Delete “Agentimus: clients you blocked” under Security → Security rules. It covers: ${this.cf.edgeRuleLeft.join(', ')}.`;
+        }
       } catch (e) {
         this.cfError = e && e.message ? e.message : 'Could not disconnect.';
       } finally {
         this.cfDisconnecting = false;
+      }
+    },
+    // The parent calls this after the client manager changes the rule.
+    async refreshStatus() {
+      if (!this.api) return;
+      try {
+        this.cf = await this.api.getCloudflareStatus();
+      } catch (e) {
+        // Keep what is on screen; the next load corrects it.
       }
     },
     cfPolledText() {
@@ -188,6 +212,7 @@ export default {
           <li>In Cloudflare, open <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"><code>My Profile → API Tokens</code></a> → Create Token.</li>
           <li>Give it one permission: <code>Zone → Analytics → Read</code>, for this site’s zone only.</li>
           <li>Optional: also add <code>Zone → Cache Purge → Purge</code>. Then publishing a post clears its old copies from Cloudflare’s cache, and the Cloudflare panel gets a Purge button.</li>
+          <li>Optional: also add <code>Zone → Zone WAF → Edit</code>. Then you can block clients at Cloudflare from Agentimus.</li>
           <li>Paste it here. Agentimus finds the zone by itself.</li>
         </ol>
       </div>
@@ -201,17 +226,32 @@ export default {
         One scoped token, one hourly poll. Numbers are stored in your own database, so
         your history outlives Cloudflare’s short Free-plan window. If the token also
         carries the <code>Cache Purge</code> permission, publishing clears the changed
-        pages from Cloudflare’s cache — that is the only thing Agentimus ever asks
-        Cloudflare to change.
+        pages from Cloudflare’s cache. Agentimus asks Cloudflare to change nothing else
+        unless you turn on the block switch below.
       </p>
       <label id="ar-feat-cf_purge_on_change" class="ar-toggle ar-toggle--nested">
         <input v-model="settings.cf_purge_on_change" type="checkbox" />
         <span class="ar-toggle__track" aria-hidden="true"></span>
         <span class="ar-toggle__text">
           <strong>Clear Cloudflare’s cache when content changes</strong>
-          <small>When you publish or edit, the changed pages are cleared from Cloudflare: the post itself, the lists it appears on — your posts page, its category and tag pages, the feed and your sitemap — and your AI files. This is the one cache no caching plugin can reach. It needs the <code>Cache Purge</code> permission on your token. Without it, the attempt is refused, and Agentimus stops asking until you fix the token and press Purge once. Turn this off to keep the token read-only. Either way, the Purge button on the Request Log’s Cloudflare panel still works.</small>
+          <small>When you publish or edit, the changed pages are cleared from Cloudflare: the post itself, the lists it appears on — your posts page, its category and tag pages, the feed and your sitemap — and your AI files. This is the one cache no caching plugin can reach. It needs the <code>Cache Purge</code> permission on your token. Without it, the attempt is refused, and Agentimus stops asking until you fix the token and press Purge once. Turn this off to stop the automatic attempts. Either way, the Purge button on the Request Log’s Cloudflare panel still works.</small>
         </span>
       </label>
+      <label id="ar-feat-cf_edge_block" class="ar-toggle ar-toggle--nested">
+        <input v-model="settings.cf_edge_block" type="checkbox" />
+        <span class="ar-toggle__track" aria-hidden="true"></span>
+        <span class="ar-toggle__text">
+          <strong>Also block at Cloudflare when you block from the queue</strong>
+          <small>Agentimus’s own block covers only your AI files. This adds the client to one Cloudflare rule, which challenges it on every page. Names that could also fit someone else are refused and stay blocked in Agentimus only. It needs the <code>Zone WAF: Edit</code> permission on your token and uses one of your Cloudflare custom rules. Turn this off to remove the rule.</small>
+        </span>
+      </label>
+      <p v-if="settings.cf_edge_block" class="ar-cf-edgeline">
+        <span>{{ edgeCountText }}</span>
+        <button type="button" class="ar-linkbtn ar-linkbtn--act" @click="$emit('manage-clients')">Manage blocked clients</button>
+      </p>
+      <p v-if="cf.edgeError" class="ar-field__hint ar-warn" role="alert">
+        <strong>The Cloudflare rule could not be changed:</strong> {{ cf.edgeError }}. A client you unblocked may still be challenged there. Agentimus tries again every hour.
+      </p>
       <button type="button" class="ar-btn ar-btn--danger ar-btn--small" :disabled="cfDisconnecting" @click="disconnectCloudflare">
         {{ cfDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
       </button>

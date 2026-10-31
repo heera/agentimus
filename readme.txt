@@ -278,7 +278,7 @@ Agentimus makes no outbound requests by default: no remote scripts, fonts or ana
 
 **Every outbound feature is opt-in and off by default.**
 
-**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. The optional IndexNow switch announces published and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/) — only the changed URL list is sent.
+**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. An optional switch adds names of clients you block to a Cloudflare rule. The optional IndexNow switch announces published and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/) — only the changed URL list is sent.
 
 **Verify bot identities** makes DNS lookups and, once a day, downloads the IP-range files bot operators publish to verify their crawlers (Google, Microsoft, DuckDuckGo, Apple, OpenAI, Perplexity — or a URL you add yourself). Only those files are fetched; nothing about your site is sent.
 
@@ -297,6 +297,12 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.55.0 =
+* New: block bots at Cloudflare, off by default. Agentimus's own block covers only your AI files. With this switch on and the Zone WAF: Edit permission on your token, blocking from the review queue also adds the client to one Cloudflare rule, which challenges it on every page. It uses one of your custom rules and never changes your others.
+* New: a name goes to Cloudflare only after checks, because a user agent alone proves little. It must be the client's own product name, and the rule must catch nothing else in your log or at Cloudflare. Your own services, search engines and clients you allowed are refused, and the screen says why. The rule skips bots Cloudflare has verified and always lets through robots.txt and certificate checks.
+* New: Client Decisions shows where each blocked client stands, and blocks earlier ones at Cloudflare one at a time or all that pass. Nothing is sent by itself. Unblocking removes a client from both places; turning the switch off, disconnecting or deleting the plugin removes the rule.
+* Fixed: a confirmation asked from inside another dialog now opens on top of it.
 
 = 1.54.1 =
 * Fixed: Reset All said every setting returns to its default, without saying that your keys and connections stay: Cloudflare, Bing and Google keys, AI provider keys, your Telegram bot, your MCP token and approved assistants. The dialog now says so. What the reset does has not changed.
@@ -444,6 +450,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.55.0 =
+Block bots at Cloudflare from the review queue, with safety checks first. Off by default; nothing is sent until you turn it on.
 
 = 1.54.1 =
 The Reset All dialog now says that your keys and connections stay. Nothing else changes.

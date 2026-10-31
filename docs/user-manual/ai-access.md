@@ -218,6 +218,31 @@ This is on by the setting default, but like the denylist it has *no effect* unti
 
 If you keep the optional activity log on, each recorded agent has one-click **Block this client** and **Allow** buttons. "Block" adds a safe, specific user-agent token to your denylist *and* arms enforcement for you, so the "see it → block it" loop actually bites. It's careful about what it proposes: it will never offer to block a protected search engine, a generic browser, or a plain scripting tool like `curl` — only the crawler's own product name. "Allow" adds the agent to your trusted list.
 
+### Also blocking at Cloudflare
+
+The block above covers only your AI files, so a blocked bot can still read your normal pages. If your site is connected to Cloudflare, turn on **Settings → Data sources → Also block at Cloudflare when you block from the queue**. It is off by default and needs the `Zone WAF: Edit` permission on your Cloudflare token.
+
+From then on, when you click **Block** in the review queue, Agentimus also adds that client to one Cloudflare rule, "Agentimus: clients you blocked", which challenges it on every page. It takes one of your Cloudflare custom rules (the Free plan has five) and never changes your other rules.
+
+**A name alone proves little, so it has to pass checks first.** A client can send any name, and a name can also fit something else. Agentimus refuses to send a name to Cloudflare when:
+
+- it is shorter than four characters, or is a pattern and not a plain name;
+- it belongs to, or looks like, a service your site depends on, such as WordPress, a payment service or a search engine;
+- it overlaps a client you have allowed;
+- nothing with that name has been seen in your request log or at Cloudflare in the last day, so nothing shows what the rule would catch (you can still block one of these there yourself, see below);
+- any request with that name was proved to come from a genuine crawler;
+- the rule would also catch a browser or a different client, or Cloudflare could not say whether it would.
+
+A refused name stays blocked in Agentimus, and the screen says why. Blocks made by an AI agent stay in Agentimus.
+
+**Clients you blocked earlier.** Nothing on your block list is sent automatically, including after an update. Open **Client Decisions** (the **Manage blocked clients** link on the Cloudflare card), and the Blocked tab shows each client's status at Cloudflare. Use **Also block at Cloudflare** on a row for one client, or **Also block N at Cloudflare** at the top for every client that passes the checks, in one change. A client with no recent visits can still be blocked there one at a time, after a warning. The other refusals have no override. The rule holds about 25 names.
+
+The rule also limits itself. It matches the name only at the start of a word, skips bots Cloudflare has verified, and always lets through `robots.txt` and certificate checks. It uses a challenge instead of a hard block, so a person caught by mistake can pass it.
+
+**Undoing it.** Unblocking or allowing a client takes it off the rule. Turning the switch off, resetting your settings, disconnecting Cloudflare or deleting the plugin removes the rule. If a removal fails, the Cloudflare card says so and Agentimus tries again every hour. Deactivating the plugin leaves the rule in place. If you delete the rule at Cloudflare yourself, Agentimus does not put it back.
+
+**What it can't do.** A scanner that changes its name, or poses as a browser, won't match. For those, use your own Cloudflare rules.
+
 ### Managing your decisions ("Manage clients")
 
 Every one of those choices — blocked, trusted, or ignored from the review queue — is a standing decision, and they're all managed in one place. Next to both the **Blocked user-agents** and **Always allowed** lists sits a **Manage clients** link; it opens a dialog with three tabs:

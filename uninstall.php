@@ -10,10 +10,42 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 /**
+ * Delete Agentimus's own Cloudflare rule while the token still exists. After this
+ * nothing could reach it. A failure has nobody left to tell: the docs say where
+ * the rule lives.
+ */
+function agentimus_uninstall_edge_rule() {
+	$store = get_option( 'agentimus_cloudflare', array() );
+	if ( ! is_array( $store ) || empty( $store['edge_names'] ) || empty( $store['token'] ) || empty( $store['zone_id'] ) ) {
+		return;
+	}
+
+	// The plugin's autoloader is not running during an uninstall.
+	require_once __DIR__ . '/inc/Crypto.php';
+	require_once __DIR__ . '/inc/Cloudflare/Client.php';
+	require_once __DIR__ . '/inc/Cloudflare/EdgeRule.php';
+
+	$token  = \Agentimus\Crypto::decrypt( (string) $store['token'] );
+	$zone   = (string) $store['zone_id'];
+	$client = new \Agentimus\Cloudflare\Client();
+	$rules  = $client->custom_rules( $token, $zone );
+	if ( isset( $rules['error'] ) ) {
+		return;
+	}
+	foreach ( (array) $rules['rules'] as $rule ) {
+		if ( isset( $rule['ref'], $rule['id'] ) && \Agentimus\Cloudflare\EdgeRule::REF === $rule['ref'] ) {
+			$client->delete_custom_rule( $token, $zone, (string) $rules['ruleset_id'], (string) $rule['id'] );
+		}
+	}
+}
+
+/**
  * Tear down one site's data (must run in that site's context).
  */
 function agentimus_uninstall_site() {
 	global $wpdb;
+
+	agentimus_uninstall_edge_rule();
 
 	delete_option( 'agentimus_settings' );
 	delete_option( 'agentimus_onboarded' );

@@ -317,6 +317,11 @@ export function createApi(boot) {
     // Cloudflare edge data source. The token goes IN through connect and never
     // comes back in any response; status/summary report metadata and numbers only.
     getCloudflareStatus: () => request('/cloudflare'),
+    getEdgeBlocks: () => request('/cloudflare/edge-block'),
+    addEdgeBlock: (token, force = false) =>
+      request('/cloudflare/edge-block', { method: 'POST', body: JSON.stringify({ token, force }) }),
+    addEdgeBlocks: (tokens) =>
+      request('/cloudflare/edge-block/bulk', { method: 'POST', body: JSON.stringify({ tokens }) }),
     connectCloudflare: (token) =>
       request('/cloudflare', { method: 'POST', body: JSON.stringify({ token }) }),
     disconnectCloudflare: () => request('/cloudflare', { method: 'DELETE' }),

@@ -16,7 +16,7 @@ Everything here is **optional and read-only**. You connect a key that lives on y
 
 - **Google Search Console** — a service-account key file you create in Google Cloud (five minutes, once; nothing costs money, nothing touches your site). Agentimus reads the key in your browser to show you the address to grant in Search Console, then stores it encrypted.
 - **Bing Webmaster Tools** — one API key. If your site isn't verified in Bing yet, Agentimus prints the verification tag for you.
-- **Cloudflare** — one scoped, analytics-read token, for the [edge traffic](../user-manual/dashboard.html) view: what Cloudflare answered or blocked before your server ever saw the request.
+- **Cloudflare** — one scoped token that reads analytics, for the [edge traffic](../user-manual/dashboard.html) view: what Cloudflare answered or blocked before your server ever saw the request.
 
 Disconnecting forgets the key. The numbers already stored stay — they're your history, not the service's.
 

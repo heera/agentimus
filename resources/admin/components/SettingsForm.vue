@@ -2336,6 +2336,7 @@ export default {
         v-if="clientManagerOpen"
         :api="api"
         @close="clientManagerOpen = false"
+        @edge-changed="$refs.cloudflareCard && $refs.cloudflareCard.refreshStatus()"
         @changed="$emit('clients-changed', $event)"
       />
     </Teleport>
@@ -2446,7 +2447,7 @@ export default {
            produces render on the Request Log screen, next to the log they explain.
            Future sources (Search Console, Analytics) join this group as sections. -->
 
-      <CloudflareCard :settings="settings" :api="api" :active="group === 'sources'" />
+      <CloudflareCard ref="cloudflareCard" :settings="settings" :api="api" :active="group === 'sources'" @manage-clients="clientManagerOpen = true" />
 
       <GoogleCard :api="api" :active="group === 'sources'" @navigate="$emit('navigate', $event)" />
 

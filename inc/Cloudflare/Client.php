@@ -336,6 +336,213 @@ final class Client {
 	}
 
 	/**
+	 * Every user agent the edge saw in a window, busiest first, with people
+	 * included. The site's own log keeps only bots, so this is the one place a
+	 * browser that happens to carry a name can show up.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @param int    $since   Window start, Unix UTC.
+	 * @param int    $until   Window end, Unix UTC.
+	 * @return array { rows?: array<int,array{ua:string,requests:int}>, error?: string }
+	 */
+	public function user_agents_seen( $token, $zone_id, $since, $until ) {
+		$query = 'query ($zone: String!, $since: Time!, $until: Time!, $limit: Int!) {
+			viewer {
+				zones(filter: { zoneTag: $zone }) {
+					httpRequestsAdaptiveGroups(
+						limit: $limit,
+						filter: { datetime_geq: $since, datetime_lt: $until, requestSource: "eyeball" },
+						orderBy: [count_DESC]
+					) {
+						count
+						dimensions { userAgent }
+					}
+				}
+			}
+		}';
+
+		$out = $this->graphql( $token, $query, array(
+			'zone'  => (string) $zone_id,
+			'since' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $since ),
+			'until' => gmdate( 'Y-m-d\TH:i:s\Z', (int) $until ),
+			'limit' => self::GRAPHQL_LIMIT,
+		) );
+		if ( isset( $out['error'] ) ) {
+			return $out;
+		}
+
+		// The expected container, or it's an error — never "real empty data".
+		if ( ! isset( $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] ) ) {
+			return array( 'error' => __( 'Cloudflare returned an unexpected response shape.', 'agentimus' ) );
+		}
+
+		$rows = array();
+		foreach ( (array) $out['json']['data']['viewer']['zones'][0]['httpRequestsAdaptiveGroups'] as $g ) {
+			$rows[] = array(
+				'ua'       => (string) ( isset( $g['dimensions']['userAgent'] ) ? $g['dimensions']['userAgent'] : '' ),
+				'requests' => (int) ( isset( $g['count'] ) ? $g['count'] : 0 ),
+			);
+		}
+		return array( 'rows' => $rows );
+	}
+
+	/**
+	 * The zone's custom rules. A zone that has never had one answers 404, which
+	 * is an empty list and not a failure.
+	 *
+	 * Needs Zone → Zone WAF → Read (or Edit) on the token.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @return array { rules?: array, ruleset_id?: string, error?: string, status?: int }
+	 */
+	public function custom_rules( $token, $zone_id ) {
+		$out = $this->get_json(
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/rulesets/phases/http_request_firewall_custom/entrypoint',
+			$token
+		);
+		if ( isset( $out['error'] ) ) {
+			if ( isset( $out['status'] ) && 404 === (int) $out['status'] ) {
+				return array( 'rules' => array(), 'ruleset_id' => '' );
+			}
+			return $out;
+		}
+		if ( empty( $out['json']['success'] ) || ! isset( $out['json']['result'] ) ) {
+			return array( 'error' => $this->api_error( $out['json'] ), 'status' => 200 );
+		}
+		$result = (array) $out['json']['result'];
+		return array(
+			'rules'      => isset( $result['rules'] ) ? (array) $result['rules'] : array(),
+			'ruleset_id' => isset( $result['id'] ) ? (string) $result['id'] : '',
+		);
+	}
+
+	/**
+	 * The zone's plan: free, pro, business or enterprise.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @return string '' when it can't be read.
+	 */
+	public function zone_plan( $token, $zone_id ) {
+		$out = $this->get_json( self::API . '/zones/' . rawurlencode( (string) $zone_id ), $token );
+		return isset( $out['json']['result']['plan']['legacy_id'] ) ? (string) $out['json']['result']['plan']['legacy_id'] : '';
+	}
+
+	/**
+	 * Create the zone's custom ruleset with this one rule.
+	 *
+	 * ⛔ This call replaces the whole ruleset, so it is only for a zone that has
+	 * none. Every other change goes through a single-rule call below.
+	 *
+	 * @param string $token   API token, plaintext.
+	 * @param string $zone_id Zone tag.
+	 * @param array  $rule    The rule.
+	 * @return array { ok?: true, error?: string, status?: int }
+	 */
+	public function create_custom_ruleset( $token, $zone_id, array $rule ) {
+		return $this->rule_write(
+			'PUT',
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/rulesets/phases/http_request_firewall_custom/entrypoint',
+			$token,
+			array( 'rules' => array( $rule ) )
+		);
+	}
+
+	/**
+	 * Add one rule to the end of a ruleset.
+	 *
+	 * @param string $token      API token, plaintext.
+	 * @param string $zone_id    Zone tag.
+	 * @param string $ruleset_id Ruleset id.
+	 * @param array  $rule       The rule.
+	 * @return array { ok?: true, error?: string, status?: int }
+	 */
+	public function add_custom_rule( $token, $zone_id, $ruleset_id, array $rule ) {
+		return $this->rule_write(
+			'POST',
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/rulesets/' . rawurlencode( (string) $ruleset_id ) . '/rules',
+			$token,
+			$rule
+		);
+	}
+
+	/**
+	 * Replace one rule. Cloudflare wants every field of the new definition.
+	 *
+	 * @param string $token      API token, plaintext.
+	 * @param string $zone_id    Zone tag.
+	 * @param string $ruleset_id Ruleset id.
+	 * @param string $rule_id    Rule id.
+	 * @param array  $rule       The rule.
+	 * @return array { ok?: true, error?: string, status?: int }
+	 */
+	public function update_custom_rule( $token, $zone_id, $ruleset_id, $rule_id, array $rule ) {
+		return $this->rule_write(
+			'PATCH',
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/rulesets/' . rawurlencode( (string) $ruleset_id ) . '/rules/' . rawurlencode( (string) $rule_id ),
+			$token,
+			$rule
+		);
+	}
+
+	/**
+	 * Delete one rule.
+	 *
+	 * @param string $token      API token, plaintext.
+	 * @param string $zone_id    Zone tag.
+	 * @param string $ruleset_id Ruleset id.
+	 * @param string $rule_id    Rule id.
+	 * @return array { ok?: true, error?: string, status?: int }
+	 */
+	public function delete_custom_rule( $token, $zone_id, $ruleset_id, $rule_id ) {
+		return $this->rule_write(
+			'DELETE',
+			self::API . '/zones/' . rawurlencode( (string) $zone_id ) . '/rulesets/' . rawurlencode( (string) $ruleset_id ) . '/rules/' . rawurlencode( (string) $rule_id ),
+			$token,
+			null
+		);
+	}
+
+	/**
+	 * Send one change to a rule.
+	 *
+	 * @param string     $method HTTP method.
+	 * @param string     $url    Full URL.
+	 * @param string     $token  API token, plaintext.
+	 * @param array|null $body   JSON-encodable body, or null for none.
+	 * @return array { ok?: true, error?: string, status?: int }
+	 */
+	private function rule_write( $method, $url, $token, $body ) {
+		$args = array(
+			'method'             => $method,
+			'timeout'            => self::TIMEOUT,
+			'reject_unsafe_urls' => true,
+			'headers'            => array(
+				'authorization' => 'Bearer ' . $token,
+				'content-type'  => 'application/json',
+			),
+		);
+		if ( null !== $body ) {
+			$args['body'] = wp_json_encode( $body );
+		}
+		$response = wp_remote_request( $url, $args );
+		if ( is_wp_error( $response ) ) {
+			return array( 'error' => $response->get_error_message() );
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$json = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( $code < 200 || $code >= 300 ) {
+			return array( 'error' => $this->api_error( $json, $code ), 'status' => $code );
+		}
+		if ( empty( $json['success'] ) ) {
+			return array( 'error' => $this->api_error( $json ), 'status' => $code );
+		}
+		return array( 'ok' => true );
+	}
+
+	/**
 	 * Ask Cloudflare to drop specific URLs from its cache, in batches of
 	 * {@see PURGE_BATCH} — the API's own per-call ceiling. Stops at the first
 	 * failure (the remaining batches would fail the same way) and reports it,
@@ -456,7 +663,7 @@ final class Client {
 		$json = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 
 		if ( $code < 200 || $code >= 300 ) {
-			return array( 'error' => $this->api_error( $json, $code ) );
+			return array( 'error' => $this->api_error( $json, $code ), 'status' => $code );
 		}
 		return array( 'json' => is_array( $json ) ? $json : array() );
 	}

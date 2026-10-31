@@ -67,6 +67,19 @@ final class Module {
 		// Reconcile the schedule from the admin, where a human just changed the
 		// connection — cheap (one wp_next_scheduled read) and self-healing.
 		add_action( 'admin_init', array( $this, 'sync_schedule' ) );
+		// An unblock, an allow or the switch going off must reach Cloudflare now.
+		add_action( 'agentimus_settings_saved', array( $this, 'reconcile_edge' ) );
+		add_action( 'agentimus_settings_reset', array( $this, 'reconcile_edge' ) );
+	}
+
+	/**
+	 * Take names out of the Cloudflare rule that should no longer be on it. Fresh
+	 * stores: this object is shared and its copy holds whatever it first read.
+	 *
+	 * @return void
+	 */
+	public function reconcile_edge() {
+		( new EdgeBlock( new Settings(), new \Agentimus\Settings(), $this->client ) )->reconcile();
 	}
 
 	/**
@@ -141,6 +154,9 @@ final class Module {
 	 * @return void
 	 */
 	public function run_poll() {
+		// First, so a failed read below cannot hold up a removal that is owed.
+		( new EdgeBlock( new Settings(), new \Agentimus\Settings(), $this->client ) )->reconcile( true );
+
 		$token = $this->settings->token();
 		$zone  = (string) $this->settings->get( 'zone_id', '' );
 		if ( '' === $token || '' === $zone ) {

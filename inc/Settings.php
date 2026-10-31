@@ -91,6 +91,7 @@ final class Settings {
 			'bypass_shared_cache' => false, // Opt-in: send `Cache-Control: no-store` on the AI endpoints (llms.txt, the .well-known docs, robots.txt, the change feed) so a shared cache/CDN in front of WordPress doesn't serve stored copies — keeping agent fetches counted in the activity log and freshness-sensitive endpoints current. OFF by default (the docs are edge-cacheable for performance). Only affects caches that RESPECT Cache-Control. See CacheHeaders.
 			'indexnow_enabled'     => false, // OFF by default — it's an outbound request, and the standing promise is "no outbound by default". ON: publishing, editing or unpublishing agent-visible content sends the changed URL list (and nothing else) to api.indexnow.org, which relays to every participating engine — Bing (whose index ChatGPT search and Copilot read), Yandex, Seznam, Naver. The verification key is minted locally and served at /{key}.txt. See IndexNow.
 			'purge_cache_on_change' => true, // ON by default: when content changes, ask every detected page cache (WP Rocket, Nginx Helper, W3TC, LiteSpeed, WP Super Cache, Cache Enabler, or an `agentimus_purge_url` listener) to drop the agent files — llms.txt/llms-full.txt/robots.txt/the change feed/the .well-known docs, plus the edited post's own .md twin — so a cache can't serve a stale copy after an edit. Feature-detected (no-op with no cache present). Freshness only, NOT the activity-log under-count (that needs the fetch to reach WP; see bypass_shared_cache). See CachePurge.
+			'cf_edge_block' => false, // OFF by default: when the owner blocks a client from the queue, also add it to Agentimus's one Cloudflare rule, if it passes Cloudflare\\EdgeRule's checks. Turning this off removes the rule.
 			'cf_purge_on_change' => true, // The Cloudflare slice of the purge above: when the edge source is connected, the changed pages (the post itself, the front page, the agent files) are also cleared from Cloudflare's cache — the one cache no caching plugin can reach. ON by default because the token permission (Cache Purge) is the real opt-in; this switch exists for the owner who keeps an analytics-only token and wants the automatic attempt (and its failure line) gone. The manual Purge button ignores this switch — pressing it IS the consent. See Cloudflare\Purge.
 			'enable_security_txt' => false, // Opt-in: generate /.well-known/security.txt only when asked AND no file/other plugin already provides one.
 			'enable_signing'   => true,     // On by default: RFC 9421 signatures on the discovery docs + a published Web Bot Auth key directory. Feature-detected — silently stands down when libsodium is unavailable, so it's safe as a default.
@@ -490,6 +491,13 @@ final class Settings {
 		update_option( self::OPTION, $clean );
 		$this->record_decisions( is_array( $prev ) ? $prev : array(), $clean );
 		Cache::flush();
+		/**
+		 * Fires after the settings are saved.
+		 *
+		 * @param array $prev  The stored settings before this save.
+		 * @param array $clean The settings just saved.
+		 */
+		do_action( 'agentimus_settings_saved', is_array( $prev ) ? $prev : array(), $clean );
 		// The review-queue badge counts against the block/trust lists and the activity
 		// toggle — any settings write may have changed its number, and its 60s cache
 		// must never outlive the owner's own action (Block, Allow, Unblock, …).

@@ -54,7 +54,7 @@ export default {
 <template>
   <Teleport to="body">
     <transition name="ar-modal">
-      <div v-if="state.open" class="ar-modal" :style="boxStyle" @click.self="cancel">
+      <div v-if="state.open" class="ar-modal ar-modal--confirm" :style="boxStyle" @click.self="cancel">
         <div
           class="ar-modal__panel ar-modal__panel--confirm"
           role="alertdialog"

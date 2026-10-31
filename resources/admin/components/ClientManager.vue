@@ -20,13 +20,15 @@
  * no backdrop-click close — and a centered spinner while loading.
  */
 import { formatDate } from '../js/wpDate.js';
+import { confirm } from '../js/confirm.js';
+import { edgeRowLabel, edgeAddAllMessage } from '../js/edgeBlockWords.js';
 
 export default {
   name: 'ClientManager',
   props: {
     api: { type: Object, default: null },
   },
-  emits: ['close', 'changed'],
+  emits: ['close', 'changed', 'edge-changed'],
   data() {
     return {
       loading: true,
@@ -40,7 +42,27 @@ export default {
       // One section at a time, switched by tabs — three stacked sections made
       // users scroll to find the one they came for (Heera, 2026-07-13).
       view: 'blocked',
+      // Each blocked name's Cloudflare status. Loads after the list, because it
+      // asks Cloudflare: the list must not wait for it. Null until it answers.
+      edge: null,
+      edgeBusy: '',
+      edgeNote: '',
     };
+  },
+  computed: {
+    edgeOn() {
+      return !!(this.edge && this.edge.available);
+    },
+    edgeRows() {
+      const rows = {};
+      if (this.edgeOn) {
+        this.edge.rows.forEach((r) => { rows[String(r.token).toLowerCase()] = r; });
+      }
+      return rows;
+    },
+    edgeCanAdd() {
+      return this.edgeOn ? this.edge.rows.filter((r) => r.status === 'can_add') : [];
+    },
   },
   mounted() {
     document.addEventListener('keydown', this.onKeydown);
@@ -67,6 +89,7 @@ export default {
       }
       try {
         this.apply(await this.api.getClients());
+        this.loadEdge();
         // Land on a tab that has something to show (an owner opening this for
         // the ignored list shouldn't find an empty "Blocked" first).
         if (!this.data[this.view].length) {
@@ -134,11 +157,78 @@ export default {
         this.busy = '';
       }
     },
+    async loadEdge() {
+      if (!this.api || !this.api.getEdgeBlocks) return;
+      try {
+        this.edge = await this.api.getEdgeBlocks();
+        this.$emit('edge-changed');
+      } catch (e) {
+        this.edge = null;
+      }
+    },
+    edgeRow(row) {
+      return this.edgeRows[String(row.token).toLowerCase()] || null;
+    },
+    edgeLabel(edgeRow) {
+      return edgeRowLabel(edgeRow);
+    },
+    // After any change, tell the owner what happened and re-read the one truth.
+    async afterEdge(out) {
+      if (out.error) {
+        this.edgeNote = out.error;
+      } else if (out.refusals && out.refusals.length) {
+        this.edgeNote = out.refusals[0].message;
+      } else {
+        this.edgeNote = '';
+      }
+      this.$emit('edge-changed');
+      await this.loadEdge();
+    },
+    async addEdge(row, force = false) {
+      if (this.edgeBusy) return;
+      if (force) {
+        const ok = await confirm({
+          title: `Block ${row.token} at Cloudflare anyway?`,
+          message: 'Nothing with this name has visited recently, so nothing shows what the rule would catch. Do this only if you are sure of the name. Cloudflare will challenge any client that uses it, on every page.',
+          confirmLabel: 'Block anyway',
+          cancelLabel: 'Cancel',
+        });
+        if (!ok) return;
+      }
+      this.edgeBusy = row.token;
+      try {
+        await this.afterEdge(await this.api.addEdgeBlock(row.token, force));
+      } catch (e) {
+        this.edgeNote = (e && e.message) || 'Could not block it at Cloudflare.';
+      } finally {
+        this.edgeBusy = '';
+      }
+    },
+    async addAllEdge() {
+      if (this.edgeBusy || !this.edgeCanAdd.length) return;
+      const ok = await confirm({
+        title: 'Block these at Cloudflare?',
+        message: edgeAddAllMessage(this.edge.rows),
+        confirmLabel: 'Block',
+        cancelLabel: 'Cancel',
+      });
+      if (!ok) return;
+      this.edgeBusy = '*';
+      try {
+        await this.afterEdge(await this.api.addEdgeBlocks(this.edgeCanAdd.map((r) => r.token)));
+      } catch (e) {
+        this.edgeNote = (e && e.message) || 'Could not block them at Cloudflare.';
+      } finally {
+        this.edgeBusy = '';
+      }
+    },
     async removeToken(row, list) {
       if (this.busy) return;
       this.busy = row.token;
       try {
         this.apply(await this.api.removeClientToken(row.token, list));
+        this.$emit('edge-changed');
+        this.loadEdge();
       } catch (e) {
         this.error = (e && e.message) || 'Could not remove.';
       } finally {
@@ -192,20 +282,50 @@ export default {
                 <p v-if="data.blocked.length" class="ar-cm__notice" :class="{ 'is-off': !blockOn }">
                   <template v-if="blockOn">These clients are refused at this plugin’s machine files (llms.txt, markdown pages, discovery).</template>
                   <template v-else><strong>Blocking is turned off in Settings right now</strong>, so this list waits — nothing is refused until you turn it on.</template>
-                  A block here does not cover your normal pages — that needs your host or CDN. It is
-                  also separate from robots.txt, which is only a request to bots.
+                  {{ ' ' }}
+                  <template v-if="edgeOn">Only clients at Cloudflare are stopped on your normal pages.</template>
+                  <template v-else>A block here does not cover your normal pages — that needs your host or CDN.</template>
+                  Blocking is also separate from robots.txt, which is only a request to bots.
                 </p>
+                <p v-if="edge && edge.reason === 'switched_off' && data.blocked.length" class="ar-cm__edgehint">
+                  Blocking at Cloudflare is off. Turn it on under Data sources to see each client’s status here.
+                </p>
+                <div v-if="edgeOn && data.blocked.length" class="ar-cm__edgebar">
+                  <span class="ar-cm__edgecount">Blocked at Cloudflare: {{ edge.used }} of about {{ edge.capacity }}</span>
+                  <button v-if="edge.canRead && !edge.slotsFull && edgeCanAdd.length" type="button" class="ar-cm__undo" :disabled="!!edgeBusy" @click="addAllEdge">
+                    {{ edgeBusy === '*' ? 'Blocking…' : `Also block ${edgeCanAdd.length} at Cloudflare` }}
+                  </button>
+                  <p class="ar-cm__edgehint">Bots Cloudflare has verified skip this rule.</p>
+                  <p v-if="edge.needsPermission" class="ar-cm__edgewarn" role="alert">Your Cloudflare token needs the Zone WAF: Edit permission before anything can be blocked there.</p>
+                  <p v-else-if="!edge.canRead" class="ar-cm__edgewarn" role="alert">Cloudflare could not be read: {{ edge.cloudflareError }}</p>
+                  <p v-if="edge.slotsFull" class="ar-cm__edgewarn" role="alert">All your Cloudflare custom rules are in use. Free one under Security → Security rules before blocking anything here.</p>
+                  <p v-if="edge.error" class="ar-cm__edgewarn" role="alert">The rule could not be changed: {{ edge.error }}. Agentimus tries again every hour.</p>
+                  <p v-if="edgeNote" class="ar-cm__edgewarn" role="alert">{{ edgeNote }}</p>
+                </div>
                 <ul v-if="data.blocked.length" class="ar-cm__list">
-                  <li v-for="row in data.blocked" :key="'b:' + row.token" class="ar-cm__row">
+                  <li v-for="row in data.blocked" :key="'b:' + row.token" class="ar-cm__row ar-cm__row--blocked">
                     <span class="ar-cm__who">
                       <code class="ar-cm__token">{{ row.token }}</code>
                       <span v-if="identity(row)" class="ar-cm__known">{{ identity(row) }}</span>
                     </span>
                     <!-- The tab already says "Blocked" — the verb would repeat it on every row. -->
                     <span class="ar-cm__meta">{{ row.at ? dateLabel(row.at) : '' }}</span>
-                    <button type="button" class="ar-cm__undo" :disabled="busy === row.token" @click="removeToken(row, 'blocked_agents')">
-                      {{ busy === row.token ? 'Removing…' : 'Unblock' }}
-                    </button>
+                    <!-- One line of buttons on every row: Unblock always sits at the right edge,
+                         and the Cloudflare button keeps one width beside it. -->
+                    <span class="ar-cm__actions">
+                      <template v-if="edgeRow(row)">
+                        <button v-if="edge.canRead && !edge.slotsFull && edgeRow(row).status === 'can_add'" type="button" class="ar-cm__undo ar-cm__undo--edge" :disabled="!!edgeBusy" @click="addEdge(row)">
+                          {{ edgeBusy === row.token ? 'Blocking…' : 'Also block at Cloudflare' }}
+                        </button>
+                        <button v-else-if="edge.canRead && !edge.slotsFull && edgeRow(row).status === 'unseen'" type="button" class="ar-cm__undo ar-cm__undo--edge" :disabled="!!edgeBusy" @click="addEdge(row, true)">
+                          {{ edgeBusy === row.token ? 'Blocking…' : 'Also block at Cloudflare' }}
+                        </button>
+                      </template>
+                      <button type="button" class="ar-cm__undo" :class="{ 'ar-cm__undo--quiet': edgeRow(row) }" :disabled="busy === row.token" @click="removeToken(row, 'blocked_agents')">
+                        {{ busy === row.token ? 'Removing…' : 'Unblock' }}
+                      </button>
+                    </span>
+                    <span v-if="edgeRow(row)" class="ar-cm__edgetext" :class="'is-' + edgeRow(row).status">{{ edgeLabel(edgeRow(row)) }}</span>
                   </li>
                 </ul>
                 <p v-else class="ar-cm__none">No blocked clients yet — when you Block one from the review bell or the Request Log, it lands here with its date.</p>

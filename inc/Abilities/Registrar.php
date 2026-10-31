@@ -676,6 +676,8 @@ final class Registrar {
 					'lastPurgeError' => self::s( 'The most recent purge failure (e.g. the token lacks the Cache Purge permission), empty after a clean purge. Separate from lastError so healthy numbers cannot hide it.' ),
 					'lastPurgeUrls'    => self::i( 'How many URLs the last purge was asked to clear; 0 = never purged, or a purge-everything, which has no list.' ),
 					'lastPurgeCleared' => self::i( 'How many of them the edge confirmed it dropped. Lower than lastPurgeUrls means a PARTIAL purge — the list goes in batches and one failed partway, so the pages after it are still serving stale copies.' ),
+					'edgeNames'        => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+					'edgeError'        => self::s( 'Why the last change to the Cloudflare block rule failed, empty when it holds what it should. A name in edgeNames with an error here may have been unblocked and still be blocked at Cloudflare.' ),
 					'days'           => self::i(),
 					'totals'      => self::obj(
 						array(

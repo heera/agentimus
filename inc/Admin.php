@@ -1003,11 +1003,22 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.54.1 is one wording fix, so ONE row.
+				// ⭐ 1.55.0 is one feature, in the three things an owner needs to know
+				// about it. No bot is named: the release text never does.
 				array(
 					'icon'  => 'shield',
-					'title' => 'Reset Says What It Keeps',
-					'text'  => 'Reset All now tells you that your keys and connections stay, so you can disconnect them yourself if you want them gone.',
+					'title' => 'Block Bots at Cloudflare',
+					'text'  => 'Agentimus\'s own block covers only your AI files. Turn on one switch, and blocking from the queue also challenges the bot on every page through one Cloudflare rule. It is off by default and needs one more permission on your token.',
+				),
+				array(
+					'icon'  => 'search',
+					'title' => 'Checked Before It Goes Up',
+					'text'  => 'A name alone proves little, so it is checked against your log and what Cloudflare saw. If the rule could catch something else, the name stays blocked in Agentimus only and the screen says why.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'Your Earlier Blocks',
+					'text'  => 'Nothing is sent by itself. Client Decisions shows where each blocked bot stands, and you can block it at Cloudflare one at a time or all that pass. Unblocking removes it from both.',
 				),
 			),
 		);

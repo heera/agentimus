@@ -82,6 +82,11 @@ final class Settings {
 			// ends and returns is correctly dated from its RETURN, not from the
 			// first time it ever happened.
 			'first_seen'   => array(),
+			// The names in Agentimus's one Cloudflare rule: { name => form }. Holds
+			// what Cloudflare confirmed, so a removal that failed stays here and
+			// is tried again ({@see EdgeBlock::reconcile()}).
+			'edge_names'   => array(),
+			'edge_error'   => '',
 		);
 	}
 
@@ -208,6 +213,29 @@ final class Settings {
 	}
 
 	/**
+	 * The names in Agentimus's Cloudflare rule.
+	 *
+	 * @return array<string,string> Name => form.
+	 */
+	public function edge_names() {
+		return (array) $this->get( 'edge_names', array() );
+	}
+
+	/**
+	 * Record what the rule now holds, and any failure to change it.
+	 *
+	 * @param array<string,string> $names Name => form.
+	 * @param string               $error What went wrong, or ''.
+	 * @return void
+	 */
+	public function note_edge( array $names, $error = '' ) {
+		$all               = $this->all();
+		$all['edge_names'] = $names;
+		$all['edge_error'] = sanitize_text_field( (string) $error );
+		$this->persist( $all );
+	}
+
+	/**
 	 * Whether a token and a zone are stored — the gate every poll and every
 	 * summary read sits behind.
 	 *
@@ -320,6 +348,8 @@ final class Settings {
 			'lastPurgeError' => (string) $all['last_purge_error'],
 			'lastPurgeUrls'    => (int) $all['last_purge_urls'],
 			'lastPurgeCleared' => (int) $all['last_purge_cleared'],
+			'edgeNames'        => array_keys( (array) $all['edge_names'] ),
+			'edgeError'        => (string) $all['edge_error'],
 		);
 	}
 }

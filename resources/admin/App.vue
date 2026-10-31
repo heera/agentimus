@@ -1,4 +1,5 @@
 <script>
+import { edgeBlockNotice } from './js/edgeBlockWords.js';
 import { createApi } from './js/api.js';
 import { navIcon } from './js/groupIcons.js';
 import { tipGuard } from './js/tipGuard.js';
@@ -1937,6 +1938,8 @@ export default {
         // The Findings card and its badge count this queue — a decision made
         // at the bell must show there without a reload, and quietly.
         this.silentRefreshFindings();
+        const edgeNotice = edgeBlockNotice(res.edge);
+        if (edgeNotice) this.flash(edgeNotice.type, edgeNotice.text, 8000);
       } catch (e) {
         this.flash('error', e.message);
       } finally {

@@ -170,5 +170,14 @@ namespace Agentimus\Tests {
 				);
 			}
 		}
+
+		public function test_the_names_on_the_cloudflare_rule_are_declared_as_strings() {
+			$schema = $this->registered()['output_schema'];
+
+			$this->assertSame(
+				array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+				$schema['properties']['edgeNames']
+			);
+		}
 	}
 }

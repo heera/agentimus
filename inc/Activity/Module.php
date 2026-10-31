@@ -576,7 +576,15 @@ final class Module {
 			);
 		}
 		$this->settings->block_agent( $token );
-		return rest_ensure_response( $this->block_payload() );
+		$payload = $this->block_payload();
+
+		// The owner's click only. An agent's block goes through Review and stays local.
+		$cloudflare = new \Agentimus\Cloudflare\Settings();
+		$core       = new Settings();
+		if ( $core->get( 'cf_edge_block', false ) && $cloudflare->connected() ) {
+			$payload['edge'] = ( new \Agentimus\Cloudflare\EdgeBlock( $cloudflare, $core ) )->add( $token );
+		}
+		return rest_ensure_response( $payload );
 	}
 
 	/**

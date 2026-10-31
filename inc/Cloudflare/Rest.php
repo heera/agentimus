@@ -105,6 +105,39 @@ final class Rest {
 			'permission_callback' => array( $this, 'can_manage' ),
 		) );
 
+		register_rest_route( self::NS, '/cloudflare/edge-block/preview', array(
+			'methods'             => \WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'edge_block_preview' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+			'args'                => array(
+				// Not required here: that check runs BEFORE the permission callback.
+				'token' => array( 'type' => 'string' ),
+			),
+		) );
+
+		register_rest_route( self::NS, '/cloudflare/edge-block/bulk', array(
+			'methods'             => \WP_REST_Server::CREATABLE,
+			'callback'            => array( $this, 'edge_block_bulk' ),
+			'permission_callback' => array( $this, 'can_manage' ),
+		) );
+
+		register_rest_route( self::NS, '/cloudflare/edge-block', array(
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'edge_block_overview' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			),
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'edge_block_add' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'token' => array( 'type' => 'string' ),
+					'force' => array( 'type' => 'boolean' ),
+				),
+			),
+		) );
+
 		register_rest_route( self::NS, '/cloudflare/dismiss', array(
 			array(
 				'methods'             => \WP_REST_Server::CREATABLE,
@@ -124,6 +157,54 @@ final class Rest {
 				),
 			),
 		) );
+	}
+
+	/**
+	 * What a Cloudflare block for one name would do. Reads only.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return array|\WP_Error
+	 */
+	public function edge_block_preview( $request ) {
+		$token = trim( (string) $request->get_param( 'token' ) );
+		if ( '' === $token ) {
+			return new \WP_Error( 'agentimus_cf_edge_token', __( 'Which name? Send it as token.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		// A fresh store: this object's copy holds whatever it first read.
+		return ( new EdgeBlock( new Settings(), $this->core, $this->client ) )->preview( $token );
+	}
+
+	/**
+	 * Add one name to the Cloudflare rule.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return array
+	 */
+	public function edge_block_add( $request ) {
+		return ( new EdgeBlock( new Settings(), new \Agentimus\Settings(), $this->client ) )->add(
+			(string) $request->get_param( 'token' ),
+			(bool) $request->get_param( 'force' )
+		);
+	}
+
+	/**
+	 * Every blocked name and what can be done with it at Cloudflare.
+	 *
+	 * @return array
+	 */
+	public function edge_block_overview() {
+		return ( new EdgeBlock( new Settings(), new \Agentimus\Settings(), $this->client ) )->overview();
+	}
+
+	/**
+	 * Add these names in one change. Never lifts the check for unseen names: the
+	 * owner insists one row at a time.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 * @return array
+	 */
+	public function edge_block_bulk( $request ) {
+		return ( new EdgeBlock( new Settings(), new \Agentimus\Settings(), $this->client ) )->add_many( (array) $request->get_param( 'tokens' ) );
 	}
 
 	/**
@@ -211,9 +292,21 @@ final class Rest {
 	 * @return array
 	 */
 	public function disconnect() {
+		// The token is about to go, and with it any way to take the rule down.
+		$store = new Settings();
+		$names = array_keys( $store->edge_names() );
+		$gone  = ( new EdgeBlock( $store, new \Agentimus\Settings(), $this->client ) )->clear();
+
+		$store->disconnect();
 		$this->cloudflare->disconnect();
 		Module::unschedule();
-		return $this->status();
+
+		$status = $this->status();
+		if ( ! $gone ) {
+			// The owner can always disconnect, but they must know what stayed behind.
+			$status['edgeRuleLeft'] = $names;
+		}
+		return $status;
 	}
 
 	/**

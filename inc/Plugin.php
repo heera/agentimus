@@ -165,7 +165,7 @@ final class Plugin {
 		}
 
 		// Cloudflare edge data source (opt-in, BYO token). Reads aggregate analytics
-		// only — one hourly GraphQL poll stored locally; it never writes to Cloudflare.
+		// in one hourly GraphQL poll stored locally. It changes only what the owner turned on: cache purges and its own block rule.
 		// Config and token live in their own option, the numbers in their own table.
 		$cloudflare = new Cloudflare\Settings();
 		( new Cloudflare\Module( $cloudflare ) )->register();

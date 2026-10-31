@@ -4240,6 +4240,10 @@ html { scrollbar-gutter: stable; }
   background: color-mix(in srgb, var(--ar-shade) 42%, transparent);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
+/* A confirmation can be asked from inside another dialog, so it must open on top. */
+.ar-modal--confirm {
+  z-index: 100002;
+}
 .ar-modal__panel {
   display: flex; flex-direction: column;
   margin: auto;
@@ -6112,6 +6116,21 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
 .ar-cm__row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 2px 12px; min-width: 0; font-size: 13px; padding: 8px 0; border-top: 1px solid var(--ar-line); }
 .ar-cm__row:first-child { border-top: 0; }
 .ar-cm__who { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ar-cf-edgeline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0 0; font-size: 13px; color: var(--ar-ink-soft); }
+/* Each blocked client's Cloudflare status: its own line under the row. */
+.ar-cm__actions { grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 256px; }
+.ar-cm__undo--edge { min-width: 172px; text-align: center; }
+/* Beside a button that blocks more, Unblock must not read as its equal. */
+.ar-cm__undo.ar-cm__undo--quiet { background: none; border-color: transparent; box-shadow: none; color: var(--ar-ink-faint); }
+.ar-cm__undo.ar-cm__undo--quiet:hover:not(:disabled) { color: var(--ar-ink-soft); border-color: var(--ar-line-strong); }
+.ar-cm__row--blocked .ar-cm__meta { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.ar-cm__edgetext { grid-column: 1; grid-row: 2; font-size: 12px; line-height: 1.4; color: var(--ar-ink-faint); min-width: 0; }
+.ar-cm__edgetext.is-on { color: var(--ar-ink-soft); font-weight: 600; }
+.ar-cm__edgebar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 10px; padding: 10px 0; border-bottom: 1px solid var(--ar-line); }
+.ar-cm__edgecount { font-size: 13px; font-weight: 600; color: var(--ar-ink-soft); }
+.ar-cm__edgehint, .ar-cm__edgewarn { flex: 1 0 100%; margin: 0; font-size: 12px; }
+.ar-cm__edgehint { color: var(--ar-ink-faint); }
+.ar-cm__edgewarn { color: var(--ar-warn); }
 .ar-cm__token {
   font-family: var(--ar-mono); font-size: 12.5px; padding: 1px 6px; border-radius: 3px;
   background: var(--ar-surface-2); border: 1px solid var(--ar-line);
@@ -6159,6 +6178,9 @@ button.ar-verreg__chip { appearance: none; font-family: inherit; line-height: in
    button on the right spanning both (a taller, real tap target). */
 @media (max-width: 600px) {
   .ar-cm__row { grid-template-columns: minmax(0, 1fr) auto; }
+  .ar-cm__actions { grid-column: 1 / -1; grid-row: auto; margin-top: 4px; min-width: 0; }
+  .ar-cm__row--blocked .ar-cm__meta { grid-column: 1 / -1; grid-row: auto; align-self: start; }
+  .ar-cm__edgetext { grid-column: 1 / -1; grid-row: auto; }
   .ar-cm__who { flex-wrap: wrap; row-gap: 2px; }
   .ar-cm__meta { grid-column: 1; grid-row: 2; text-align: left; }
   .ar-cm__undo { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: 7px 11px; }
