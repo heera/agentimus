@@ -16,6 +16,7 @@
  * the token has exactly one home.
  */
 import { relTimeShort } from '../js/wpDate.js';
+import { otherBlocked, blockedBad, blockedParts, otherCount } from '../js/edgeBlocked.js';
 import CardSkeleton from './CardSkeleton.vue';
 
 export default {
@@ -66,7 +67,7 @@ export default {
       let yours = 0;
       let others = 0;
       for (const c of this.crawlers) {
-        const real = this.realBlocked(c);
+        const real = otherBlocked(c);
         if (c.blockedByYou) yours += real;
         else others += real;
       }
@@ -77,7 +78,7 @@ export default {
       const parts = [];
       if (b.probes) parts.push(`${this.n(b.probes)} scanner probes`);
       if (b.yours) parts.push(`${this.n(b.yours)} crawlers you block`);
-      if (b.others && parts.length) parts.push(`${this.n(b.others)} others`);
+      if (b.others && parts.length) parts.push(otherCount(b.others));
       return parts.join(' · ');
     },
     maxCompanyBytes() {
@@ -127,25 +128,12 @@ export default {
     n(v) {
       return Number(v || 0).toLocaleString();
     },
-    // What the edge turned away from the crawler itself: its blocked requests less
-    // the probes a scanner sent in its name.
-    realBlocked(c) {
-      return Math.max(0, (Number(c.blocked) || 0) - (Number(c.probes) || 0));
-    },
-    // Red only for a crawler you let in that the edge still turned away. A probe is
-    // a scanner, not the crawler; a crawler you block being blocked is your rule working.
-    blockedBad(c) {
-      return !c.blockedByYou && this.realBlocked(c) > 0;
-    },
+    blockedBad,
+    blockedParts,
     // A blocked crawler's own requests: the scanner's probes in its name are not it
     // knocking (heera.it 10-27: 159 of ClaudeBot's 313 were .env-style probes).
     knocks(c) {
       return Math.max(0, (Number(c.requests) || 0) - (Number(c.probes) || 0));
-    },
-    probesNote(c) {
-      const p = Number(c.probes) || 0;
-      if (!p) return '';
-      return p >= (Number(c.blocked) || 0) ? 'all probes' : `${this.n(p)} probes`;
     },
     // "updated 25m ago" — lastPollAt is a Unix timestamp in seconds.
     agoMin(ts) {
@@ -300,6 +288,7 @@ export default {
           <p v-if="totals.probes" class="ar-field__hint ar-edge__subnote">
             Probes are requests for files no reader asks for, like a <code>.env</code> or a <code>.git</code> folder —
             a scanner using the crawler's name. Cloudflare blocking them is not Cloudflare blocking the crawler.
+            Red marks other blocked requests using the name of a crawler you allow.
           </p>
           <div class="ar-edge__scroll">
             <table class="ar-act-table ar-act-table--cards">
@@ -336,7 +325,8 @@ export default {
                   <td class="ar-edge__n" data-label="Blocked" :class="{ 'is-bad': blockedBad(c) }">
                     <svg class="ar-edge__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z" /></svg>
                     <span class="ar-edge__v">{{ n(c.blocked) }}</span>
-                    <span v-if="probesNote(c)" class="ar-edge__probes">{{ probesNote(c) }}</span>
+                    <!-- Only the "1 other" part is red: most of the count above is probes. -->
+                    <span v-if="blockedParts(c).probes" class="ar-edge__probes">{{ blockedParts(c).probes }}<template v-if="blockedParts(c).other"><span class="ar-edge__sep"> · </span><span class="ar-edge__other">{{ blockedParts(c).other }}</span></template></span>
                   </td>
                   <td class="ar-edge__n" data-label="Data">{{ fmtBytes(c.bytes) }}</td>
                 </tr>

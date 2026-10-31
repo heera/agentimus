@@ -2580,12 +2580,13 @@ body { --ar-bar: var(--ar-accent); }
 /* Card-mode glyphs for the request tables — invisible in the wide tables. */
 .ar-cardico { display: none; }
 td.ar-edge__n { color: var(--ar-ink-soft); }
-td.ar-edge__n.is-bad { color: var(--ar-bad); font-weight: 600; }
 .ar-edge__op { color: var(--ar-ink-faint); font-size: 12px; }
 .ar-edge__hot { color: var(--ar-warn); }
 .ar-edge__subnote { margin: -6px 0 12px; }
 /* "all probes" / "159 probes" under a Blocked count: a quiet aside, never the alarm. */
 .ar-edge__probes { display: block; font-size: 10.5px; font-weight: 400; color: var(--ar-ink-faint); white-space: nowrap; }
+/* "1 other": the alarm sits on the requests that earned it, not on the whole count. */
+.ar-edge__other { color: var(--ar-bad); font-weight: 600; }
 
 /* ── Found by AI Search (Bing) — same shrink discipline as .ar-edge ─────── */
 .ar-bing { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
@@ -7313,13 +7314,16 @@ th.is-sorted .ar-log__sort { color: var(--ar-ink); }
   }
   .ar-edge .ar-act-table--cards .ar-edge__v { order: 2; }
   .ar-edge .ar-act-table--cards .ar-edge__probes { order: 4; margin-top: -4px; }
+  /* A third of a phone card can't hold "29 probes · 1 other": two lines, no dot. */
+  .ar-edge .ar-act-table--cards .ar-edge__sep { display: none; }
+  .ar-edge .ar-act-table--cards .ar-edge__other { display: block; }
   .ar-edge .ar-act-table--cards tbody td.ar-edge__n::before {
     order: 3; width: auto; font-family: var(--ar-mono); font-size: 9.5px;
     font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--ar-ink-faint);
   }
-  /* Blocked with a count: the chip and the number warm up together — the ONLY
-     color in the card row, so it stays an alarm. The label keeps quiet. */
+  /* Blocked for more than probes: the chip and the "1 other" note warm up together — the ONLY
+     color in the card row, so it stays an alarm. The number and label keep quiet. */
   .ar-edge .ar-act-table--cards tbody td.ar-edge__n.is-bad .ar-edge__ico {
     color: var(--ar-bad);
     border-color: color-mix(in srgb, var(--ar-bad) 28%, var(--ar-line));
