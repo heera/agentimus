@@ -101,6 +101,7 @@ final class Settings {
 			'agent_writes_publish' => false, // Sub-option of enable_agent_writes (and cascaded off with it, same rule): allow an agent to PUBLISH (status=publish) rather than only draft/pending. OFF by default — "write drafts I review" and "publish to my live site" are different levels of trust, so going live stays a human decision until this is flipped. The user's publish_posts capability is still required on top. See Abilities\ContentWriter::validate_status().
 			'agent_writes_settings' => false, // Sub-option of enable_agent_writes (and cascaded off with it): adds update-settings, which changes the allowlist in Abilities\AgentSettings and nothing else. An agent can never reach this switch itself.
 			'agent_writes_maintenance' => false, // Sub-option of enable_agent_writes (and cascaded off with it): adds refresh-data, which spends the owner's API limits. An agent can never reach this switch itself.
+			'agent_writes_content' => false, // Sub-option of enable_agent_writes (and cascaded off with it): adds list-content and the publish_at field on create-content and update-content. publish_at also needs agent_writes_publish. An agent can never reach this switch itself.
 			'webmcp_hidden_tools' => array(), // Owner opt-OUT: names of WebMCP tools to hide from browser agents (deny-list; empty = expose every registered tool). Lets the owner curate per-tool which to expose.
 			'llms_full_posts'  => 50,
 			'llms_full_max_kb' => 900, // Hard byte budget for /llms-full.txt (KB): generation stops cleanly here and links the index. Deliberately UNDER 1024, not at it: a ~1 MB body sits exactly at the common memcached item ceiling, so with the key + serialization overhead the object cache silently REJECTS it — then every request re-runs the full build. 900 KB leaves headroom so the document actually caches. Filterable higher for sites whose cache (or lack of one) can take it.
@@ -811,6 +812,7 @@ final class Settings {
 			$clean['agent_writes_publish']  = false;
 			$clean['agent_writes_settings'] = false;
 			$clean['agent_writes_maintenance'] = false;
+			$clean['agent_writes_content'] = false;
 		}
 
 		// Per-page AI topics: the two toggles are handled by the boolean loop above; only

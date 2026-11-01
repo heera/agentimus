@@ -823,6 +823,14 @@ export default {
                 <small>Lets an assistant put content live. It still needs a user who is allowed to publish. Off is the safe default: assistants then only create drafts and pending posts for you to review. Either way, editing something already published follows that user’s normal edit permission.</small>
               </span>
             </label>
+            <label id="ar-feat-agent_writes_content" class="ar-toggle ar-toggle--nested">
+              <input v-model="settings.agent_writes_content" type="checkbox" />
+              <span class="ar-toggle__track" aria-hidden="true"></span>
+              <span class="ar-toggle__text">
+                <strong>Let agents manage content</strong>
+                <small>Lets an assistant list drafts, pending, scheduled and trashed content, and schedule a post. Scheduling also needs “Let agents publish without your review”, because a scheduled post goes live with nobody checking it at that moment.</small>
+              </span>
+            </label>
             <label id="ar-feat-agent_writes_settings" class="ar-toggle ar-toggle--nested">
               <input v-model="settings.agent_writes_settings" type="checkbox" />
               <span class="ar-toggle__track" aria-hidden="true"></span>

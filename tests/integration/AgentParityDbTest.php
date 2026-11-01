@@ -192,7 +192,7 @@ final class AgentParityDbTest extends DbTestCase {
 	private function tools() {
 		$settings = new Settings();
 		$all      = $settings->stored();
-		foreach ( array( 'enable_mcp_server', 'enable_agent_writes', 'agent_writes_settings', 'agent_writes_maintenance' ) as $key ) {
+		foreach ( array( 'enable_mcp_server', 'enable_agent_writes', 'agent_writes_settings', 'agent_writes_maintenance', 'agent_writes_content' ) as $key ) {
 			$all[ $key ] = true;
 		}
 		$settings->update( $all );

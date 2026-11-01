@@ -91,6 +91,7 @@ final class ContentEditor {
 			'title'    => (string) $post->post_title,
 			'type'     => (string) $post->post_type,
 			'status'   => (string) $post->post_status,
+			'scheduledFor' => ContentWriter::scheduled_for( $post ),
 			'url'      => (string) get_permalink( $post ),
 			'modified' => (string) $post->post_modified_gmt,
 			// "blocks" or "classic" — an agent editing block markup needs to know

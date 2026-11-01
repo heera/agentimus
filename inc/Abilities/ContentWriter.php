@@ -29,6 +29,8 @@
  *      is ALREADY published is deliberately not behind that switch: it is the
  *      check-page → fix loop's whole point, and the user's edit_post capability
  *      (boundary 2) is the honest gate for it.
+ *   4. Scheduling is publishing with nobody watching the moment it goes live, so
+ *      publish_at needs agent_writes_content AND everything in boundary 3.
  *
  * Scope: the same agent-visible post types every other Agentimus surface covers
  * (Content::post_types()) — the write surface never reaches content the read
@@ -57,6 +59,16 @@ final class ContentWriter {
 
 	/** The statuses an agent may set. Draft first — it is also the default. */
 	const STATUSES = array( 'draft', 'pending', 'publish' );
+
+	/** The statuses a schedule can be set on. Anything else is live or in the trash. */
+	const SCHEDULABLE = array( 'draft', 'pending', 'future' );
+
+	/**
+	 * How far ahead a schedule must be, in seconds. WordPress publishes a scheduled
+	 * post at once if its time has passed by the moment it saves, so a time this
+	 * close could go live as an immediate publish while the caller asked for a delay.
+	 */
+	const MIN_LEAD = 60;
 
 	/** @var Settings */
 	private $settings;
@@ -115,6 +127,11 @@ final class ContentWriter {
 			return $unsafe;
 		}
 
+		$schedule = $this->schedule_fields( $input, $type );
+		if ( is_wp_error( $schedule ) ) {
+			return $schedule;
+		}
+
 		// Resolve terms and the featured image BEFORE inserting, so a capability
 		// refusal or a failed image import aborts cleanly instead of leaving a
 		// half-dressed post behind. (A term created here for a post that then
@@ -144,11 +161,25 @@ final class ContentWriter {
 		if ( isset( $input['slug'] ) && '' !== (string) $input['slug'] ) {
 			$postarr['post_name'] = sanitize_title( (string) $input['slug'] );
 		}
+		$postarr = array_merge( $postarr, $schedule );
 
 		// wp_slash: core's write path unslashes its input (it expects slashed data,
 		// as core's own REST controller provides) — raw agent input would lose one
 		// level of literal backslashes in code snippets, regexes, Windows paths.
+		// WordPress stamps a NEW post's modified time from its date, which would say a
+		// post scheduled here was last saved on the day it goes live.
+		$saved_now = static function ( $data ) {
+			$data['post_modified']     = current_time( 'mysql' );
+			$data['post_modified_gmt'] = current_time( 'mysql', true );
+			return $data;
+		};
+		if ( $schedule ) {
+			add_filter( 'wp_insert_post_data', $saved_now );
+		}
 		$post_id = wp_insert_post( wp_slash( $postarr ), true );
+		if ( $schedule ) {
+			remove_filter( 'wp_insert_post_data', $saved_now );
+		}
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
 		}
@@ -166,6 +197,11 @@ final class ContentWriter {
 		 * @param string $action  'create'.
 		 */
 		do_action( 'agentimus_agent_wrote_content', (int) $post_id, 'create' );
+
+		$held = self::schedule_held( (int) $post_id, $schedule );
+		if ( is_wp_error( $held ) ) {
+			return $held;
+		}
 
 		return $this->summarize( (int) $post_id );
 	}
@@ -227,6 +263,11 @@ final class ContentWriter {
 			return $unsafe;
 		}
 
+		$schedule = $this->schedule_fields( $input, $post->post_type, $post );
+		if ( is_wp_error( $schedule ) ) {
+			return $schedule;
+		}
+
 		$postarr = array( 'ID' => $post->ID );
 
 		if ( isset( $input['status'] ) && '' !== (string) $input['status'] && (string) $input['status'] !== $post->post_status ) {
@@ -239,7 +280,17 @@ final class ContentWriter {
 				return $status;
 			}
 			$postarr['post_status'] = $status;
+
+			// Asked to publish, but the post holds a future date: WordPress would
+			// quietly keep it scheduled and the agent would have gone live on paper.
+			// A post that left its schedule for a draft still holds the old date.
+			if ( 'publish' === $status && ! $schedule && strtotime( $post->post_date_gmt . ' UTC' ) > time() ) {
+				$postarr['post_date']     = current_time( 'mysql' );
+				$postarr['post_date_gmt'] = current_time( 'mysql', true );
+				$postarr['edit_date']     = true;
+			}
 		}
+		$postarr = array_merge( $postarr, $schedule );
 
 		if ( isset( $input['title'] ) && '' !== trim( (string) $input['title'] ) ) {
 			$postarr['post_title'] = trim( (string) $input['title'] );
@@ -299,7 +350,150 @@ final class ContentWriter {
 		 */
 		do_action( 'agentimus_agent_wrote_content', $post->ID, 'update' );
 
+		$held = self::schedule_held( $post->ID, $schedule );
+		if ( is_wp_error( $held ) ) {
+			return $held;
+		}
+
 		return $this->summarize( $post->ID );
+	}
+
+	/**
+	 * The post fields a publish_at asks for, after every check. Nothing is written here.
+	 *
+	 * @param array         $input Ability input.
+	 * @param string        $type  Post type.
+	 * @param \WP_Post|null $post  The post being updated, null when creating.
+	 * @return array|\WP_Error Post fields, empty when the input carries no publish_at.
+	 */
+	private function schedule_fields( array $input, $type, $post = null ) {
+		if ( ! isset( $input['publish_at'] ) ) {
+			return array();
+		}
+
+		if ( ! $this->settings->enabled( 'agent_writes_content' ) ) {
+			return new \WP_Error(
+				'agentimus_content_off',
+				__( 'Scheduling by agents is off on this site. The owner can allow it under MCP Server, with “Let agents manage content”. Nothing was written.', 'agentimus' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$status = isset( $input['status'] ) ? (string) $input['status'] : '';
+		if ( '' !== $status && 'publish' !== $status ) {
+			return new \WP_Error(
+				'agentimus_schedule_status',
+				sprintf(
+					/* translators: %s: the status sent. */
+					__( 'publish_at schedules a post to go live, and status “%s” says it should not. Send one or the other. Nothing was written.', 'agentimus' ),
+					$status
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( null !== $post && ! in_array( $post->post_status, self::SCHEDULABLE, true ) ) {
+			return new \WP_Error(
+				'agentimus_schedule_live',
+				sprintf(
+					/* translators: %s: the post's current status. */
+					__( 'This post is “%s”, so it can’t be scheduled. On a live post WordPress would take it offline until that time. Only a draft, a pending post or a scheduled post can take a time. Nothing was written.', 'agentimus' ),
+					$post->post_status
+				),
+				array( 'status' => 409 )
+			);
+		}
+
+		$allowed = $this->validate_status( 'publish', $type, false );
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+
+		$when = self::parse_publish_at( (string) $input['publish_at'] );
+		if ( null === $when ) {
+			return new \WP_Error(
+				'agentimus_bad_publish_at',
+				sprintf(
+					/* translators: %s: an example time. */
+					__( 'publish_at must be an exact date and time with its UTC offset, like %s. A time without an offset could mean several moments, and this tool does not guess when a post goes live. To cancel a schedule, set status to draft. Nothing was written.', 'agentimus' ),
+					wp_date( 'Y-m-d\TH:i:sP', time() + DAY_IN_SECONDS )
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( $when < time() + self::MIN_LEAD ) {
+			return new \WP_Error(
+				'agentimus_schedule_past',
+				__( 'publish_at must be at least a minute ahead. WordPress publishes a scheduled post at once if its time has passed. To publish now, use status=publish. Nothing was written.', 'agentimus' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$gmt = gmdate( 'Y-m-d H:i:s', $when );
+		return array(
+			'post_status'   => 'future',
+			'post_date'     => get_date_from_gmt( $gmt ),
+			'post_date_gmt' => $gmt,
+			'edit_date'     => true, // Without it, wp_update_post() resets a never-dated draft's date.
+		);
+	}
+
+	/**
+	 * PURE: an ISO 8601 time with its offset, as a Unix time. Refuses what is not a
+	 * real moment: no offset, or a date PHP would roll over, like 31 February.
+	 *
+	 * @param string $value The time sent.
+	 * @return int|null Unix time, null when it is not an exact, real moment.
+	 */
+	public static function parse_publish_at( $value ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2})$/', (string) $value, $parts ) ) {
+			return null;
+		}
+		$time   = \DateTimeImmutable::createFromFormat( '' !== $parts[1] ? 'Y-m-d\TH:i:sP' : 'Y-m-d\TH:iP', (string) $value );
+		$errors = \DateTimeImmutable::getLastErrors();
+		if ( ! $time || ( is_array( $errors ) && ( $errors['warning_count'] > 0 || $errors['error_count'] > 0 ) ) ) {
+			return null;
+		}
+		return $time->getTimestamp();
+	}
+
+	/**
+	 * When a scheduled post goes live, in the site's own time with its offset.
+	 *
+	 * @param \WP_Post $post The post.
+	 * @return string Empty unless the post is scheduled.
+	 */
+	public static function scheduled_for( \WP_Post $post ) {
+		if ( 'future' !== $post->post_status ) {
+			return '';
+		}
+		return (string) wp_date( 'Y-m-d\TH:i:sP', (int) strtotime( $post->post_date_gmt . ' UTC' ) );
+	}
+
+	/**
+	 * Read the schedule back. A filter or plugin can change a status on save, and
+	 * reporting "scheduled" for a post that is not would be a claim about a go-live
+	 * nobody will get.
+	 *
+	 * @param int   $post_id  The written post.
+	 * @param array $schedule What {@see schedule_fields()} asked for.
+	 * @return \WP_Error|null
+	 */
+	private static function schedule_held( $post_id, array $schedule ) {
+		if ( ! $schedule || 'future' === get_post_status( $post_id ) ) {
+			return null;
+		}
+		return new \WP_Error(
+			'agentimus_schedule_failed',
+			sprintf(
+				/* translators: 1: post id, 2: the status it holds now. */
+				__( 'Post %1$d was saved, but it did not stay scheduled: it is “%2$s” now. Something on this site changed it. Read the post before trying again.', 'agentimus' ),
+				$post_id,
+				(string) get_post_status( $post_id )
+			),
+			array( 'status' => 500 )
+		);
 	}
 
 	/**
@@ -667,6 +861,7 @@ final class ContentWriter {
 			'id'            => (int) $post_id,
 			'type'          => $post ? (string) $post->post_type : '',
 			'status'        => $post ? (string) $post->post_status : '',
+			'scheduledFor'  => $post instanceof \WP_Post ? self::scheduled_for( $post ) : '',
 			'title'         => $post ? (string) $post->post_title : '',
 			'url'           => (string) get_permalink( $post_id ),
 			'editUrl'       => (string) get_edit_post_link( $post_id, 'raw' ),
