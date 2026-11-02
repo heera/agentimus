@@ -12,6 +12,7 @@ file is the complete record.
 * New: agents can move a post or page to the trash and restore it, one at a time. Trash is limited to 10 an hour across the site, and never the homepage or blog page. Nothing is deleted for good, and a restored item comes back as a draft.
 * Changed: the MCP Server card now asks one question, "What can agents do on this site?": Off, Read or Write, plus three extras. Choosing Write adds the new tools above. If your agents could already write, nothing changes until you pick a level, and the card shows this as "Older setup".
 * Changed: risky choices now ask first: allowing publishing, turning agents off, and moving to Read when extras are on.
+* Changed: clicking the rating stars in the footer now ends the rating ask, and the footer then says "Thank you for using Agentimus."
 * Fixed: when an agent published a scheduled post, the post stayed scheduled. It now goes live.
 
 ## 1.55.0

@@ -2,6 +2,8 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import { tip } from './js/tip.js';
 import { initTheme } from './js/theme.js';
+import { bindRatingLink } from './js/ratingLink.js';
+import { createApi } from './js/api.js';
 import './css/app.css';
 import './css/integrations.css'; // the Integrations screen — same tokens, split by size
 import './css/schemes.css'; // per-admin-color-scheme dark palettes — bundled after app.css
@@ -18,4 +20,6 @@ if (mount) {
   const app = createApp(App, { boot });
   app.directive('tip', tip); // v-tip="…" — the custom tooltip, replacing native title="…".
   app.mount(mount);
+  const ratingApi = createApi(boot);
+  bindRatingLink(document, (answer) => ratingApi.reviewAck(answer));
 }

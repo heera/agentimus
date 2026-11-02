@@ -306,15 +306,19 @@ final class Admin {
 			return $text;
 		}
 
-		// Once the Dashboard's review ask has been answered for good, this line
-		// stops asking too — "never asks again" holds everywhere, and someone
-		// who already reviewed isn't asked on every screen forever. Core's
-		// default footer text stands in.
+		$name = '<strong>' . esc_html__( 'Agentimus', 'agentimus' ) . '</strong>';
+
+		// Once the review ask has been answered for good (the Dashboard's prompt,
+		// or a click on the stars below), this line stops asking too. "Never asks
+		// again" holds everywhere, and the plugin keeps its name in its own footer.
 		if ( Review::closed() ) {
-			return $text;
+			return sprintf(
+				/* translators: %s: plugin name (bold). */
+				__( 'Thank you for using %s.', 'agentimus' ),
+				$name
+			);
 		}
 
-		$name  = '<strong>' . esc_html__( 'Agentimus', 'agentimus' ) . '</strong>';
 		$stars = sprintf(
 			'<a href="%1$s" target="_blank" rel="noopener" aria-label="%2$s" class="agentimus-rating-link">&#9733;&#9733;&#9733;&#9733;&#9733;</a>',
 			esc_url( 'https://wordpress.org/support/plugin/agentimus/reviews/?rate=5#new-post' ),
