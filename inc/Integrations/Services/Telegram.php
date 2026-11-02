@@ -429,9 +429,9 @@ final class Telegram {
 
 			case Events::AGENT_WROTE_CONTENT:
 				$message = sprintf(
-					/* translators: 1: created/updated, 2: the post title, 3: site host. */
+					/* translators: 1: created/updated/trashed/restored, 2: the post title, 3: site host. */
 					__( 'An AI assistant %1$s “%2$s” on %3$s.', 'agentimus' ),
-					'update' === ( isset( $data['action'] ) ? (string) $data['action'] : '' ) ? __( 'updated', 'agentimus' ) : __( 'created', 'agentimus' ),
+					Events::wrote_words( isset( $data['action'] ) ? (string) $data['action'] : '' )['verb'],
 					isset( $data['title'] ) ? (string) $data['title'] : '',
 					$host
 				);

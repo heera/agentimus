@@ -205,6 +205,8 @@ namespace Agentimus\Tests {
 
 			// Anything that is not 'update' collapses to 'create': a two-word vocabulary.
 			$this->assertSame( 'create', Events::wrote_payload( 7, 'weird', '' )['action'] );
+			$this->assertSame( 'trash', Events::wrote_payload( 7, 'trash', '' )['action'] );
+			$this->assertSame( 'restore', Events::wrote_payload( 7, 'restore', '' )['action'] );
 		}
 
 		/* ---- the signature --------------------------------------------------- */

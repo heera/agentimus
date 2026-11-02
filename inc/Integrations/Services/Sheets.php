@@ -560,10 +560,10 @@ final class Sheets {
 
 			case Events::AGENT_WROTE_CONTENT:
 				$message = sprintf(
-					/* translators: 1: the post title, 2: created/updated. */
+					/* translators: 1: the post title, 2: created/updated/trashed/restored. */
 					__( '“%1$s” %2$s by an AI assistant.', 'agentimus' ),
 					isset( $data['title'] ) ? (string) $data['title'] : '',
-					'update' === ( isset( $data['action'] ) ? (string) $data['action'] : '' ) ? __( 'updated', 'agentimus' ) : __( 'created', 'agentimus' )
+					Events::wrote_words( isset( $data['action'] ) ? (string) $data['action'] : '' )['verb']
 				);
 				if ( ! empty( $data['ability'] ) ) {
 					$message .= ' ' . sprintf(

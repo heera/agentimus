@@ -138,7 +138,7 @@ final class Events {
 			),
 			self::AGENT_WROTE_CONTENT   => array(
 				'label'       => __( 'Agent wrote content', 'agentimus' ),
-				'description' => __( 'An AI assistant created or edited a post or page.', 'agentimus' ),
+				'description' => __( 'An AI assistant created, edited, trashed or restored a post or page.', 'agentimus' ),
 			),
 		);
 
@@ -366,9 +366,28 @@ final class Events {
 		return array(
 			'postId'  => (int) $post_id,
 			'title'   => Worklist::title_of( (int) $post_id ),
-			'action'  => 'update' === (string) $action ? 'update' : 'create',
+			'action'  => in_array( (string) $action, array( 'update', 'trash', 'restore' ), true ) ? (string) $action : 'create',
 			'ability' => substr( (string) $ability, 0, 100 ),
 		);
+	}
+
+	/**
+	 * PURE: an agent write in the two shapes the services print, so a page taken offline
+	 * can't be announced as "created".
+	 *
+	 * @param string $action The payload's action.
+	 * @return array{verb:string,heading:string}
+	 */
+	public static function wrote_words( $action ) {
+		switch ( (string) $action ) {
+			case 'update':
+				return array( 'verb' => __( 'updated', 'agentimus' ), 'heading' => __( 'Content updated by an AI assistant', 'agentimus' ) );
+			case 'trash':
+				return array( 'verb' => __( 'trashed', 'agentimus' ), 'heading' => __( 'Content moved to the trash by an AI assistant', 'agentimus' ) );
+			case 'restore':
+				return array( 'verb' => __( 'restored', 'agentimus' ), 'heading' => __( 'Content restored as a draft by an AI assistant', 'agentimus' ) );
+		}
+		return array( 'verb' => __( 'created', 'agentimus' ), 'heading' => __( 'Content created by an AI assistant', 'agentimus' ) );
 	}
 
 	/* -- Listeners ----------------------------------------------------------- */

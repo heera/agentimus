@@ -117,6 +117,7 @@ final class ContentList {
 				'modified'       => (string) $post->post_modified_gmt,
 				'scheduledFor'   => $scheduled,
 				'missedSchedule' => '' !== $scheduled && strtotime( $post->post_date_gmt . ' UTC' ) < time(),
+				'statusBeforeTrash' => 'trash' === $post->post_status ? (string) get_post_meta( $post->ID, '_wp_trash_meta_status', true ) : '',
 			);
 		}
 

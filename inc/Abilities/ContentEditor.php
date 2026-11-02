@@ -708,7 +708,7 @@ final class ContentEditor {
 	 * @param int $post_id Post ID.
 	 * @return string
 	 */
-	private static function locked_by( $post_id ) {
+	public static function locked_by( $post_id ) {
 		if ( ! function_exists( 'wp_check_post_lock' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/post.php';
 		}

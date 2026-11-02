@@ -272,9 +272,9 @@ final class Slack {
 				);
 			case Events::AGENT_WROTE_CONTENT:
 				return sprintf(
-					/* translators: 1: created/updated, 2: the post title. */
+					/* translators: 1: created/updated/trashed/restored, 2: the post title. */
 					__( 'An AI assistant %1$s “%2$s”', 'agentimus' ),
-					'update' === ( isset( $data['action'] ) ? (string) $data['action'] : '' ) ? __( 'updated', 'agentimus' ) : __( 'created', 'agentimus' ),
+					Events::wrote_words( isset( $data['action'] ) ? (string) $data['action'] : '' )['verb'],
 					isset( $data['title'] ) ? (string) $data['title'] : ''
 				);
 		}
@@ -400,8 +400,7 @@ final class Slack {
 				return self::section( $text );
 
 			case Events::AGENT_WROTE_CONTENT:
-				$updated = 'update' === ( isset( $data['action'] ) ? (string) $data['action'] : '' );
-				$text    = '*' . ( $updated ? __( 'Content updated by an AI assistant', 'agentimus' ) : __( 'Content created by an AI assistant', 'agentimus' ) ) . '*'
+				$text    = '*' . Events::wrote_words( isset( $data['action'] ) ? (string) $data['action'] : '' )['heading'] . '*'
 					. "\n" . sprintf( '“%s”', self::esc( isset( $data['title'] ) ? (string) $data['title'] : '' ) );
 				if ( ! empty( $data['ability'] ) ) {
 					$text .= sprintf(

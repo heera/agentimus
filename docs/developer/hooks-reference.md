@@ -398,7 +398,7 @@ The **Integrations** screen (More → Integrations) can relay the plugin's own r
 | `agentimus_robots_policy_changed` | action | `( array $change )` | robots.txt's policy lines moved — `{ at, added, removed }`, normalized lines. An observation, not an accusation: the owner's own edits fire it too. |
 | `agentimus_impostor_flagged` | action | `( string $client, string $ua )` | A recorded hit carried a proven-impostor verdict. Client label + raw UA only — no IP. Fires **per hit**; debounce your own listener. |
 | `agentimus_citation_run_finished` | action | `( array $result )` | A citation monitoring run completed — `{ ran, runId, checks, capped }`. |
-| `agentimus_agent_wrote_content` | action | `( int $post_id, string $action )` | An agent-side write landed through the governed path (MCP/abilities, or the in-admin assistant). `$action` is `create` or `update`; success only. |
+| `agentimus_agent_wrote_content` | action | `( int $post_id, string $action )` | An agent-side write landed through the governed path (MCP/abilities, or the in-admin assistant). `$action` is `create`, `update`, `trash` or `restore`; success only. |
 
 Everything the webhook sends is the site's **own report data, never visitor PII** — an event you add through the catalog filter is expected to keep that promise too.
 

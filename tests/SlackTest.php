@@ -189,6 +189,17 @@ final class SlackTest extends TestCase {
 		$this->assertSame( "*Content created by an AI assistant*\n“Hello”", $created[0]['text']['text'] );
 	}
 
+	public function test_a_trashed_page_is_never_announced_as_created() {
+		$blocks = Slack::blocks(
+			Events::AGENT_WROTE_CONTENT,
+			Events::envelope( Events::AGENT_WROTE_CONTENT, array( 'postId' => 7, 'title' => 'Hello', 'action' => 'trash', 'ability' => '' ) )
+		);
+		$this->assertSame( "*Content moved to the trash by an AI assistant*\n“Hello”", $blocks[0]['text']['text'] );
+
+		$fallback = Slack::fallback( Events::AGENT_WROTE_CONTENT, Events::envelope( Events::AGENT_WROTE_CONTENT, array( 'title' => 'Hello', 'action' => 'restore' ) ) );
+		$this->assertSame( 'An AI assistant restored “Hello”', $fallback );
+	}
+
 	public function test_unknown_event_is_named_not_dropped() {
 		$blocks = Slack::blocks( 'addon_event', Events::envelope( 'addon_event', array() ) );
 		$this->assertSame( '*addon_event*', $blocks[0]['text']['text'] );

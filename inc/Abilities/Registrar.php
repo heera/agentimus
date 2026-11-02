@@ -96,7 +96,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content', 'create-term', 'update-term', 'import-media', 'update-media' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content', 'create-term', 'update-term', 'import-media', 'update-media', 'trash-content', 'restore-content' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
@@ -109,6 +109,8 @@ final class Registrar {
 		'update-term'     => 'agent_writes_content',
 		'import-media'    => 'agent_writes_content',
 		'update-media'    => 'agent_writes_content',
+		'trash-content'   => 'agent_writes_content',
+		'restore-content' => 'agent_writes_content',
 	);
 
 	/** @var Settings */
@@ -3278,6 +3280,61 @@ final class Registrar {
 	}
 
 	/**
+	 * Trash and restore. Registered only behind agent_writes_content.
+	 */
+	private function register_trash_tools() {
+		$answer = self::obj(
+			array(
+				'id'             => self::i(),
+				'title'          => self::s(),
+				'type'           => self::s(),
+				'status'         => self::s( 'What it is now: trash, or draft after a restore.' ),
+				'previousStatus' => self::s( 'What it was before the trash.' ),
+				'message'        => self::s( 'Plain sentence for the owner.' ),
+			)
+		);
+		$input  = self::obj(
+			array(
+				'post_id' => self::i( 'One post or page id.' ),
+			),
+			array( 'post_id' )
+		);
+
+		$this->add(
+			'trash-content',
+			__( 'Move a post or page to the trash', 'agentimus' ),
+			'Moves ONE post or page to the trash. ⚠️ If it is live, visitors stop seeing it straight away, so only do '
+				. 'this when the owner asked for this item. Trash is not delete: restore-content brings it back, and '
+				. 'nothing here can delete permanently or empty the trash. Refused for the homepage, the blog page and a '
+				. 'post somebody has open in the editor. Limited to ' . ContentTrash::HOURLY_LIMIT . ' items an hour across '
+				. 'the whole site, so check you have the right id first.',
+			$input,
+			$answer,
+			function ( $input ) {
+				return ( new ContentTrash( $this->settings ) )->trash( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_trash_content' ),
+			false
+		);
+
+		$this->add(
+			'restore-content',
+			__( 'Restore a post or page from the trash', 'agentimus' ),
+			'Brings ONE item back from the trash. It always comes back as a DRAFT, so it is not live, even if it was '
+				. 'before: `previousStatus` says what it was. To put it live again, use update-content with status=publish, '
+				. 'which needs the site’s "agents may publish" switch, or ask the owner. list-content with status=trash '
+				. 'shows what is there.',
+			$input,
+			$answer,
+			function ( $input ) {
+				return ( new ContentTrash( $this->settings ) )->restore( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_trash_content' ),
+			false
+		);
+	}
+
+	/**
 	 * Add to the media library and edit an item's words. Registered only behind agent_writes_content.
 	 */
 	private function register_media_tools() {
@@ -3488,6 +3545,7 @@ final class Registrar {
 							'modified'       => self::s( 'When it was last saved (GMT).' ),
 							'scheduledFor'   => self::s( 'When it goes live, in the site’s own timezone with its offset. Empty unless status is future.' ),
 							'missedSchedule' => self::b( 'TRUE when its time passed and WordPress has not published it, usually because WP-Cron did not run. Tell the owner.' ),
+							'statusBeforeTrash' => self::s( 'What a trashed item was before the trash; publish means it was live. Empty unless status is trash.' ),
 						)
 					),
 					'total' => self::i( 'Every match, across all pages.' ),
@@ -3560,6 +3618,7 @@ final class Registrar {
 			$this->register_list_content();
 			$this->register_term_tools();
 			$this->register_media_tools();
+			$this->register_trash_tools();
 		}
 
 		$this->add(
@@ -4709,6 +4768,17 @@ final class Registrar {
 	public function can_list_content( $input ) {
 		$gate = McpToken::gate_write_permission( Oauth\Server::gate_write_permission( array( $this, 'can_create_content' ) ) );
 		return (bool) $gate( $input );
+	}
+
+	/**
+	 * May the connected user trash or restore this post? Core asks delete_post for both.
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_trash_content( $input ) {
+		$id = is_array( $input ) && isset( $input['post_id'] ) && is_scalar( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+		return $id > 0 && null !== get_post( $id ) && current_user_can( 'delete_post', $id );
 	}
 
 	/**

@@ -362,7 +362,6 @@ final class Discord {
 				);
 
 			case Events::AGENT_WROTE_CONTENT:
-				$updated     = 'update' === ( isset( $data['action'] ) ? (string) $data['action'] : '' );
 				$description = sprintf( '“%s”', isset( $data['title'] ) ? (string) $data['title'] : '' );
 				if ( ! empty( $data['ability'] ) ) {
 					$description .= sprintf(
@@ -372,7 +371,7 @@ final class Discord {
 					);
 				}
 				return array(
-					'title'       => $updated ? __( 'Content updated by an AI assistant', 'agentimus' ) : __( 'Content created by an AI assistant', 'agentimus' ),
+					'title'       => Events::wrote_words( isset( $data['action'] ) ? (string) $data['action'] : '' )['heading'],
 					'description' => $description,
 					'color'       => self::COLOR_NEUTRAL,
 				);
