@@ -96,7 +96,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content', 'create-term', 'update-term' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
@@ -105,6 +105,8 @@ final class Registrar {
 		'refresh-data'    => 'agent_writes_maintenance',
 		'purge-edge-cache' => 'agent_writes_maintenance',
 		'list-content'    => 'agent_writes_content',
+		'create-term'     => 'agent_writes_content',
+		'update-term'     => 'agent_writes_content',
 	);
 
 	/** @var Settings */
@@ -1939,6 +1941,7 @@ final class Registrar {
 									'id'     => self::i(),
 									'name'   => self::s( 'Send this string, exactly as it appears here.' ),
 									'slug'   => self::s(),
+									'description' => self::s( 'Its description as stored, empty when it has none. update-term replaces it, so start from this.' ),
 									'count'  => self::i( 'Published items already carrying it.' ),
 									'parent' => self::i( '0 when top-level; only meaningful on a hierarchical group.' ),
 								)
@@ -1981,13 +1984,7 @@ final class Registrar {
 
 					$rows = array();
 					foreach ( is_wp_error( $terms ) ? array() : $terms as $term ) {
-						$rows[] = array(
-							'id'     => (int) $term->term_id,
-							'name'   => (string) $term->name,
-							'slug'   => (string) $term->slug,
-							'count'  => (int) $term->count,
-							'parent' => (int) $term->parent,
-						);
+						$rows[] = self::term_row( $term );
 					}
 					$groups[] = array(
 						'field'        => (string) $field,
@@ -3277,6 +3274,98 @@ final class Registrar {
 	}
 
 	/**
+	 * Create and change categories and tags. Registered only behind agent_writes_content.
+	 */
+	private function register_term_tools() {
+		$answer = self::obj(
+			array(
+				'id'          => self::i(),
+				'taxonomy'    => self::s(),
+				'name'        => self::s(),
+				'slug'        => self::s(),
+				'description' => self::s(),
+				'parent'      => self::i( '0 when top-level.' ),
+				'count'       => self::i( 'Published items carrying it.' ),
+				'url'         => self::s( 'Its archive address.' ),
+				'note'        => self::s( 'Not empty when WordPress changed the description as it saved. Tell the owner if that matters.' ),
+			)
+		);
+
+		$this->add(
+			'create-term',
+			__( 'Create a category or tag', 'agentimus' ),
+			'Creates one category or tag, with its description and parent if it has them. Read read-terms first and '
+				. 'reuse what exists: a name already taken in that taxonomy is refused, even under another parent, '
+				. 'because create-content and update-content file posts by name. A taken slug is refused too. '
+				. 'create-content can also make a term in passing; use this tool when the term needs a slug, a '
+				. 'description or a parent. Limited to ' . TermWriter::HOURLY_LIMIT . ' term writes an hour for each connection.',
+			self::obj(
+				array(
+					'taxonomy'    => array(
+						'type'        => 'string',
+						'enum'        => array_values( ContentWriter::TAXONOMY_FIELDS ),
+						'description' => 'category or post_tag.',
+					),
+					'name'        => self::s( 'The name, in plain text.' ),
+					'slug'        => self::s( 'Its address. Set once: it can’t be changed here later. Derived from the name when omitted.' ),
+					'description' => self::s( 'What it covers. Some themes show this on the archive page. Only basic inline HTML survives (a, em, strong, code); WordPress removes the rest, even a p tag. Scripts and event handlers are refused.' ),
+					'parent'      => self::i( 'The parent category’s id. Categories only.' ),
+				),
+				array( 'taxonomy', 'name' )
+			),
+			$answer,
+			function ( $input ) {
+				return ( new TermWriter( $this->settings ) )->create( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_write_term' ),
+			false
+		);
+
+		$this->add(
+			'update-term',
+			__( 'Rename, describe or move a category or tag', 'agentimus' ),
+			'Changes one category or tag; only the fields you send change. Take the id from read-terms. '
+				. 'Renaming keeps the slug, so the address still works, and a name already taken in that taxonomy is '
+				. 'refused. `description` replaces what is there: read it first, and an empty string clears it. '
+				. '`parent` moves a category, and 0 moves it to the top level. '
+				. '⛔ It can’t delete, merge or change a slug. Limited to ' . TermWriter::HOURLY_LIMIT . ' term writes an hour for each connection.',
+			self::obj(
+				array(
+					'term_id'     => self::i( 'The term’s id, from read-terms.' ),
+					'name'        => self::s( 'The new name, in plain text.' ),
+					'description' => self::s( 'The new description. Replaces the current one; an empty string clears it. Only basic inline HTML survives (a, em, strong, code); WordPress removes the rest. Scripts and event handlers are refused.' ),
+					'parent'      => self::i( 'The new parent category’s id, 0 for the top level. Categories only.' ),
+					'slug'        => self::s( '⛔ Always refused: a slug is the term’s address and nothing would redirect the old one. Declared so the refusal reaches you rather than the value vanishing.' ),
+				),
+				array( 'term_id' )
+			),
+			$answer,
+			function ( $input ) {
+				return ( new TermWriter( $this->settings ) )->update( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_write_term' ),
+			false
+		);
+	}
+
+	/**
+	 * One read-terms row.
+	 *
+	 * @param \WP_Term $term The term.
+	 * @return array
+	 */
+	private static function term_row( \WP_Term $term ) {
+		return array(
+			'id'          => (int) $term->term_id,
+			'name'        => (string) $term->name,
+			'slug'        => (string) $term->slug,
+			'description' => (string) $term->description,
+			'count'       => (int) $term->count,
+			'parent'      => (int) $term->parent,
+		);
+	}
+
+	/**
 	 * List what is not live. Registered only behind agent_writes_content, so a
 	 * connection that could write before gains nothing from an upgrade.
 	 */
@@ -3393,6 +3482,7 @@ final class Registrar {
 		}
 		if ( $this->settings->enabled( 'agent_writes_content' ) ) {
 			$this->register_list_content();
+			$this->register_term_tools();
 		}
 
 		$this->add(
@@ -4542,6 +4632,24 @@ final class Registrar {
 	public function can_list_content( $input ) {
 		$gate = McpToken::gate_write_permission( Oauth\Server::gate_write_permission( array( $this, 'can_create_content' ) ) );
 		return (bool) $gate( $input );
+	}
+
+	/**
+	 * May the connected user write this term? Aimed by term_id, or by taxonomy when creating.
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_write_term( $input ) {
+		$in = is_array( $input ) ? $input : array();
+		if ( ! empty( $in['term_id'] ) ) {
+			return current_user_can( 'edit_term', (int) $in['term_id'] );
+		}
+		$taxonomy = isset( $in['taxonomy'] ) ? (string) $in['taxonomy'] : '';
+		if ( ! in_array( $taxonomy, ContentWriter::TAXONOMY_FIELDS, true ) || ! taxonomy_exists( $taxonomy ) ) {
+			return false;
+		}
+		return current_user_can( get_taxonomy( $taxonomy )->cap->edit_terms );
 	}
 
 	/**

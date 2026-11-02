@@ -828,7 +828,7 @@ export default {
               <span class="ar-toggle__track" aria-hidden="true"></span>
               <span class="ar-toggle__text">
                 <strong>Let agents manage content</strong>
-                <small>Lets an assistant list drafts, pending, scheduled and trashed content, and schedule a post. Scheduling also needs “Let agents publish without your review”, because a scheduled post goes live with nobody checking it at that moment.</small>
+                <small>Lets an assistant list drafts, pending, scheduled and trashed content, schedule a post, and create, rename or describe categories and tags. It can't delete or merge them. Scheduling also needs “Let agents publish without your review”, because a scheduled post goes live with nobody checking it at that moment.</small>
               </span>
             </label>
             <label id="ar-feat-agent_writes_settings" class="ar-toggle ar-toggle--nested">
