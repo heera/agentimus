@@ -48,7 +48,7 @@ Connected AI tools get the same capability through the [MCP server](mcp-server.h
 - **It always uses the local finder** — an agent asking for suggestions never spends your AI provider quota.
 - **It's read-only.** An agent that wants to *act* on a suggestion goes through the governed `update-content` write tool like any other edit — there is no side door that writes.
 
-So an agent can audit your whole site's internal linking ("which posts should link to each other and don't?") and then, only with the write switch on, actually make the edits — each one recorded in [Agent Access](agent-access.html) like every other write.
+So an agent can audit your whole site's internal linking ("which posts should link to each other and don't?") and then, only at the Write level, actually make the edits — each one recorded in [Agent Access](agent-access.html) like every other write.
 
 ## Turning it off
 

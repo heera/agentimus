@@ -19,7 +19,7 @@ It also drafts to your site's own quality bar: the writing prompts embed the sam
 
 The spark button lights up when two things are true:
 
-1. **Let connected agents write** is on (Settings → Discovery, the same trust switch that governs MCP writes — the assistant uses the identical, audited write path).
+1. Agents are set to **Write** (Settings → Discovery, the same choice that governs MCP writes — the assistant uses the identical, audited write path).
 2. An **AI provider** is connected in WordPress (Settings → AI, WordPress 7.0+, your own key — Agentimus never sees it).
 
 Until then the button appears dimmed, and clicking it tells you exactly which of the two is missing and where to turn it on.

@@ -2384,6 +2384,44 @@ body { --ar-bar: var(--ar-accent); }
 /* Connection token — the primary connect path: one revocable secret, then a
    card per assistant. The cards stay visible (dimmed) before a token exists so
    the shape of the work is legible before the owner commits to anything. */
+/* "What can agents do on this site?": one choice, then what it can't do, then extras. */
+.ar-level { margin: 6px 0 4px; }
+.ar-level__title { margin: 0 0 3px; font-size: 14px; font-weight: 600; color: var(--ar-ink); }
+.ar-level__lead { margin: 0 0 12px; font-size: 12.5px; color: var(--ar-ink-soft); }
+.ar-level__list { border: 1px solid var(--ar-line); border-radius: var(--ar-radius); overflow: hidden; }
+.ar-level__row {
+  display: grid; grid-template-columns: 18px 92px minmax(0, 1fr); gap: 10px; align-items: baseline;
+  padding: 11px 14px; border-top: 1px solid var(--ar-line);
+}
+.ar-level__row:first-child { border-top: 0; }
+.ar-level__row.is-sel { background: var(--ar-surface-2); box-shadow: inset 3px 0 0 var(--ar-accent); }
+/* WordPress draws its own radios and checkboxes in its blue, with appearance:none and a
+   ::before, so accent-color alone reports green and paints blue. Native controls paint it. */
+#agentimus-app .ar-level__row input, #agentimus-app .ar-level__extra input {
+  appearance: auto; -webkit-appearance: auto; width: 15px; height: 15px; min-width: 0; margin: 0;
+  border: 0; box-shadow: none; background: none; accent-color: var(--ar-accent); transform: translateY(2px);
+}
+#agentimus-app .ar-level__row input::before, #agentimus-app .ar-level__extra input::before { content: none; display: none; }
+/* Only the control and its name take a click, like .ar-toggle: a long description is
+   something to read, and this form saves the moment a control changes. */
+.ar-level__row, .ar-level__extra { pointer-events: none; cursor: default; }
+.ar-level__row input, .ar-level__row strong, .ar-level__extra input, .ar-level__extra strong { pointer-events: auto; cursor: pointer; }
+.ar-level__row strong { justify-self: start; }
+.ar-level__extra strong { display: block; width: fit-content; }
+.ar-level__row strong { font-size: 13.5px; font-weight: 600; color: var(--ar-ink); }
+.ar-level__row > span { font-size: 12.5px; line-height: 1.45; color: var(--ar-ink-soft); }
+/* A warning somebody must read, so not the note's usual faint ink. */
+.ar-level__now { margin: 10px 0 0; color: var(--ar-ink-soft); }
+.ar-level__extras { margin-top: 16px; }
+.ar-level__extras[inert] { opacity: 0.5; }
+.ar-level__extras-title { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; color: var(--ar-ink-soft); }
+.ar-level__extra { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 6px 0; }
+.ar-level__extra strong { display: block; font-size: 13px; font-weight: 600; color: var(--ar-ink); }
+.ar-level__extra small { font-size: 12px; line-height: 1.45; color: var(--ar-ink-soft); }
+@media (max-width: 600px) {
+  .ar-level__row { grid-template-columns: 18px minmax(0, 1fr); }
+  .ar-level__row > span { grid-column: 2; }
+}
 .ar-mcp-token__lead { margin: -4px 0 12px; }
 .ar-mcp-scopes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .ar-mcp-scope-opt {

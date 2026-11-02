@@ -822,7 +822,7 @@ final class Assistant {
 		}
 		return new \WP_Error(
 			'agentimus_writes_off',
-			__( 'AI writing is switched off on this site. Turn on “Let connected agents write” in Settings → Discovery → MCP server.', 'agentimus' ),
+			__( 'AI writing is switched off on this site. Choose Write under “What can agents do on this site?” in Settings → Discovery → MCP Server.', 'agentimus' ),
 			array( 'status' => 403 )
 		);
 	}

@@ -49,7 +49,7 @@ final class ContentList {
 		if ( ! $this->settings->enabled( 'agent_writes_content' ) ) {
 			return new \WP_Error(
 				'agentimus_content_off',
-				__( 'Agents may not list unpublished content on this site. The owner can allow it under MCP Server, with “Let agents manage content”.', 'agentimus' ),
+				__( 'Agents may not list unpublished content on this site. The owner can allow it under MCP Server, by choosing the Write level.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}

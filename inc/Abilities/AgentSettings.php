@@ -95,7 +95,7 @@ final class AgentSettings {
 		if ( ! $this->settings->enabled( 'agent_writes_settings' ) ) {
 			return new \WP_Error(
 				'agentimus_settings_writes_off',
-				__( 'Agents may not change settings on this site. The owner can allow it under MCP Server, with “Let agents change settings”. Nothing was changed.', 'agentimus' ),
+				__( 'Agents may not change settings on this site. The owner can allow it under MCP Server, with the “Change Agentimus settings” extra. Nothing was changed.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}

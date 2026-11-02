@@ -305,7 +305,7 @@ final class MediaLibrary {
 		}
 		return new \WP_Error(
 			'agentimus_content_off',
-			__( 'Agents may not manage the media library on this site. The owner can allow it under MCP Server, with “Let agents manage content”. Nothing was written.', 'agentimus' ),
+			__( 'Agents may not manage the media library on this site. The owner can allow it under MCP Server, by choosing the Write level. Nothing was written.', 'agentimus' ),
 			array( 'status' => 403 )
 		);
 	}

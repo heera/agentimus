@@ -4,7 +4,7 @@ import SelectMenu from './SelectMenu.vue';
 
 /**
  * Setup wizard. Two entry points share these screens:
- *   • first run  — a grand welcome → 3 short steps → a celebration on finish;
+ *   • first run  — a grand welcome → 5 short steps → a celebration on finish;
  *   • "Review setup" (returning) — straight into the steps, pre-filled, copy
  *     reworded for review, and no welcome/celebration.
  * Keeps its own working state (never mutates `settings`) so nothing autosaves
@@ -505,7 +505,7 @@ export default {
                   <li><strong>A request log</strong> — every request an AI makes to your site, named</li>
                   <li><strong>Your rules, enforced</strong> — who may read you, who may train on you</li>
                   <li v-if="askAi.public"><strong>Proof, not promise</strong> — watch a real assistant read your site at the end</li>
-                  <li v-else><strong>Assistants can work your site</strong> — with your permission, every action recorded</li>
+                  <li v-else><strong>Assistants can work your site</strong> — write, organise and tidy, with your permission, every action recorded</li>
                 </ul>
               </div>
 
@@ -860,8 +860,9 @@ export default {
                     <div class="ar-connect__body">
                       <span class="ar-connect__title">Want ChatGPT to do more than read?</span>
                       <span class="ar-connect__sub">
-                        Connect it to your site — one click, no keys. It can then check pages and
-                        draft content, with your permission, and every action shows in Agent Access.
+                        Connect it to your site — one click, no keys. It can then check pages, draft
+                        content and organise your tags and media, with your permission, and every
+                        action shows in Agent Access.
                       </span>
                     </div>
                     <button type="button" class="ar-btn ar-btn--ghost" @click="$emit('navigate', { tab: 'settings', anchor: 'ar-sec-mcp' })">Connect ChatGPT</button>

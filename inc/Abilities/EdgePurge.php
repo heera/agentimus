@@ -42,7 +42,7 @@ final class EdgePurge {
 		if ( ! $this->settings->enabled( 'agent_writes_maintenance' ) ) {
 			return new \WP_Error(
 				'agentimus_maintenance_off',
-				__( 'Agents may not purge the cache on this site. The owner can allow it under MCP Server, with “Let agents refresh data and purge the cache”. Nothing was purged.', 'agentimus' ),
+				__( 'Agents may not purge the cache on this site. The owner can allow it under MCP Server, with the “Refresh data and purge the cache” extra. Nothing was purged.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}

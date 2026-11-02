@@ -260,7 +260,7 @@ Further groups register under `agentimus/v1`; all require `manage_options` and t
 
 ### Connecting an assistant (`/oauth/*`, `/mcp-token`)
 
-Added in 1.32.0. Two of these are **public by protocol** — an unknown client has to be able to introduce itself, and the token exchange authenticates with a code plus a PKCE verifier rather than a session. Both return `404` while the MCP server switch is off, exactly like every other MCP surface.
+Added in 1.32.0. Two of these are **public by protocol** — an unknown client has to be able to introduce itself, and the token exchange authenticates with a code plus a PKCE verifier rather than a session. Both return `404` while `enable_mcp_server` is off (the Off level), exactly like every other MCP surface.
 
 | Route | Auth | What it does |
 |---|---|---|

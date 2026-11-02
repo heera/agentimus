@@ -102,7 +102,7 @@ Worth knowing: an application password isn't scoped to this server — it signs 
 
 ## Can an AI agent write to my site?
 
-Only if you say so, twice. The MCP server starts read-only; a second switch — **Let connected agents write** — adds the write tools: draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches that can only turn documented features on, never loosen a protection). Even then, agents can't publish: they leave drafts and pending posts for your review, unless you flip a third switch that allows going live.
+Only if you say so. You choose what agents may do, one level at a time: **Read** changes nothing, and **Write** adds the write tools: draft and edit posts and pages complete with categories, tags and a featured image (from your media library, or imported from a URL), set their AI topics and descriptions, and apply Readiness fixes (a fixed list of safe switches that can only turn documented features on, never loosen a protection). It can also organise categories, tags and media, and move one post at a time to the trash or back, never permanently. Even then, agents can't publish: they leave drafts and pending posts for your review, unless you tick the extra **Publish without your review**.
 
 A key can also be narrower than the switches. When you approve an assistant, or create a shared token, you pick **Read only** or **Read and write** for that key alone — and a read-only key isn't even shown the write tools. No key ever goes the other way: publishing still needs the publish switch, whatever the key was granted.
 

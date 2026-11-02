@@ -217,7 +217,7 @@ final class Consent {
 		if ( 'write' === $max ) {
 			$b .= '<label class="grant"><input type="radio" name="grant" value="write" checked>'
 				. '<span><strong>' . esc_html__( 'Read and write', 'agentimus' ) . '</strong>'
-				. '<small>' . esc_html__( 'Also draft and edit content, set AI descriptions and topics, apply fixes — always within your write settings. Publishing stays off unless you allow it there.', 'agentimus' ) . '</small></span></label>';
+				. '<small>' . esc_html__( 'Also write and organise content, set AI descriptions and topics, apply fixes — always within the access you chose in Settings. Publishing stays off unless you allow it there.', 'agentimus' ) . '</small></span></label>';
 		}
 		$b .= '</div>';
 

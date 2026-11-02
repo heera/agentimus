@@ -10,15 +10,15 @@ AI assistants — Claude on the web, in the desktop app or in the terminal, Curs
 
 Turn on **Settings → Discovery → MCP server**, and an AI tool you connect can *ask your site questions* and get live answers: "How AI-ready is this site?", "Which AI crawlers visited this week?", "Is this bot really Googlebot?", "How readable is this page for AI?". The same twenty read-only reports you see in the Agentimus admin — the ranked findings list, readiness, the pages worth fixing and what each is flagged for, your site's own categories and tags, your audience of people and machines, AI traffic, search performance, the request log, bot identification, internal-link suggestions, and the page/schema/Markdown previews — become questions an AI assistant can ask on your behalf.
 
-And if you choose to — with a second switch that starts off — the same connection can *act* for you too: draft and edit posts, file them under categories and tags, set a featured image, and apply Readiness fixes. That's covered in [Letting agents write](#letting-agents-write-optional) below.
+And if you choose to — at the Write level, which you choose — the same connection can *act* for you too: draft and edit posts, organise categories, tags and media, trash or restore a post, and apply Readiness fixes. That's covered in [Letting agents write](#letting-agents-write-optional) below.
 
 Everything needed ships with the plugin. There is nothing else to install, no account to create, and no third-party service in the middle — the AI tool talks directly to your own site.
 
 ## What it can and cannot do
 
-**Can:** read the Agentimus reports listed above. With the write switch on (below), also the write tools — and nothing else.
+**Can:** read the Agentimus reports listed above. At Write (below), also the write tools — and nothing else.
 
-**Cannot:** act anonymously — nothing about this is public. And until you flip the write switch, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
+**Cannot:** act anonymously — nothing about this is public. And below Write, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
 A key can be read-only on its own, too. An assistant connected with a read-only key is shown the read tools and nothing else; a read-and-write key is shown all of them. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
 
@@ -30,22 +30,43 @@ Three locks stand between the internet and those reports:
 
 And one camera: every call an AI tool makes is recorded under **More → Agent Access**, with the user and the door it came through — *via Claude's connection* for an assistant you approved, *via connection token* for the shared token, or the application password's own name.
 
+## What agents can do
+
+One choice on the card sets this: **What can agents do on this site?** Each level includes the one above it.
+
+| Level | What agents can do |
+|---|---|
+| **Off** | The MCP server doesn't run. This is the default. |
+| **Read** | See your site's data and reports. They can't change anything. |
+| **Write** | Everything in Read, plus write drafts, edit existing posts and pages, set AI descriptions and topics, apply Readiness fixes, list drafts, pending, scheduled and trashed items, organise categories, tags and media, and trash or restore a post. |
+
+Three **extras** sit below it, and need Write: **Publish without your review**, **Change Agentimus settings** and **Refresh data and purge the cache**.
+
+The form saves as soon as you choose, so three moves ask first: ticking **Publish without your review**, choosing **Off**, and choosing **Read** when an extra is ticked, because that turns the extras off.
+
+A site that allowed writing before this choice existed keeps exactly what it had, shown as **Older setup** in the list, until you pick a level. Choosing **Write** adds the newer tools for terms, media and the trash.
+
 ## Letting agents write (optional)
 
-Below the server switch sits a second one: **Let connected agents write**. It starts off, and while it's off the write tools don't exist on any surface. Turn it on and the write tools appear, including:
+Below Write, the write tools don't exist on any surface. At Write they appear, including:
 
 - **Create a post or page** — a complete draft in one call: title, body, categories, tags, a featured image (from your media library, or imported from an image URL), plus its AI description and Topics for AI.
 - **Update a post or page** — only the fields the agent passes change; everything else is left alone. Body edits keep a normal revision on posts and pages.
 - **Set a page's AI description** and **Set a page's Topics for AI** — small, targeted follow-ups to the readability report, no need to resend the content.
+- **List what isn't live** — drafts, pending, scheduled and trashed items, so an agent can find what it scheduled or what's waiting.
+- **Schedule a post** — set a go-live time when creating or updating. This also needs **Publish without your review**, and the time needs its UTC offset. A live post can't be scheduled, because that would take it offline.
+- **Create, rename or describe a category or tag** — renaming keeps the slug, so the address still works. It can't delete or merge terms, and a name already in use is refused.
+- **Add an image from a URL, or edit an item's title, caption and description** — JPG, PNG, GIF or WebP within your upload limit. SVG stays out because it can carry a script. It can't replace or delete the file.
+- **Move a post or page to the trash, or restore it** — one at a time, 10 an hour across the site, never the homepage or blog page, and never permanently. A restored item comes back as a draft.
 - **Apply a readiness fix** — enacts a Readiness check's own remediation, from a fixed list of safe switches. It can only turn documented features *on*; it will never loosen a protection, make a hidden site public, or touch anything the fix text doesn't name. Fixes that need your words or your judgement come back honestly as "that's the owner's call".
 
 The rules that travel with every write:
 
-- **Drafts first.** A new post arrives as a draft (or pending). Publishing needs a *third* switch — **Let agents publish without your review** — and even then the signed-in user's own publish permission. Until you flip it, agents can prepare; only you can go live.
+- **Drafts first.** A new post arrives as a draft (or pending). Publishing needs the extra **Publish without your review**, and even then the signed-in user's own publish permission. Below it, agents can prepare; only you can go live.
 - **Edits to already-published posts go live on save** — same as you editing in wp-admin, and deliberately so: "fix the weak opening on my published article" is the whole point. The agent needs edit permission on that exact post, and body changes keep a revision to roll back to.
 - **No scripts, under any login.** An assistant can't store a script, an event handler, a `javascript:` link, an iframe, a style element or SVG, even when it signs in as an administrator. The write is refused and nothing is saved. Markup you added yourself stays on the page. To show a video or post, the assistant uses its URL in an embed block. This covers the Agentimus tools only: an application password can still reach WordPress's own REST API.
-- **Settings need their own switch.** **Let agents change settings** lets an assistant turn on or off what your site publishes for AI, edit your public identity, and add citation products and questions. Each new question makes later citation runs use more of your AI credit. It can't reach connections, keys, these switches, blocking, logs or email, and any such request is refused whole. It can't remove a product or question, or start a run. Every change shows its before and after in Agent Access, with long values cut short, and there's a limit of 20 changing calls an hour per connection.
-- **So does upkeep.** **Let agents refresh data and purge the cache** lets an assistant fetch fresh numbers from Cloudflare, Bing, Google Search Console and Google Analytics. This uses your API limits, so each connection can do it 4 times an hour per source, and it never runs a Google index sweep. It can also empty your whole Cloudflare cache, twice an hour across all assistants, and your site may be slower until the cache rebuilds.
+- **Settings are an extra.** **Change Agentimus settings** covers this plugin only, never WordPress's own settings. It lets an assistant turn on or off what your site publishes for AI, edit your public identity, and add citation products and questions. Each new question makes later citation runs use more of your AI credit. It can't reach connections, keys, the access choice, blocking, logs or email, and any such request is refused whole. It can't remove a product or question, or start a run. Every change shows its before and after in Agent Access, with long values cut short, and there's a limit of 20 changing calls an hour per connection.
+- **So is upkeep.** **Refresh data and purge the cache** lets an assistant fetch fresh numbers from Cloudflare, Bing, Google Search Console and Google Analytics. This uses your API limits, so each connection can do it 4 times an hour per source, and it never runs a Google index sweep. It can also empty your whole Cloudflare cache, twice an hour across all assistants, and your site may be slower until the cache rebuilds.
 - **The agent is never more powerful than its user.** Filing under existing categories, inventing new ones, and importing images each follow the signed-in user's own WordPress permissions — an author-level key can't do what an author can't.
 - **Everything is on the record.** Every write lands under **More → Agent Access**, attributed to the user and the door it came through.
 - **Writes draft to the site's own quality bar.** The create/update tools show the agent the same readability rules the in-admin assistant writes to — paragraph length, plain wording, real inline sources — and every write's response includes the post's AI-readability grade (the pass/warn tally plus the rows needing attention), so the agent can fix its draft without a second call.
@@ -75,7 +96,7 @@ Whichever you use, the assistant appears under **Connected assistants** on the c
 1. Copy your server address and give it to the assistant. There is nothing to paste back.
 2. The assistant reads your site, introduces itself, and sends your browser to `https://your-site.com/agentimus/connect` — a page on your own site. If you are not signed in to WordPress, it asks you to sign in first.
 3. The page names what the assistant **calls itself** and the address it will **return to**. Both are worth a look. If this is not something you started, close the tab.
-4. Choose **Read only** or **Read and write**, then press **Approve**. You may grant less than the assistant asked for. If **Let connected agents write** is off, only **Read only** is offered, and the page says so.
+4. Choose **Read only** or **Read and write**, then press **Approve**. You may grant less than the assistant asked for. Below the **Write** level, only **Read only** is offered, and the page says so.
 5. The assistant now appears under **Connected assistants**, with its own **Disconnect** button. Disconnecting one leaves the others working.
 
 Only an administrator can approve a connection, and the connection acts as the account that approved it.
@@ -88,7 +109,7 @@ Confirmed working: Claude Desktop, Claude on claude.ai, and Cursor.
 
 Some assistants have no way to ask for approval. Give those one secret instead. On the card, open the **Shared token** fold:
 
-1. Choose **Read only** or **Read and write**. The second is offered only when **Let connected agents write** is on.
+1. Choose **Read only** or **Read and write**. The second is offered only at the **Write** level.
 2. Press **Create connection token**.
 3. Copy it now. It is shown **once** — Agentimus stores only a SHA-256 fingerprint of it, so it can never show it again.
 4. In the assistant, send it as a header:
@@ -202,7 +223,7 @@ Some plugins (WooCommerce, for example) can run MCP servers of their own, with t
 - **A browser window opens on your own site, asking you to approve?** That is the approval flow working, not an error. Check the name and the return address on the page, then approve.
 - **The assistant says "auth unsupported", or offers no way to sign in?** It cannot do the approval flow. Create a shared connection token and give it the `Authorization: Bearer` header instead.
 - **The approval page says the request is not valid?** The assistant sent something the server won't accept — an unknown client, a return address it never registered, or a request without PKCE. Ask the assistant to start the connection again; the codes it uses last only 60 seconds.
-- **The approval page returns "not found"?** The MCP server switch is off — the page only exists while the server does. If the switch is on, re-save **Settings → Permalinks** once so WordPress picks up the address.
+- **The approval page returns "not found"?** Agents are set to **Off** — the page only exists while the server does. If it's set to anything else, re-save **Settings → Permalinks** once so WordPress picks up the address.
 - **"Only an administrator can connect an assistant to this site"?** Approving needs an administrator account. Sign in as one and start the connection again.
 - **Your address starts with `http://`?** Many AI clients refuse insecure connections to anything but your own machine. That is fine for local development; a live site needs HTTPS.
 - **Application password: 401 even though the password is right?** Check the *username* first — it must be the WordPress login name of the user the password belongs to. WordPress silently ignores a sign-in for a username that doesn't exist, which looks identical to a server problem. The **Test the connection** button in the **Application passwords** fold runs the same calls your AI tool makes and tells you which step failed.

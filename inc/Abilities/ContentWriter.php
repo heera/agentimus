@@ -374,7 +374,7 @@ final class ContentWriter {
 		if ( ! $this->settings->enabled( 'agent_writes_content' ) ) {
 			return new \WP_Error(
 				'agentimus_content_off',
-				__( 'Scheduling by agents is off on this site. The owner can allow it under MCP Server, with “Let agents manage content”. Nothing was written.', 'agentimus' ),
+				__( 'Scheduling by agents is off on this site. The owner can allow it under MCP Server, by choosing the Write level. Nothing was written.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -548,7 +548,7 @@ final class ContentWriter {
 			if ( ! $this->settings->enabled( 'agent_writes_publish' ) ) {
 				return new \WP_Error(
 					'agentimus_publish_off',
-					__( 'Publishing by agents is off on this site. Create it as a draft (or pending) for the owner to review — or the owner can allow agent publishing in Settings → MCP server.', 'agentimus' ),
+					__( 'Publishing by agents is off on this site. Create it as a draft (or pending) for the owner to review, or the owner can tick “Publish without your review” under MCP Server.', 'agentimus' ),
 					array( 'status' => 403 )
 				);
 			}

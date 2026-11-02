@@ -65,7 +65,7 @@ None of this sends any data anywhere — it all happens locally on your own site
 
 The wizard is the friendly heart of first-run. It opens automatically the first time you land on the Agentimus screen and walks you through everything in about a minute. You can change every answer later, so there are no wrong choices here.
 
-You'll first see a short **Welcome** screen explaining what Agentimus does. Click **Get started** to begin — or **Skip for now** if you'd rather explore first (skipping is instant and you can re-run the wizard any time). The wizard then has three quick steps:
+You'll first see a short **Welcome** screen explaining what Agentimus does. Click **Get started** to begin — or **Skip for now** if you'd rather explore first (skipping is instant and you can re-run the wizard any time). The wizard then has five quick steps:
 
 ### Step 1: Who's behind the site
 
@@ -74,9 +74,17 @@ This is the single most valuable thing you can tell AI assistants, because it's 
 - **This site represents** — choose **A person** or **An organization**.
 - **Name** — your name, or your business/brand name.
 - **What is this site about?** — one plain sentence describing who you are and what you do. Assistants lift this almost verbatim, so keep it clear and human.
-- **Topics you cover** (optional) — a few subjects you write about. Type one and press Enter to add it as a tidy chip.
+- **Your role or title** (optional, for a person) — what you do.
 
-### Step 2: What AI assistants can read
+### Step 2: Details that help AI trust you
+
+All of this is optional, and you can skip anything. Add the topics you cover (type one and press Enter), who you serve, and links to your other profiles such as LinkedIn or GitHub, so assistants can confirm you are who you say.
+
+### Step 3: What you offer
+
+List anything people can hire you for or buy from you, and each one is published as a service. Nothing to add is a fine answer, and most blogs skip this.
+
+### Step 4: What AI assistants can read
 
 Here you choose which of your content types AI assistants are told about. **Posts and pages are already ticked** because they're safe and public. Anything else your site has (custom content from other plugins) is listed separately and left **off**, so private things like orders, form entries or customer records are never advertised unless you deliberately turn them on.
 
@@ -84,9 +92,9 @@ An important reassurance shown right on this step: this only controls what gets 
 
 Alongside choosing *which* content types to advertise, this step is also where you set your **AI stance** — three simple checkboxes for what assistants may do with your content: **findable in search engines** (Google, Bing…), **read and cited in answers** (with attribution), and **used to train AI** (left off, so training is reserved by default). Your choices are stated in your `robots.txt` as a **Content-Signal** — a polite request that well-behaved crawlers honour — and you can change them any time later under **Crawler policy** in Settings.
 
-### Step 3: Review and finish
+### Step 5: Review and finish
 
-The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. When you've left training off, this list also confirms your content is **reserved from AI training**, reflecting the stance you set in Step 2. Click **Finish setup** and Agentimus saves everything in one go.
+The last step is a plain-English summary: who your site represents, what assistants can read, and a short list of the strong protections that switched on **automatically** — such as being discoverable through machine-readable files, and (where your server supports it) signed responses agents can verify. When you've left training off, this list also confirms your content is **reserved from AI training**, reflecting the stance you set in Step 4. Click **Finish setup** and Agentimus saves everything in one go.
 
 The closing screen then shows what just went live on your site, as clickable addresses: your `llms.txt` guide and the machine-readable discovery document — open either in a new tab and you'll find the words you typed a moment earlier already inside — together with your site's **starting readiness score**, which jumps to the Readiness tab so you can see what raises it. From that moment Agentimus is fully running.
 

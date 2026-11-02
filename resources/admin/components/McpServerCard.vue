@@ -8,8 +8,8 @@
  * snippet drives the copy actions; the password drives the test; the token
  * drives the connections), so it owns all of its own MCP and OAuth-grant state.
  *
- * It two-way-binds three shared settings (the master toggle and the write-tier
- * pair) through the `settings` prop, and watches `busy` — a save finishing is
+ * It two-way-binds the shared access settings (one choice over them: js/agentLevel.js)
+ * through the `settings` prop, and watches `busy` — a save finishing is
  * the moment the toggle actually takes effect, so it re-reads the saved state
  * and re-probes then. `active` mirrors the panel being shown (reveal plus
  * window-focus re-fetch of the token's live metadata). No emits: errors inline.
@@ -19,6 +19,7 @@ import { formatDate, formatTime } from '../js/wpDate.js';
 import { copyText } from '../js/clipboard.js';
 import { bindDocEsc } from '../js/docEsc.js';
 import { judgeInitialize } from '../js/mcpTest.js';
+import { LEVELS, levelOf, chooseLevel, customNote, limitFor, publishWarning } from '../js/agentLevel.js';
 import AppLink from './AppLink.vue';
 
 export default {
@@ -79,6 +80,21 @@ export default {
     };
   },
   computed: {
+    agentLevels() {
+      return LEVELS;
+    },
+    agentLevel() {
+      return levelOf(this.settings);
+    },
+    agentLevelLimit() {
+      return limitFor(this.settings);
+    },
+    agentCustomNote() {
+      return customNote(this.settings);
+    },
+    agentCanWrite() {
+      return !!(this.settings.enable_mcp_server && this.settings.enable_agent_writes);
+    },
     mcpConnectCards() {
       const url = (this.mcpServer && this.mcpServer.endpoint) || '';
       const tok = this.mcpTokenPlain;
@@ -451,6 +467,25 @@ export default {
     if (this._unEscScope) this._unEscScope();
   },
   methods: {
+    // Not v-model: the form saves on change, so a click has to pass the confirmation
+    // first. The browser has already moved the dot, so it is put back on a cancel.
+    // Same reason: ticking Publish asks first, and a cancel puts the box back.
+    async setAgentPublish(event) {
+      const wants = !!event.target.checked;
+      if (wants && !(await confirm(publishWarning()))) {
+        event.target.checked = false;
+        return;
+      }
+      this.settings.agent_writes_publish = wants;
+    },
+    async chooseAgentLevel(level) {
+      await chooseLevel(this.settings, level, confirm);
+      await this.$nextTick();
+      // A ref, not $el: this component has several roots, so $el is not the card.
+      this.$refs.agentLevelList.querySelectorAll('input[name="ar-agent-level"]').forEach((radio) => {
+        radio.checked = radio.value === this.agentLevel;
+      });
+    },
     async copyPlainText(text) {
       return copyText(text);
     },
@@ -780,12 +815,12 @@ export default {
           site’s tools over the <strong>Model Context Protocol</strong>. Most of them ask you
           for approval and you say yes. The ones that cannot ask use a token instead. Either
           way, a connected assistant acts as your WordPress user. It can only do what that user
-          could do on these screens, and it can only read, unless you allow writing below.
-          Nothing becomes public.
+          could do on these screens, and you choose below how far it goes. Nothing becomes
+          public.
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
-          Needs WordPress 6.9 or newer (the Abilities API). The switch below won’t do anything on
+          Needs WordPress 6.9 or newer (the Abilities API). The choice below won’t do anything on
           this site yet.
         </p>
         <p v-else-if="mcpServer.adapterAvailable === false" class="ar-field__hint">
@@ -793,58 +828,51 @@ export default {
           in the plugin folder.
         </p>
 
-        <label id="ar-feat-enable_mcp_server" class="ar-toggle">
-          <input v-model="settings.enable_mcp_server" type="checkbox" />
-          <span class="ar-toggle__track" aria-hidden="true"></span>
-          <span class="ar-toggle__text">
-            <strong>Run the Agentimus MCP server</strong>
-            <small>Every call signs in first — by your approval, a token, or an application password — and gets the same permissions as these admin screens. Read-only tools, unless you allow writing below.</small>
-          </span>
-        </label>
-
-        <!-- The write tier: a second deliberate switch, plus a third for going live.
-             Off = the write tools don't exist on any surface, so "read-only" above
-             stays literally true until the owner says otherwise. -->
-        <div :inert="!settings.enable_mcp_server" class="ar-webmcp-tools">
-          <label id="ar-feat-enable_agent_writes" class="ar-toggle ar-toggle--nested">
-            <input v-model="settings.enable_agent_writes" type="checkbox" />
-            <span class="ar-toggle__track" aria-hidden="true"></span>
-            <span class="ar-toggle__text">
-              <strong>Let connected agents write</strong>
-              <small>Adds write tools. An assistant can then draft and edit posts and pages, including their categories, tags and featured image, and set their AI topics and descriptions. It can also apply Readiness fixes. Those fixes are a fixed list of safe switches: it can turn documented features on, and never weaken a protection. An assistant still acts as the signed-in user, and can never do more than that user could do in the editor. Every write is listed under <AppLink to="#agent-access">Agent Access</AppLink>.</small>
-            </span>
-          </label>
-          <div :inert="!settings.enable_agent_writes" class="ar-webmcp-tools">
-            <label id="ar-feat-agent_writes_publish" class="ar-toggle ar-toggle--nested">
-              <input v-model="settings.agent_writes_publish" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Let agents publish without your review</strong>
-                <small>Lets an assistant put content live. It still needs a user who is allowed to publish. Off is the safe default: assistants then only create drafts and pending posts for you to review. Either way, editing something already published follows that user’s normal edit permission.</small>
+        <!-- One question over the stored switches: see js/agentLevel.js. Off means the
+             write tools don't exist on any surface, so "Read" stays literally true. -->
+        <div class="ar-level">
+          <h3 class="ar-level__title">What can agents do on this site?</h3>
+          <p class="ar-level__lead">Each level includes the ones above it. Every action runs as the signed-in user, and never goes beyond what that user may do.</p>
+          <div ref="agentLevelList" class="ar-level__list" role="radiogroup" aria-label="What can agents do on this site?">
+            <label
+              v-for="level in agentLevels"
+              :id="level.anchor"
+              :key="level.key"
+              class="ar-level__row"
+              :class="{ 'is-sel': agentLevel === level.key }"
+            >
+              <input type="radio" name="ar-agent-level" :value="level.key" :checked="agentLevel === level.key" @change="chooseAgentLevel(level.key)" />
+              <strong>{{ level.name }}</strong>
+              <span>{{ level.gives }}</span>
+            </label>
+            <div v-if="agentLevel === 'custom'" class="ar-level__row ar-level__row--custom is-sel">
+              <input type="radio" name="ar-agent-level" checked disabled aria-label="Older setup" />
+              <strong>Older setup</strong>
+              <span>{{ agentCustomNote }}</span>
+            </div>
+          </div>
+          <p class="ar-card__note ar-card__note--wide ar-level__now">{{ agentLevelLimit }}</p>
+          <div class="ar-level__extras" :inert="!agentCanWrite">
+            <h4 class="ar-level__extras-title">Extras<span v-if="!agentCanWrite"> · need Write</span></h4>
+            <label id="ar-feat-agent_writes_publish" class="ar-level__extra">
+              <input type="checkbox" :checked="!!settings.agent_writes_publish" @change="setAgentPublish($event)" />
+              <span>
+                <strong>Publish without your review</strong>
+                <small>Publish and schedule posts, with nobody checking them when they go live. The signed-in user still needs permission to publish.</small>
               </span>
             </label>
-            <label id="ar-feat-agent_writes_content" class="ar-toggle ar-toggle--nested">
-              <input v-model="settings.agent_writes_content" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Let agents manage content</strong>
-                <small>Lets an assistant list drafts, pending, scheduled and trashed content, schedule a post, create, rename or describe categories and tags, add images to the media library from a URL, edit a media item's title, caption and description, and move a post or page to the trash or restore it. A trashed live page goes offline, so that is limited to 10 an hour, never the homepage or blog page, and restored items come back as drafts. It can't permanently delete anything, or delete terms or media, and SVG files stay out. Scheduling also needs “Let agents publish without your review”, because a scheduled post goes live with nobody checking it at that moment.</small>
-              </span>
-            </label>
-            <label id="ar-feat-agent_writes_settings" class="ar-toggle ar-toggle--nested">
+            <label id="ar-feat-agent_writes_settings" class="ar-level__extra">
               <input v-model="settings.agent_writes_settings" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Let agents change settings</strong>
-                <small>Lets an assistant switch on or off what this site publishes for AI, edit your public identity, and add citation products and questions. It can't change connections, keys, these switches, blocking, logs or email, and it can't remove a product or question. Every change appears in Agent Access.</small>
+              <span>
+                <strong>Change Agentimus settings</strong>
+                <small>Only this plugin's settings: what this site publishes for AI, your public identity, and adding citation products and questions. Never WordPress’s own settings, or connections, keys, this choice, blocking, logs or email, and it can't remove a product or question. Every change appears in Agent Access.</small>
               </span>
             </label>
-            <label id="ar-feat-agent_writes_maintenance" class="ar-toggle ar-toggle--nested">
+            <label id="ar-feat-agent_writes_maintenance" class="ar-level__extra">
               <input v-model="settings.agent_writes_maintenance" type="checkbox" />
-              <span class="ar-toggle__track" aria-hidden="true"></span>
-              <span class="ar-toggle__text">
-                <strong>Let agents refresh data and purge the cache</strong>
-                <small>Lets an assistant fetch fresh numbers from Cloudflare, Bing and Google, 4 times an hour per source for each connection. It never runs a Google index sweep. It can also empty your whole Cloudflare cache, twice an hour across all assistants, and your site may be slower until the cache rebuilds.</small>
+              <span>
+                <strong>Refresh data and purge the cache</strong>
+                <small>Fetch fresh numbers from Cloudflare, Bing and Google, 4 times an hour per source for each connection. Never a Google index sweep. Empty your whole Cloudflare cache, twice an hour across all assistants; your site may be slower until it rebuilds.</small>
               </span>
             </label>
           </div>
@@ -854,10 +882,10 @@ export default {
              writing", "approve ChatGPT") strands the reader in front of greyed
              switches and an invisible connect block. -->
         <p v-if="!settings.enable_mcp_server" class="ar-card__note ar-card__note--wide">
-          Everything here is off right now. The order is: turn on the server above and save.
+          Everything here is off right now. The order is: choose Read or higher above and save.
           Your connect address and setup steps then appear on this card. Assistants like ChatGPT
           and Claude can now ask for your approval, and each one you approve is listed here.
-          After that, allow writing above if you want them drafting.
+          Choose Write if you want them drafting.
         </p>
 
         <div v-show="settings.enable_mcp_server" class="ar-mcp-connect">
@@ -1023,8 +1051,8 @@ export default {
                   <input v-model="mcpTokenScope" type="radio" value="write" name="ar-mcp-scope" :disabled="!mcpWritesAvailable" />
                   <span class="ar-mcp-scope-opt__body">
                     <strong>Read and write</strong>
-                    <small v-if="mcpWritesAvailable">Can also draft and edit — always within the write settings above.</small>
-                    <small v-else>Turn on “Let connected agents write” above to offer this.</small>
+                    <small v-if="mcpWritesAvailable">Can also write, organise and trash — always within the choice above.</small>
+                    <small v-else>Choose Write above to offer this.</small>
                   </span>
                 </label>
               </div>

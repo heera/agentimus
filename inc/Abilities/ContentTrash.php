@@ -178,7 +178,7 @@ final class ContentTrash {
 		if ( ! $this->settings->enabled( 'agent_writes_content' ) ) {
 			return new \WP_Error(
 				'agentimus_content_off',
-				__( 'Agents may not trash or restore content on this site. The owner can allow it under MCP Server, with “Let agents manage content”. Nothing was changed.', 'agentimus' ),
+				__( 'Agents may not trash or restore content on this site. The owner can allow it under MCP Server, by choosing the Write level. Nothing was changed.', 'agentimus' ),
 				array( 'status' => 403 )
 			);
 		}

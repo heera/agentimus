@@ -26,7 +26,7 @@
  *   (see {@see ContentWriter}, {@see Fixer}). Off means the write abilities do not
  *   exist on ANY surface — not the MCP server, not the abilities REST API, not the
  *   in-admin assistant — so "read-only" stays literally true until the owner says
- *   otherwise. Going live (status=publish) sits behind a third switch on top
+ *   otherwise. Going live (status=publish) sits behind another switch on top
  *   (`agent_writes_publish`). Abilities that spend money (run a visibility check)
  *   remain deliberately unregistered.
  *
@@ -3322,7 +3322,7 @@ final class Registrar {
 			__( 'Restore a post or page from the trash', 'agentimus' ),
 			'Brings ONE item back from the trash. It always comes back as a DRAFT, so it is not live, even if it was '
 				. 'before: `previousStatus` says what it was. To put it live again, use update-content with status=publish, '
-				. 'which needs the site’s "agents may publish" switch, or ask the owner. list-content with status=trash '
+				. 'which needs the site’s “Publish without your review” extra, or ask the owner. list-content with status=trash '
 				. 'shows what is there.',
 			$input,
 			$answer,
@@ -3628,8 +3628,8 @@ final class Registrar {
 				'Creates a post or page as the connected user — a DRAFT unless told otherwise — fully dressed '
 				. 'in one call: content, categories, tags, featured image (an existing attachment ID or an '
 				. 'image URL to import), plus its AI description and Topics for AI. status=publish needs the '
-				. 'site’s "agents may publish" switch on top of the user’s own publish permission; when it is '
-				. 'off, create a draft (or pending) for the owner to review. publish_at schedules it instead. '
+				. 'site’s “Publish without your review” extra on top of the user’s own publish permission; without it, '
+				. 'create a draft (or pending) for the owner to review. publish_at schedules it instead. '
 				. 'Returns the new id and the saved '
 				. 'draft’s AI-readability grade — fix anything under `attention`; check-page has the full '
 				. 'per-check detail. '
@@ -3688,7 +3688,7 @@ final class Registrar {
 			self::guided(
 				'Updates a post or page as the connected user — only the fields you pass change; everything '
 				. 'else behaves as a normal editor save. Moving something TO publish needs the site’s '
-				. '"agents may publish" switch; editing an already-published post follows the user’s normal '
+				. '“Publish without your review” extra; editing an already-published post follows the user’s normal '
 				. 'edit permission. publish_at schedules a draft or pending post, or moves a schedule; it is '
 				. 'refused on a live post. status=draft cancels a schedule, and status=publish on a scheduled '
 				. 'post publishes it now. Can set the AI description / Topics for AI, categories, tags and the '
@@ -5034,7 +5034,7 @@ final class Registrar {
 	private static function publish_at_input_schema() {
 		return array(
 			'type'        => 'string',
-			'description' => 'Schedule it to go live at this exact time, with its UTC offset: 2026-11-05T09:00:00+06:00. At least a minute ahead. Needs the site’s "Let agents manage content" and "agents may publish" switches plus the user’s publish permission. The answer’s `scheduledFor` gives the time in the site’s own timezone. ⚠️ WordPress publishes through WP-Cron, which needs site traffic or a real cron job; list-content shows `missedSchedule` when a time passed and nothing happened.',
+			'description' => 'Schedule it to go live at this exact time, with its UTC offset: 2026-11-05T09:00:00+06:00. At least a minute ahead. Needs the site’s Write level and “Publish without your review” extra, plus the user’s publish permission. The answer’s `scheduledFor` gives the time in the site’s own timezone. ⚠️ WordPress publishes through WP-Cron, which needs site traffic or a real cron job; list-content shows `missedSchedule` when a time passed and nothing happened.',
 		);
 	}
 
@@ -5043,7 +5043,7 @@ final class Registrar {
 		return array(
 			'type'        => 'string',
 			'enum'        => ContentWriter::STATUSES,
-			'description' => 'draft (default), pending, or publish. publish needs the site’s "agents may publish" switch plus the user’s publish permission.',
+			'description' => 'draft (default), pending, or publish. publish needs the site’s “Publish without your review” extra plus the user’s publish permission.',
 		);
 	}
 

@@ -707,7 +707,7 @@ final class Rest {
 		if ( 'write' === $scope && ! $this->settings->enabled( 'enable_agent_writes' ) ) {
 			return new \WP_Error(
 				'agentimus_writes_off',
-				__( 'Turn on “Let connected agents write” first — a write token can’t do anything while writing is off.', 'agentimus' ),
+				__( 'Choose Write under “What can agents do on this site?” first. A write token can’t do anything while writing is off.', 'agentimus' ),
 				array( 'status' => 409 )
 			);
 		}
