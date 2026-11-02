@@ -96,7 +96,7 @@ final class Registrar {
 	 * so renaming one here still fails a test instead of silently changing the
 	 * public tool name.
 	 */
-	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content', 'create-term', 'update-term' );
+	const WRITE_SLUGS = array( 'create-content', 'update-content', 'edit-content', 'describe-image', 'describe-content-image', 'write-description', 'write-topics', 'write-search-fields', 'apply-fix', 'set-aside-page', 'dismiss-search', 'retry-announcement', 'review-client', 'recheck-client', 'set-aside-search-page', 'update-settings', 'save-citation-product', 'refresh-data', 'purge-edge-cache', 'list-content', 'create-term', 'update-term', 'import-media', 'update-media' );
 
 	/** Write tools behind a switch of their own: a connection that could write before gains nothing from an upgrade. */
 	const SWITCHED_TOOLS = array(
@@ -107,6 +107,8 @@ final class Registrar {
 		'list-content'    => 'agent_writes_content',
 		'create-term'     => 'agent_writes_content',
 		'update-term'     => 'agent_writes_content',
+		'import-media'    => 'agent_writes_content',
+		'update-media'    => 'agent_writes_content',
 	);
 
 	/** @var Settings */
@@ -2498,7 +2500,7 @@ final class Registrar {
 				. 'chooses, the dimensions because a 300px logo is not a featured image. '
 				. 'READ-ONLY: it uploads nothing and changes nothing. To bring in a picture the library does '
 				. 'not have, pass an http(s) image URL as featured_image instead and the write tools import '
-				. 'it. There is deliberately no way to upload bytes through this server.',
+				. 'it, or use import-media where the owner allows it. There is deliberately no way to upload bytes through this server.',
 			self::obj(
 				array(
 					'query' => self::s( 'Words to look for in titles, captions, descriptions and alt text. Omit or leave empty for the most recent uploads.' ),
@@ -2520,6 +2522,8 @@ final class Registrar {
 							array(
 								'id'     => self::i( 'Attachment ID — this is what featured_image takes.' ),
 								'title'  => self::s( 'The attachment title, which is often just the filename.' ),
+								'caption'     => self::s( 'Its caption as stored, empty when it has none. update-media replaces it, so start from this.' ),
+								'description' => self::s( 'Its description as stored, empty when it has none. update-media replaces it, so start from this.' ),
 								'alt'    => self::s( 'Alt text, empty when the owner never wrote any. The most reliable description of what a picture SHOWS.' ),
 								'url'    => self::s( 'Public URL of the full-size file.' ),
 								'mime'   => self::s( 'e.g. image/jpeg.' ),
@@ -3274,6 +3278,78 @@ final class Registrar {
 	}
 
 	/**
+	 * Add to the media library and edit an item's words. Registered only behind agent_writes_content.
+	 */
+	private function register_media_tools() {
+		$answer = self::obj(
+			array(
+				'id'          => self::i( 'The attachment id: featured_image takes this.' ),
+				'title'       => self::s(),
+				'caption'     => self::s(),
+				'description' => self::s(),
+				'alt'         => self::s(),
+				'url'         => self::s( 'The file’s public address, ready to use in a post body.' ),
+				'mime'        => self::s(),
+				'width'       => self::i( '0 when unknown or not an image.' ),
+				'height'      => self::i( '0 when unknown or not an image.' ),
+				'date'        => self::s(),
+				'note'        => self::s( 'Not empty when what is stored differs from what was sent.' ),
+			)
+		);
+
+		$this->add(
+			'import-media',
+			__( 'Add an image to the media library from a URL', 'agentimus' ),
+			'Downloads one image into the media library without attaching it to a post, and returns its id and '
+				. 'address, ready for featured_image or a post body. search-media first: importing the same picture '
+				. 'twice leaves two copies. Only JPG, PNG, GIF and WebP within the site’s upload limit. The address must '
+				. 'end in the file’s extension, and the file must really be that image. ⛔ SVG is refused because it can '
+				. 'carry a script. Only use an image the owner has the right to use. Limited to '
+				. MediaLibrary::HOURLY_LIMIT . ' media writes an hour for each connection.',
+			self::obj(
+				array(
+					'url'         => self::s( 'The image’s http(s) address.' ),
+					'title'       => self::s( 'Its title in the library. Named after the file when omitted.' ),
+					'caption'     => self::s( 'Its caption. Scripts and event handlers are refused.' ),
+					'description' => self::s( 'Its description. Scripts and event handlers are refused.' ),
+					'alt'         => self::s( 'What the picture shows, in one plain sentence (≤' . MediaWriter::MAX_ALT . ' chars). Write it now: a picture without one gets flagged.' ),
+				),
+				array( 'url' )
+			),
+			$answer,
+			function ( $input ) {
+				return ( new MediaLibrary( $this->settings ) )->import( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_import_media' ),
+			false
+		);
+
+		$this->add(
+			'update-media',
+			__( 'Edit a media item’s title, caption or description', 'agentimus' ),
+			'Changes one media library item’s words; only the fields you send change. Take the id from search-media, '
+				. 'which also shows what is there now. Each field replaces what is stored, and an empty string clears a '
+				. 'caption or description. ⛔ It can’t replace the file or delete the item, and alt text stays with '
+				. 'describe-image. Limited to ' . MediaLibrary::HOURLY_LIMIT . ' media writes an hour for each connection.',
+			self::obj(
+				array(
+					'attachment_id' => self::i( 'The item’s id, from search-media.' ),
+					'title'         => self::s( 'The new title. Can’t be blank.' ),
+					'caption'       => self::s( 'The new caption. Scripts and event handlers are refused.' ),
+					'description'   => self::s( 'The new description. Scripts and event handlers are refused.' ),
+				),
+				array( 'attachment_id' )
+			),
+			$answer,
+			function ( $input ) {
+				return ( new MediaLibrary( $this->settings ) )->update( is_array( $input ) ? $input : array() );
+			},
+			array( $this, 'can_update_media' ),
+			false
+		);
+	}
+
+	/**
 	 * Create and change categories and tags. Registered only behind agent_writes_content.
 	 */
 	private function register_term_tools() {
@@ -3483,6 +3559,7 @@ final class Registrar {
 		if ( $this->settings->enabled( 'agent_writes_content' ) ) {
 			$this->register_list_content();
 			$this->register_term_tools();
+			$this->register_media_tools();
 		}
 
 		$this->add(
@@ -4632,6 +4709,28 @@ final class Registrar {
 	public function can_list_content( $input ) {
 		$gate = McpToken::gate_write_permission( Oauth\Server::gate_write_permission( array( $this, 'can_create_content' ) ) );
 		return (bool) $gate( $input );
+	}
+
+	/**
+	 * May the connected user add to the media library?
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_import_media( $input ) {
+		unset( $input );
+		return current_user_can( 'upload_files' );
+	}
+
+	/**
+	 * May the connected user edit this media item? Only ever a media item.
+	 *
+	 * @param mixed $input The ability input.
+	 * @return bool
+	 */
+	public function can_update_media( $input ) {
+		$id = is_array( $input ) && isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+		return 'attachment' === get_post_type( $id ) && current_user_can( 'edit_post', $id );
 	}
 
 	/**

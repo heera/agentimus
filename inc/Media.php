@@ -249,6 +249,8 @@ final class Media {
 		return array(
 			'id'     => $id,
 			'title'  => html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' ),
+			'caption'     => (string) $post->post_excerpt,
+			'description' => (string) $post->post_content,
 			'alt'    => (string) get_post_meta( $id, '_wp_attachment_image_alt', true ),
 			'url'    => (string) wp_get_attachment_url( $id ),
 			'mime'   => (string) get_post_mime_type( $id ),

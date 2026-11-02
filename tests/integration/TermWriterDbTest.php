@@ -23,6 +23,15 @@ final class TermWriterDbTest extends DbTestCase {
 	/** @var Settings */
 	private $settings;
 
+	/**
+	 * ⚠️ Once per class, before any test's transaction. Installing runs DDL, which can
+	 * commit the open transaction, and that saved this class's "MCP server on" setting
+	 * for every later test (OauthRestTest on WP 6.0).
+	 */
+	public static function wpSetUpBeforeClass() {
+		Table::install();
+	}
+
 	public function set_up(): void {
 		parent::set_up();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
@@ -292,7 +301,6 @@ final class TermWriterDbTest extends DbTestCase {
 	}
 
 	public function test_the_owner_can_see_each_change_in_agent_access() {
-		Table::install();
 		$id = $this->writer()->create( array( 'taxonomy' => 'post_tag', 'name' => 'Logged' ) )['id'];
 		$this->writer()->update( array( 'term_id' => $id, 'name' => 'Logged Too', 'description' => 'Yes.' ) );
 
