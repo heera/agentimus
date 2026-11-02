@@ -298,6 +298,16 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.56.0 =
+* New: agents can see what is not live. A new tool lists drafts, pending, scheduled and trashed items.
+* New: agents can schedule a post. Send a go-live time when creating or updating it. This needs the extra "Publish without your review", because nobody checks the post at that moment. A live post can't be scheduled, because that would take it offline.
+* New: agents can create, rename, describe and move categories and tags. Renaming keeps the address. They can't delete or merge terms, and a name already in use is refused.
+* New: agents can add an image to the media library from a URL, and edit an item's title, caption and description. Only JPG, PNG, GIF and WebP within your upload limit. SVG is refused because it can carry a script.
+* New: agents can move a post or page to the trash and restore it, one at a time. Trash is limited to 10 an hour across the site, and never the homepage or blog page. Nothing is deleted for good, and a restored item comes back as a draft.
+* Changed: the MCP Server card now asks one question, "What can agents do on this site?": Off, Read or Write, plus three extras. Choosing Write adds the new tools above. If your agents could already write, nothing changes until you pick a level, and the card shows this as "Older setup".
+* Changed: risky choices now ask first: allowing publishing, turning agents off, and moving to Read when extras are on.
+* Fixed: when an agent published a scheduled post, the post stayed scheduled. It now goes live.
+
 = 1.55.0 =
 * New: block bots at Cloudflare, off by default. Agentimus's own block covers only your AI files. With this switch on and the Zone WAF: Edit permission on your token, blocking from the review queue also adds the client to one Cloudflare rule, which challenges it on every page. It uses one of your custom rules and never changes your others.
 * New: a name goes to Cloudflare only after checks, because a user agent alone proves little. It must be the client's own product name, and the rule must catch nothing else in your log or at Cloudflare. Your own services, search engines and clients you allowed are refused, and the screen says why. The rule skips bots Cloudflare has verified and always lets through robots.txt and certificate checks.
@@ -434,22 +444,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 = 1.51.1 =
 * Security: a connection key, or an approved assistant's access token, was accepted on two neighbouring admin routes and not only at the MCP endpoint it was issued for — the check matched the route by prefix, and the route that creates keys starts with the same letters. In WordPress's plain ?rest_route= form that seated the key as the administrator who created it, and one request could mint a write key from a read-only one whenever agent writes were on. Reported by Ananda Dhakal of Patchstack. The route is now matched exactly in every form WordPress accepts, and a second check holds every plugin credential to the route WordPress actually dispatched, refusing it anywhere else. If you are not sure who holds a read-only key, create a new one; that retires the old one.
 
-= 1.51.0 =
-* New: every long list turns the same way now — the Request Log, Agent Access, the content worklist and the Google Index card all carry one numbered pager, with a constant seven slots so the strip never changes width and a button never shifts under your pointer between clicks. The Request Log's Network column joins the sortable ones, and its refresh button no longer quietly resets you to page one.
-* Improved: one language for links across the plugin. A link inside a sentence wears a quiet underline, because colour cannot be the only thing that says "clickable" when a status word can paint the identical colour beside it. A jump to another screen ends in a small drawn chevron; a button that acts in place — Refresh, Purge edge cache, Re-check — answers your pointer with a soft highlight instead of an underline promising a destination it does not have; and every link that leaves your site keeps its small outward arrow. The Search Console and Bing Webmaster links on the Visibility screens also stop wearing a blue no other part of the plugin uses.
-* Fixed: a description derived from a post's opening paragraph was cut wherever the word budget ran out — mid-clause, and at the length cap sometimes mid-word — and that line is served: the meta description, the structured data and the page's markdown twin all carry it. It now ends at a sentence boundary when whole sentences fit, and marks a genuine mid-cut honestly with an ellipsis when they cannot.
-* Fixed: editing a category or tag description never cleared that archive page at your CDN. A publish purges the pages it changes, but a term edit saves no post, so nothing fired and the edge kept serving the old archive for the rest of its cache life. The term's archive page is purged now, on edit and on delete.
-* Fixed: acting on a review-bell card — Ignore, Allow, Block or Re-check — made the Dashboard's "Who Reached Your Site" and "What Your Site Runs" cards flash back to their first-load loading state. The refreshed numbers an action returns now carry everything those cards read, the same payload the Dashboard itself is served.
-* Fixed: one refusal path recorded nothing — a proven impostor turned away at a .well-known document vanished from the Request Log while the same refusal at llms.txt was written down. Every refusal leaves its line now.
-
-= 1.50.1 =
-* Fixed: the "Put this away" link is gone from the Findings screen. Putting a suggestion away only moved it into a fold at the foot of the same list — a collapsible in disguise — and only one kind of row ever carried the control, so part of the list arrived offering to be dismissed while the rest did not. Every finding now simply stays in its list, anything you had put away comes back on its own, and a connected assistant no longer sees a put-away ledger either.
-* Improved: the Dashboard opens with its four small tiles, and the Today card now sits directly above the full-width cards it belongs with. The tile row used to sit between Today and everything else, cutting the run of cards in two.
-
-
-The most recent releases are listed here, back to 1.50.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.51.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.56.0 =
+Agents can now schedule posts, organise terms and media, and trash or restore posts. One simple choice sets what they may do. Nothing changes until you pick a level.
 
 = 1.55.0 =
 Block bots at Cloudflare from the review queue, with safety checks first. Off by default; nothing is sent until you turn it on.

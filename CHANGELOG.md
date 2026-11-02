@@ -4,6 +4,16 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.56.0
+* New: agents can see what is not live. A new tool lists drafts, pending, scheduled and trashed items.
+* New: agents can schedule a post. Send a go-live time when creating or updating it. This needs the extra "Publish without your review", because nobody checks the post at that moment. A live post can't be scheduled, because that would take it offline.
+* New: agents can create, rename, describe and move categories and tags. Renaming keeps the address. They can't delete or merge terms, and a name already in use is refused.
+* New: agents can add an image to the media library from a URL, and edit an item's title, caption and description. Only JPG, PNG, GIF and WebP within your upload limit. SVG is refused because it can carry a script.
+* New: agents can move a post or page to the trash and restore it, one at a time. Trash is limited to 10 an hour across the site, and never the homepage or blog page. Nothing is deleted for good, and a restored item comes back as a draft.
+* Changed: the MCP Server card now asks one question, "What can agents do on this site?": Off, Read or Write, plus three extras. Choosing Write adds the new tools above. If your agents could already write, nothing changes until you pick a level, and the card shows this as "Older setup".
+* Changed: risky choices now ask first: allowing publishing, turning agents off, and moving to Read when extras are on.
+* Fixed: when an agent published a scheduled post, the post stayed scheduled. It now goes live.
+
 ## 1.55.0
 * New: block bots at Cloudflare, off by default. Agentimus's own block covers only your AI files. With this switch on and the Zone WAF: Edit permission on your token, blocking from the review queue also adds the client to one Cloudflare rule, which challenges it on every page. It uses one of your custom rules and never changes your others.
 * New: a name goes to Cloudflare only after checks, because a user agent alone proves little. It must be the client's own product name, and the rule must catch nothing else in your log or at Cloudflare. Your own services, search engines and clients you allowed are refused, and the screen says why. The rule skips bots Cloudflare has verified and always lets through robots.txt and certificate checks.

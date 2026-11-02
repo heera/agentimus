@@ -1003,22 +1003,23 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.55.0 is one feature, in the three things an owner needs to know
-				// about it. No bot is named: the release text never does.
+				// ⭐ 1.56.0: what agents can newly do, then the one thing they need a tick
+				// for, then the new choice. The Cloudflare count fix stays out of this
+				// and the changelog, his call.
 				array(
-					'icon'  => 'shield',
-					'title' => 'Block Bots at Cloudflare',
-					'text'  => 'Agentimus\'s own block covers only your AI files. Turn on one switch, and blocking from the queue also challenges the bot on every page through one Cloudflare rule. It is off by default and needs one more permission on your token.',
+					'icon'  => 'page',
+					'title' => 'Agents Can Do More',
+					'text'  => 'Agents can now see your drafts and trash, organise categories, tags and media, and move a post to the trash or restore it. Nothing is ever deleted for good.',
 				),
 				array(
 					'icon'  => 'search',
-					'title' => 'Checked Before It Goes Up',
-					'text'  => 'A name alone proves little, so it is checked against your log and what Cloudflare saw. If the rule could catch something else, the name stays blocked in Agentimus only and the screen says why.',
+					'title' => 'Schedule Posts',
+					'text'  => 'An agent can set the time a post goes live. This needs the extra “Publish without your review”, because nobody checks the post at that moment.',
 				),
 				array(
-					'icon'  => 'page',
-					'title' => 'Your Earlier Blocks',
-					'text'  => 'Nothing is sent by itself. Client Decisions shows where each blocked bot stands, and you can block it at Cloudflare one at a time or all that pass. Unblocking removes it from both.',
+					'icon'  => 'shield',
+					'title' => 'One Simple Choice',
+					'text'  => 'The MCP Server card now asks one question: Off, Read or Write, plus three extras. If your agents could already write, nothing changes until you pick a level.',
 				),
 			),
 		);
