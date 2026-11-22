@@ -50,6 +50,18 @@ Design choices that keep the public surface safe:
   login, where WordPress itself would filter nothing. Markup the owner already stored
   stays. This covers the MCP tools only: an application password can still use the
   REST API, which follows the user's own permissions.
+- **Limits on every agent call, whatever its login.** During a request on the MCP
+  address (`/agentimus/v1/mcp`), even an administrator's agent can't edit plugin or
+  theme files, run WordPress updates, upload any file type, import or export, use
+  menus or the site editor, or use multisite network powers. It can't create, edit,
+  promote or delete any user, or create or read anyone's application passwords. It
+  can't change or delete the site address, the secret keys, the admin email, the
+  sign-up settings, the roles list, Agentimus's agent-access switches or its sign-in
+  data. It can install plugins and themes from WordPress.org only, turn plugins on and
+  off, switch themes, and update and delete plugins and themes, but never turn off,
+  uninstall or delete Agentimus. Tools other plugins add to the Agentimus server are
+  held to the same limits. Like the script rule, this covers the MCP address only:
+  an application password used elsewhere follows its user's own permissions.
 - **Parameterized storage.** All database writes/reads use `$wpdb->prepare()` or
   `$wpdb->insert()` format arrays — no string-interpolated SQL.
 - **Escaped output.** Headers use registered relations and `esc_url_raw()`; the Vue
