@@ -109,7 +109,7 @@ namespace Agentimus\Tests {
 			$this->assertStringNotContainsString( 'draft/edit', $args[4], 'the server must describe itself as read-only' );
 		}
 
-		public function test_write_switch_adds_the_write_tools_and_the_honest_description() {
+		public function test_write_switch_adds_the_write_tools_and_the_description_stays_honest() {
 			$args = $this->server_args(
 				array(
 					'enable_mcp_server'   => 1,
@@ -120,7 +120,11 @@ namespace Agentimus\Tests {
 				$this->assertContains( $name, $args[9] );
 			}
 			$this->assertContains( 'agentimus/read-readiness', $args[9], 'the read tools stay' );
-			$this->assertStringContainsString( 'draft/edit content', $args[4], 'the description must own up to the write tier' );
+			// The description is public, so it no longer names the tier (his call
+			// 2026-11-22). It stays honest at both levels: it never claims writing,
+			// and says the owner decides. The tier shows in tools/list instead.
+			$this->assertStringNotContainsString( 'draft/edit', $args[4] );
+			$this->assertStringContainsString( 'The site owner decides whether a connected agent may also make changes', $args[4] );
 		}
 
 		public function test_write_tool_descriptions_carry_the_same_readability_rules_the_assistant_writes_to() {
@@ -165,6 +169,19 @@ namespace Agentimus\Tests {
 			$defaults = ( new Settings() )->defaults();
 			$this->assertFalse( $defaults['enable_agent_writes'] );
 			$this->assertFalse( $defaults['agent_writes_publish'] );
+		}
+
+		/**
+		 * The public tool list is on by default (his call 2026-11-22), and the
+		 * owner's choice survives the server being off, so turning the server on
+		 * later brings back what they chose, not a value the cascade wrote.
+		 */
+		public function test_public_tool_list_defaults_on_and_keeps_the_owners_choice() {
+			$s = new Settings();
+			$this->assertTrue( $s->defaults()['mcp_public_tool_list'] );
+			$this->assertTrue( $s->sanitize( array( 'enable_mcp_server' => 0 ) )['mcp_public_tool_list'], 'server off does not rewrite the default' );
+			$this->assertFalse( $s->sanitize( array( 'enable_mcp_server' => 0, 'mcp_public_tool_list' => 0 ) )['mcp_public_tool_list'], 'an owner who turned it off stays off' );
+			$this->assertNotContains( 'mcp_public_tool_list', \Agentimus\Abilities\AgentSettings::FLAGS, 'an agent may never change who sees its tools' );
 		}
 
 		/** A sub-toggle whose parent is off must not stay armed invisibly. */

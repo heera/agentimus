@@ -5,8 +5,10 @@
  * notification) so any MCP client can complete the protocol handshake and learn
  * that a server is here BEFORE authenticating.
  *
- * This publishes nothing that isn't already public: the server's identity and
- * protocol version, and nothing else. It once answered `tools/list` too, on the
+ * It answers with the server's identity and protocol version, and, unless
+ * the owner turns `mcp_public_tool_list` off (on by default since 1.57.0,
+ * his call), `tools/list` with Agentimus's own tools ({@see
+ * public_tool_list()}). Tool calls still need sign-in. It once answered `tools/list` too, on the
  * premise that the tool names, descriptions and schemas were "already public by
  * design at /.well-known/mcp.json" — which was never true for abilities that
  * require sign-in, and those are all of ours. See PUBLIC_METHODS below.
@@ -47,7 +49,10 @@ final class McpPublicSurface {
 	/**
 	 * What an unauthenticated caller may ask.
 	 *
-	 * `tools/list` is deliberately NOT here.
+	 * `tools/list` is deliberately NOT here: it answers only while
+	 * `mcp_public_tool_list` is on ({@see public_tool_list()}, his ruling
+	 * 2026-11-22, on by default). The rest of this note is what holds when the
+	 * owner turns it off.
 	 *
 	 * ⭐ THE RULE, and it is the same one everywhere — his call 2026-08-24: we
 	 * hold ourselves to what we hold other plugins to. Agentimus registers every
@@ -120,7 +125,8 @@ final class McpPublicSurface {
 		if ( 'notifications/initialized' === $method ) {
 			return new \WP_REST_Response( null, 202 );
 		}
-		if ( ! in_array( $method, self::PUBLIC_METHODS, true ) ) {
+		$list = 'tools/list' === $method && $this->settings->enabled( 'mcp_public_tool_list' );
+		if ( ! $list && ! in_array( $method, self::PUBLIC_METHODS, true ) ) {
 			return $result; // tools/call & friends: 401 + WWW-Authenticate as before.
 		}
 
@@ -135,6 +141,9 @@ final class McpPublicSurface {
 					$params  = ( isset( $body['params'] ) && is_array( $body['params'] ) ) ? $body['params'] : array();
 					$version = ( isset( $params['protocolVersion'] ) && is_string( $params['protocolVersion'] ) ) ? $params['protocolVersion'] : '';
 					$payload = ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $mcp ) )->handle( $version )->toArray();
+					break;
+				case 'tools/list':
+					$payload = $this->public_tool_list( $mcp );
 					break;
 				default: // ping.
 					$payload = new \stdClass(); // An empty JSON object, per the spec.
@@ -154,6 +163,38 @@ final class McpPublicSurface {
 		);
 		$response->header( 'Content-Type', 'application/json; charset=UTF-8' );
 		return $response;
+	}
+
+	/**
+	 * The anonymous tools/list answer: the adapter's own list, Agentimus's tools only.
+	 *
+	 * ⭐ HIS RULING 2026-11-22: with `mcp_public_tool_list` on, our tool names,
+	 * descriptions and schemas may be public through tools/list. That lifts the
+	 * 08-24 rule above for OUR tools, on the sites whose owner turns it on.
+	 *
+	 * ⛔ Only `agentimus-*` names. The server's list can be widened through the
+	 * `agentimus_mcp_server_abilities` filter, and a tool another plugin added
+	 * there is theirs to publish, not ours: their rule is still their own
+	 * `mcp.public` flag.
+	 *
+	 * It is the same list a signed-in agent gets on THIS site (the scope filter
+	 * narrows nothing without a key), so it shows the write tools exactly when
+	 * the owner has Write on. The owner chose that by turning this on.
+	 *
+	 * @param object $mcp The Agentimus MCP server.
+	 * @return array
+	 */
+	private function public_tool_list( $mcp ) {
+		$data  = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $mcp ) )->list_tools()->toArray();
+		$tools = array();
+		foreach ( ( isset( $data['tools'] ) ? (array) $data['tools'] : array() ) as $tool ) {
+			$tool = json_decode( (string) wp_json_encode( $tool ), true );
+			if ( is_array( $tool ) && isset( $tool['name'] ) && 0 === strpos( (string) $tool['name'], 'agentimus-' ) ) {
+				$tools[] = $tool;
+			}
+		}
+		$data['tools'] = $tools;
+		return $data;
 	}
 
 	/**

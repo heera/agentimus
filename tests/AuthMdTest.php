@@ -58,13 +58,18 @@ final class AuthMdTest extends TestCase {
 		$this->assertStringContainsString( 'Not OpenID Connect', $md );
 	}
 
-	public function test_write_scope_line_follows_the_agent_writes_gate() {
+	/**
+	 * auth.md is public, so the scope line must not say whether writes are on
+	 * (his call 2026-11-22). It used to follow the switch.
+	 */
+	public function test_write_scope_line_does_not_tell_a_stranger_whether_writes_are_on() {
 		$off = $this->md( array( 'enable_mcp_server' => true ) );
-		$this->assertStringContainsString( 'grants nothing until the owner switches agent writes on', $off );
+		$on  = $this->md( array( 'enable_mcp_server' => true, 'enable_agent_writes' => true ) );
 
-		$on = $this->md( array( 'enable_mcp_server' => true, 'enable_agent_writes' => true ) );
-		$this->assertStringContainsString( 'write tools are on', $on );
+		$this->assertSame( $off, $on, 'the whole file reads the same at every level' );
+		$this->assertStringContainsString( 'the write scope lets an agent change only what the site owner allows', $on );
 		$this->assertStringContainsString( 'runs as the user who approved the connection', $on );
+		$this->assertStringNotContainsString( 'write tools are on', $on );
 	}
 
 	public function test_declared_external_auth_server_is_mentioned_when_mcp_is_off() {

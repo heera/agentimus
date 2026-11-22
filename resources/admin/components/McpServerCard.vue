@@ -815,8 +815,9 @@ export default {
           site’s tools over the <strong>Model Context Protocol</strong>. Most of them ask you
           for approval and you say yes. The ones that cannot ask use a token instead. Either
           way, a connected assistant acts as your WordPress user. It can only do what that user
-          could do on these screens, and you choose below how far it goes. Nothing becomes
-          public.
+          could do on these screens, and you choose below how far it goes.
+          <template v-if="settings.enable_mcp_server && settings.mcp_public_tool_list">Only the list of tools is public, so agents can see what this site offers before they connect.</template>
+          <template v-else>Nothing becomes public.</template>
         </p>
 
         <p v-if="mcpServer.abilitiesAvailable === false" class="ar-field__hint">
@@ -827,6 +828,18 @@ export default {
           Development checkout — the bundled MCP library is missing. Run <code>composer install</code>
           in the plugin folder.
         </p>
+
+        <!-- On by default (his call 11-22): strangers and MCP directories see
+             the tool list, never a tool. It only matters while the server runs,
+             so it rests, dimmed, while the level is Off. -->
+        <label id="ar-feat-mcp_public_tool_list" class="ar-toggle ar-mcp-public" :inert="!settings.enable_mcp_server">
+          <input v-model="settings.mcp_public_tool_list" type="checkbox" />
+          <span class="ar-toggle__track" aria-hidden="true"></span>
+          <span class="ar-toggle__text">
+            <strong>Show the tool list before sign-in</strong>
+            <small>Agents and MCP directories can see which Agentimus tools this site has, and what each one does, before they connect. Using any tool still needs your approval or a token. The list matches the level you choose below.<template v-if="!settings.enable_mcp_server"> Takes effect once you choose Read or Write.</template></small>
+          </span>
+        </label>
 
         <!-- One question over the stored switches: see js/agentLevel.js. Off means the
              write tools don't exist on any surface, so "Read" stays literally true. -->

@@ -315,8 +315,12 @@ final class McpSurface {
 				}
 				$route     = method_exists( $server, 'get_server_route' ) ? (string) $server->get_server_route() : '';
 				$held      = method_exists( $server, 'get_tools' ) ? count( (array) $server->get_tools() ) : 0;
-				$tool_list = self::server_tools( $server, $this->publishable_tool_names() );
 				$id        = method_exists( $server, 'get_server_id' ) ? (string) $server->get_server_id() : '';
+				$allow     = $this->publishable_tool_names();
+				if ( 'agentimus' === $id && $this->settings->enabled( 'mcp_public_tool_list' ) ) {
+					$allow = self::with_our_tools( $server, $allow );
+				}
+				$tool_list = self::server_tools( $server, $allow );
 				$entry     = array(
 					'id'          => $id,
 					'name'        => method_exists( $server, 'get_server_name' ) ? (string) $server->get_server_name() : '',
@@ -360,9 +364,12 @@ final class McpSurface {
 	 * adapter shape drift (string entries, missing getters).
 	 *
 	 * @param object $server An MCP server object.
+	 * @param array|null $publishable The names allowed through; null names none.
+	 * @param bool   $every  Read every tool, ignoring $publishable. Only for
+	 *                       {@see with_our_tools()}, which filters what it gets.
 	 * @return array<int,array{name:string,description:string}>
 	 */
-	private static function server_tools( $server, ?array $publishable = null ) {
+	private static function server_tools( $server, ?array $publishable = null, $every = false ) {
 		// ⛔⛔ THE SAME PUBLICATION RULE AS EVERY OTHER SURFACE — added 2026-08-24,
 		// after this path was found ignoring it for as long as it has existed.
 		//
@@ -405,11 +412,33 @@ final class McpSurface {
 			} else {
 				continue;
 			}
-			if ( '' !== $name && isset( $allow[ $name ] ) ) {
+			if ( '' !== $name && ( $every || isset( $allow[ $name ] ) ) ) {
 				$tools[] = array( 'name' => $name, 'description' => $desc );
 			}
 		}
 		return $tools;
+	}
+
+	/**
+	 * The publishable set, plus Agentimus's own tools on its own server.
+	 *
+	 * ⭐ HIS RULING 2026-11-22: with `mcp_public_tool_list` on, anonymous
+	 * tools/list names our tools ({@see \Agentimus\McpPublicSurface}), and the
+	 * card must say the same — two public answers about one server may not
+	 * disagree. Only `agentimus-*` names: a tool another plugin added to our
+	 * server through a filter is still theirs to publish.
+	 *
+	 * @param object             $server The Agentimus MCP server.
+	 * @param array<string,true> $allow  The publishable set so far.
+	 * @return array<string,true>
+	 */
+	private static function with_our_tools( $server, array $allow ) {
+		foreach ( self::server_tools( $server, null, true ) as $tool ) {
+			if ( 0 === strpos( $tool['name'], 'agentimus-' ) ) {
+				$allow[ $tool['name'] ] = true;
+			}
+		}
+		return $allow;
 	}
 
 	/**

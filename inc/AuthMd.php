@@ -76,16 +76,17 @@ final class AuthMd {
 			$out .= ' and at the flat ' . esc_url_raw( home_url( '/.well-known/oauth-protected-resource' ) ) . ".\n";
 			$out .= '- Authorization-server metadata (RFC 8414): ' . esc_url_raw( home_url( '/.well-known/oauth-authorization-server/agentimus/mcp' ) )
 				. " — carries the `agent_auth` block (with `register_uri`) pointing back at this file.\n";
-			$out .= '- An unauthenticated request to the MCP endpoint answers 401 with a `WWW-Authenticate` header naming the '
+			$out .= '- An unauthenticated tool call to the MCP endpoint answers 401 with a `WWW-Authenticate` header naming the '
 				. "protected-resource metadata — a compliant client can discover this whole flow from that alone.\n";
 
 			$out .= "\n### Pick a method\n\n";
 			$out .= 'One method: `anonymous`. This server accepts no identity assertion (no ID-JAG) and runs no claim-code '
 				. "ceremony — an agent registers a client anonymously, and the site owner personally approves the grant in the browser.\n";
+			// ONE sentence at every level: this file is public, and a line that
+			// changed with Write told a stranger which sites let agents write
+			// (his call 2026-11-22, with the server description).
 			$out .= 'Scopes: ' . implode( ', ', $meta['scopes_supported'] )
-				. ( $this->settings->enabled( 'enable_agent_writes' )
-					? ' — write tools are on; every write still runs as the user who approved the connection.'
-					: ' — the write scope grants nothing until the owner switches agent writes on.' ) . "\n";
+				. " — the write scope lets an agent change only what the site owner allows; every write runs as the user who approved the connection.\n";
 
 			$out .= "\n### Register\n\n";
 			$out .= 'Dynamic client registration (RFC 7591): POST a JSON body with `redirect_uris` to '

@@ -58,6 +58,21 @@ final class McpServerGateTest extends TestCase {
 		$this->assertContains( 'agentimus/read-readiness', $args[9], 'tool list carries the read abilities' );
 	}
 
+	/**
+	 * The description is public (anonymous initialize and the server card), so it
+	 * must not say whether agents may write here.
+	 */
+	public function test_the_description_does_not_tell_a_stranger_whether_writes_are_on() {
+		$read = new FakeCreateServerAdapter();
+		$this->registrar( array( 'enable_mcp_server' => 1 ) )->register_mcp_server( $read );
+		$write = new FakeCreateServerAdapter();
+		$this->registrar( array( 'enable_mcp_server' => 1, 'enable_agent_writes' => 1 ) )->register_mcp_server( $write );
+
+		$this->assertNotSame( '', $read->calls[0][4] );
+		$this->assertSame( $read->calls[0][4], $write->calls[0][4], 'one description at every level' );
+		$this->assertContains( 'agentimus/create-content', $write->calls[0][9], 'and the levels really differ' );
+	}
+
 	public function test_enabled_but_unrecognisable_adapter_is_a_clean_no_op() {
 		$adapter = new \stdClass(); // no create_server() at all
 		$this->registrar( array( 'enable_mcp_server' => 1 ) )->register_mcp_server( $adapter );

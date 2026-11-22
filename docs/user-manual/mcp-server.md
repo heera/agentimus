@@ -18,7 +18,7 @@ Everything needed ships with the plugin. There is nothing else to install, no ac
 
 **Can:** read the Agentimus reports listed above. At Write (below), also the write tools — and nothing else.
 
-**Cannot:** act anonymously — nothing about this is public. And below Write, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
+**Cannot:** act anonymously. While the server is on, one thing is public: the list of this site's Agentimus tools, with their names, descriptions and inputs, so an agent or an MCP directory can see what the server does before connecting. Using a tool still needs your approval or a key. To keep the list private, turn off *Show the tool list before sign-in* at the top of the MCP Server card. And below Write, it cannot write, change, delete or publish anything: every tool it gets is read-only, and the write tools don't merely refuse — they don't exist.
 
 A key can be read-only on its own, too. An assistant connected with a read-only key is shown the read tools and nothing else; a read-and-write key is shown all of them. The limit is checked on the server whatever the key claims, so hiding the write tools does not add safety — it saves the assistant from finding the wall by walking into it.
 

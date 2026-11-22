@@ -329,3 +329,20 @@ test('only the control and its name take a click, not the whole row', () => {
   assert.match(css, /\.ar-level__row, \.ar-level__extra \{ pointer-events: none;/);
   assert.match(css, /\.ar-level__row input, \.ar-level__row strong, \.ar-level__extra input, \.ar-level__extra strong \{ pointer-events: auto;/);
 });
+
+test('the public tool list is a switch at the top of the card, and the lead says what is public', async () => {
+  const html = await draw({ ...state(true, false, false, false), mcp_public_tool_list: true });
+  assert.ok(html.includes('id="ar-feat-mcp_public_tool_list"'));
+  assert.match(html, /<strong>Show the tool list before sign-in<\/strong>/);
+  assert.ok(html.indexOf('ar-feat-mcp_public_tool_list') < html.indexOf('What can agents do on this site?'), 'above the level choice');
+  assert.match(html, /Only the list of tools is public, so agents can see what this site offers before they connect\./);
+  assert.doesNotMatch(html, /Nothing becomes public/);
+
+  const hidden = await draw({ ...state(true, false, false, false), mcp_public_tool_list: false });
+  assert.match(hidden, /Nothing becomes public\./);
+
+  const serverOff = await draw({ ...state(false, false, false, false), mcp_public_tool_list: true });
+  assert.match(serverOff, /Nothing becomes public\./, 'with the server off nothing is public, whatever the switch says');
+  assert.match(serverOff, /id="ar-feat-mcp_public_tool_list"[^>]*inert/);
+  assert.match(serverOff, /Takes effect once you choose Read or Write\./);
+});

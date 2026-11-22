@@ -77,6 +77,12 @@ final class McpServerRestTest extends RestTestCase {
 		// ours. WellKnownDocsTest::test_a_non_public_resource_reaches_no_served_surface
 		// forbids exactly that leak in the documents; nothing was watching the
 		// protocol, so the same signatures went out the other door for a release.
+		// The owner turned the public tool list off (it is on by default, his
+		// call 2026-11-22): this step is the private contract.
+		$private                         = ( new Settings() )->all();
+		$private['mcp_public_tool_list'] = false;
+		update_option( Settings::OPTION, $private );
+
 		wp_set_current_user( 0 );
 		$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );
@@ -112,6 +118,84 @@ final class McpServerRestTest extends RestTestCase {
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/call', 'params' => array( 'name' => 'agentimus-read-readiness', 'arguments' => array() ) ) ) );
 		$this->assertSame( 401, rest_do_request( $request )->get_status(), 'anonymous tools/call must stay denied' );
+
+		// 4b. The owner turns on the public tool list (his ruling 2026-11-22).
+		// tools/list now answers without sign-in, with Agentimus's own tools and
+		// their schemas. Nothing else opens: tool calls, resources and batches
+		// keep the 401, and no session is minted.
+		$on                         = ( new Settings() )->all();
+		$on['mcp_public_tool_list'] = true;
+		update_option( Settings::OPTION, $on );
+
+		$foreign = static function ( $tools ) {
+			$tools[] = \WP\McpSchema\Server\Tools\DTO\Tool::fromArray(
+				array(
+					'name'        => 'other-plugin-orders',
+					'description' => 'Another plugin\'s tool, added to our server by a filter.',
+					'inputSchema' => array( 'type' => 'object' ),
+				)
+			);
+			return $tools;
+		};
+		add_filter( 'mcp_adapter_tools_list', $foreign, 20 );
+
+		$rpc = static function ( $body ) {
+			$request = new \WP_REST_Request( 'POST', '/agentimus/v1/mcp' );
+			$request->set_header( 'Content-Type', 'application/json' );
+			$request->set_body( wp_json_encode( $body ) );
+			return rest_do_request( $request );
+		};
+
+		$public = $rpc( array( 'jsonrpc' => '2.0', 'id' => 4, 'method' => 'tools/list', 'params' => array() ) );
+		remove_filter( 'mcp_adapter_tools_list', $foreign, 20 );
+		$this->assertSame( 200, $public->get_status(), 'with the switch on, anonymous tools/list answers' );
+		$this->assertArrayNotHasKey( 'Mcp-Session-Id', $public->get_headers(), 'and stays stateless' );
+		$listed = json_decode( wp_json_encode( $public->get_data() ), true );
+		$this->assertSame( 4, $listed['id'] );
+		$names = array_column( $listed['result']['tools'], 'name' );
+		$this->assertContains( 'agentimus-read-readiness', $names, 'our tools are named' );
+		$this->assertContains( 'agentimus-scan-exposed-files', $names );
+		$this->assertNotContains( 'other-plugin-orders', $names, 'a tool another plugin added is theirs to publish, not ours' );
+		foreach ( $names as $name ) {
+			$this->assertStringStartsWith( 'agentimus-', $name );
+		}
+		$readiness = $listed['result']['tools'][ array_search( 'agentimus-read-readiness', $names, true ) ];
+		$this->assertArrayHasKey( 'inputSchema', $readiness, 'the schema comes too, so an agent can see how to call it' );
+		$this->assertNotContains( 'agentimus-create-content', $names, 'writes are off on this site, so no write tool is listed' );
+
+		$this->assertSame(
+			401,
+			$rpc( array( 'jsonrpc' => '2.0', 'id' => 5, 'method' => 'tools/call', 'params' => array( 'name' => 'agentimus-read-readiness', 'arguments' => array() ) ) )->get_status(),
+			'a public list is not a key: tools/call still needs sign-in'
+		);
+		$this->assertSame(
+			401,
+			$rpc( array( 'jsonrpc' => '2.0', 'id' => 6, 'method' => 'resources/list', 'params' => array() ) )->get_status(),
+			'resources stay behind sign-in'
+		);
+		$batch = $rpc(
+			array(
+				array( 'jsonrpc' => '2.0', 'id' => 7, 'method' => 'tools/list', 'params' => array() ),
+				array( 'jsonrpc' => '2.0', 'id' => 8, 'method' => 'tools/call', 'params' => array( 'name' => 'agentimus-read-readiness', 'arguments' => array() ) ),
+			)
+		);
+		$this->assertSame( 401, $batch->get_status(), 'a batch cannot carry a tool call past the door' );
+
+		// The public server card says the same as tools/list: our tools by name.
+		$card_names = static function () {
+			$card = json_decode( ( new \Agentimus\Discovery\Envelope( new Settings(), \Agentimus\Discovery\Registry::instance() ) )->mcp_server_card_json_for( 'agentimus' ), true );
+			return array_column( isset( $card['tools'] ) ? $card['tools'] : array(), 'name' );
+		};
+		$this->assertContains( 'agentimus-read-readiness', $card_names(), 'with the switch on, the card names our tools too' );
+
+		$on['mcp_public_tool_list'] = false;
+		update_option( Settings::OPTION, $on );
+		$this->assertNotContains( 'agentimus-read-readiness', $card_names(), 'switched off, the card names none of ours again' );
+		$this->assertSame(
+			401,
+			$rpc( array( 'jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/list', 'params' => array() ) )->get_status(),
+			'switched back off, the list is private again'
+		);
 
 		// 5. An authenticated admin completes the MCP handshake.
 		wp_set_current_user( $this->admin );

@@ -1007,23 +1007,12 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.56.0: what agents can newly do, then the one thing they need a tick
-				// for, then the new choice. The Cloudflare count fix stays out of this
-				// and the changelog, his call.
-				array(
-					'icon'  => 'page',
-					'title' => 'Agents Can Do More',
-					'text'  => 'Agents can now see your drafts and trash, organise categories, tags and media, and move a post to the trash or restore it. Nothing is ever deleted for good.',
-				),
+				// ⭐ 1.57.0 is one new switch, so ONE row. It is ON by default (his
+				// call), so the row says where to turn it off.
 				array(
 					'icon'  => 'search',
-					'title' => 'Schedule Posts',
-					'text'  => 'An agent can set the time a post goes live. This needs the extra “Publish without your review”, because nobody checks the post at that moment.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'One Simple Choice',
-					'text'  => 'The MCP Server card now asks one question: Off, Read or Write, plus three extras. If your agents could already write, nothing changes until you pick a level.',
+					'title' => 'Show Your Tools Before Sign-In',
+					'text'  => 'Agents and MCP directories can now see which Agentimus tools your site has before they connect. Using a tool still needs your approval or a token. You can turn this off at the top of the MCP Server card.',
 				),
 			),
 		);

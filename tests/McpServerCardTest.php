@@ -105,6 +105,24 @@ final class McpServerCardTest extends TestCase {
 		$this->assertSame( array(), $this->call( 'server_tools', $server, null ) );
 	}
 
+	/**
+	 * With the owner's public tool list on, the card names our tools, as
+	 * tools/list does. Another plugin's tool on our server stays theirs to
+	 * publish, and what was already publishable stays.
+	 */
+	public function test_with_our_tools_adds_agentimus_tools_only() {
+		$server = $this->server( array(
+			$this->tool( 'agentimus-read-request-log', 'Every request an agent made.' ),
+			$this->tool( 'other-plugin-orders', 'Customer orders.' ),
+		) );
+
+		$allow = $this->call( 'with_our_tools', $server, $this->allow( 'already-public' ) );
+		$this->assertSame( $this->allow( 'already-public', 'agentimus-read-request-log' ), $allow );
+
+		$tools = $this->call( 'server_tools', $server, $allow );
+		$this->assertSame( array( array( 'name' => 'agentimus-read-request-log', 'description' => 'Every request an agent made.' ) ), $tools );
+	}
+
 	/* -- primary_server(): which server the single card represents ---------- */
 
 	public function test_primary_server_picks_the_one_with_most_tools() {

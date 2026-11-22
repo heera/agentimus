@@ -108,7 +108,7 @@ final class Plugin {
 		Activity\IdentityProbe::watch(); // Async look at the home page a self-declared crawler names in its own UA; queued only when one is on the review queue.
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
 		Oauth\Server::watch(); // OAuth access-token auth — same route, next seat in the inspector line.
-		( new McpPublicSurface( $this->settings ) )->register(); // Anonymous MCP read-surface: initialize/ping/tools-list answer without auth (they publish nothing mcp.json doesn't); everything else keeps its 401.
+		( new McpPublicSurface( $this->settings ) )->register(); // Anonymous MCP handshake: initialize/ping answer without auth, and tools/list too when the owner turns on mcp_public_tool_list; everything else keeps its 401.
 
 		( new Endpoints( $this->settings ) )->register();
 		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.

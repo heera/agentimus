@@ -4543,10 +4543,11 @@ final class Registrar {
 			'agentimus/v1',            // REST namespace  → /wp-json/agentimus/v1/mcp
 			'mcp',                     // REST route.
 			__( 'Agentimus — AI visibility', 'agentimus' ),
-			// The description an MCP client shows its user — honest about which tier is on.
-			$this->settings->enabled( 'enable_agent_writes' )
-				? __( 'Read and improve this site’s AI visibility: readiness, AI traffic, bot activity and per-page readability — plus draft/edit content, set AI topics & descriptions, and apply readiness fixes.', 'agentimus' )
-				: __( 'Read this site’s AI/agent readiness, referral traffic, bot activity, per-page readability and discovery output.', 'agentimus' ),
+			// The description an MCP client shows its user. ONE sentence at every
+			// level: it is public (anonymous initialize, the server card), and a
+			// line that changed with Write told a stranger which sites let agents
+			// write. A connected agent learns its level from tools/list.
+			__( 'This site’s AI visibility tools: readiness, AI traffic, bot activity, per-page readability and discovery output. The site owner decides whether a connected agent may also make changes.', 'agentimus' ),
 			'v' . AGENTIMUS_VERSION,
 			array( $transport ),
 			$error_handler,
