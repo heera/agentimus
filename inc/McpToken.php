@@ -79,6 +79,7 @@ final class McpToken {
 				'created_at'   => time(),
 				'last_used_at' => null,
 				'last_used_ua' => '',
+				'access'       => \Agentimus\Abilities\ConnectionAccess::normalize( null, $scope ),
 			),
 			false
 		);
@@ -107,6 +108,7 @@ final class McpToken {
 		}
 		return array(
 			'scope'        => (string) $state['scope'],
+			'access'       => \Agentimus\Abilities\ConnectionAccess::normalize( isset( $state['access'] ) ? $state['access'] : null, (string) $state['scope'] ),
 			'created_at'   => (int) $state['created_at'],
 			'last_used_at' => empty( $state['last_used_at'] ) ? null : (int) $state['last_used_at'],
 			'last_used_ua' => (string) $state['last_used_ua'],
@@ -185,6 +187,42 @@ final class McpToken {
 	 */
 	public static function used_this_request() {
 		return null !== self::$request_scope;
+	}
+
+	/**
+	 * The shared token's access when it seated THIS request, or null when it
+	 * did not. A token from before access records answers from its scope.
+	 *
+	 * @return array{preset: string, boxes: string[]}|null
+	 */
+	public static function request_access() {
+		if ( null === self::$request_scope ) {
+			return null;
+		}
+		$state = get_option( self::OPTION, null );
+		if ( ! is_array( $state ) ) {
+			return \Agentimus\Abilities\ConnectionAccess::normalize( null, self::$request_scope );
+		}
+		return \Agentimus\Abilities\ConnectionAccess::normalize( isset( $state['access'] ) ? $state['access'] : null, self::$request_scope );
+	}
+
+	/**
+	 * Change the shared token's access. Its scope follows, so the change holds on
+	 * the next call. Only the owner's screen reaches this.
+	 *
+	 * @param mixed $access The new record.
+	 * @return array|null The stored record, or null when there is no token.
+	 */
+	public static function set_access( $access ) {
+		$state = get_option( self::OPTION, null );
+		if ( ! is_array( $state ) || empty( $state['hash'] ) ) {
+			return null;
+		}
+		$access          = \Agentimus\Abilities\ConnectionAccess::normalize( $access );
+		$state['access'] = $access;
+		$state['scope']  = \Agentimus\Abilities\ConnectionAccess::scope_for( $access );
+		update_option( self::OPTION, $state, false );
+		return $access;
 	}
 
 	/**

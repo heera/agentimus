@@ -3453,6 +3453,13 @@ a.ar-opp__title:hover { text-decoration: underline; }
 /* The shared token wears a different colour from an approved connection: one
    secret many assistants can hold is a different kind of thing. */
 .ar-grant__scope.is-token { border-color: var(--ar-warn); color: var(--ar-warn); }
+/* Change access dialog: two choices, and the boxes under Only some things. */
+.ar-access { display: grid; gap: 8px; margin: 4px 0 6px; }
+.ar-access__boxes { display: grid; gap: 6px; padding: 4px 0 0 28px; }
+.ar-access__box { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.ar-access__box input { margin: 3px 0 0; flex: none; accent-color: var(--ar-accent); }
+.ar-access__box strong { display: block; font-size: 12.5px; }
+.ar-access__box small { display: block; color: var(--ar-ink-soft); font-size: 12px; }
 .ar-grant .ar-btn--small { min-width: 140px; }
 @media screen and (max-width: 782px) {
   .ar-grant { flex-wrap: wrap; }

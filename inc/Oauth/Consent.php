@@ -15,6 +15,7 @@
 
 namespace Agentimus\Oauth;
 
+use Agentimus\Abilities\ConnectionAccess;
 use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -113,21 +114,40 @@ final class Consent {
 			return;
 		}
 
-		$approved = isset( $_POST['decision'] ) && 'approve' === sanitize_text_field( wp_unslash( $_POST['decision'] ) );
+		$decision = isset( $_POST['decision'] ) ? sanitize_text_field( wp_unslash( $_POST['decision'] ) ) : '';
+		$approved = in_array( $decision, array( 'approve', 'approve_some' ), true );
 		if ( ! $approved ) {
 			$this->redirect_back( $req, array( 'error' => 'access_denied' ) );
 			return;
 		}
 
-		// The owner's choice (the `grant` radios — deliberately NOT named `scope`,
-		// which is the hidden courier of the client's original request), capped by
-		// the walls: a forged value can never out-rank max_grantable().
-		$max    = Server::max_grantable( $req['wants_write'], $this->settings->enabled( 'enable_agent_writes' ) );
-		$wanted = isset( $_POST['grant'] ) ? sanitize_text_field( wp_unslash( $_POST['grant'] ) ) : 'read';
-		$scope  = ( 'write' === $wanted && 'write' === $max ) ? 'write' : 'read';
+		$access = self::access_from( wp_unslash( $_POST ), $req['wants_write'] );
+		$scope  = ConnectionAccess::scope_for( $access );
 
-		$code = Server::issue_code( $req, $scope, get_current_user_id() );
+		$code = Server::issue_code( $req, $scope, get_current_user_id(), $access );
 		$this->redirect_back( $req, array( 'code' => $code ) );
+	}
+
+	/**
+	 * The access the owner's click gives. One click, Allow, gives Everything;
+	 * "Allow less" sends the boxes left ticked. ⛔ A client that asked only to
+	 * read gets reading, whatever the form says: the form is a courier, never
+	 * an authority.
+	 *
+	 * @param array $post        The submitted form (unslashed).
+	 * @param bool  $wants_write Whether the client asked to write.
+	 * @return array{preset: string, boxes: string[]}
+	 */
+	public static function access_from( array $post, $wants_write ) {
+		if ( ! $wants_write ) {
+			return ConnectionAccess::some( array() );
+		}
+		$decision = isset( $post['decision'] ) ? sanitize_text_field( (string) $post['decision'] ) : '';
+		if ( 'approve_some' !== $decision ) {
+			return ConnectionAccess::everything();
+		}
+		$boxes = isset( $post['boxes'] ) && is_array( $post['boxes'] ) ? array_map( 'sanitize_key', $post['boxes'] ) : array();
+		return ConnectionAccess::some( $boxes );
 	}
 
 	/**
@@ -211,13 +231,12 @@ final class Consent {
 		}
 
 		$b .= '<div class="grantbox">';
-		$b .= '<label class="grant"><input type="radio" name="grant" value="read"' . ( 'write' === $max ? '' : ' checked' ) . '>'
-			. '<span><strong>' . esc_html__( 'Read only', 'agentimus' ) . '</strong>'
-			. '<small>' . esc_html__( 'Look up your readiness score, AI traffic, request log, and page checks. It can never change anything.', 'agentimus' ) . '</small></span></label>';
-		if ( 'write' === $max ) {
-			$b .= '<label class="grant"><input type="radio" name="grant" value="write" checked>'
-				. '<span><strong>' . esc_html__( 'Read and write', 'agentimus' ) . '</strong>'
-				. '<small>' . esc_html__( 'Also write and organise content, set AI descriptions and topics, apply fixes — always within the access you chose in Settings. Publishing stays off unless you allow it there.', 'agentimus' ) . '</small></span></label>';
+		if ( $req['wants_write'] ) {
+			$b .= '<p class="grant"><span><strong>' . esc_html__( 'Allow gives it everything you allow agents in Settings', 'agentimus' ) . '</strong>'
+				. '<small>' . esc_html__( 'Read your reports, and do what your Settings let agents do: write and organise content, apply fixes, and more. When you change those Settings, this assistant follows. Publishing stays off unless you allow it there.', 'agentimus' ) . '</small></span></p>';
+		} else {
+			$b .= '<p class="grant"><span><strong>' . esc_html__( 'It asks only to read', 'agentimus' ) . '</strong>'
+				. '<small>' . esc_html__( 'Look up your readiness score, AI traffic, request log, and page checks. It can never change anything.', 'agentimus' ) . '</small></span></p>';
 		}
 		$b .= '</div>';
 
@@ -225,7 +244,7 @@ final class Consent {
 			$b .= '<p class="wallnote"><strong>' . esc_html__( 'This site does not allow agent writes.', 'agentimus' ) . '</strong> '
 				. sprintf(
 					/* translators: %s: client-claimed name. */
-					esc_html__( '“%s” asked for write access, but your settings keep writing off — so it can connect as read-only. You can allow writes any time in Settings.', 'agentimus' ),
+					esc_html__( '“%s” can only read until you allow writes in Settings. It will not need a new approval then.', 'agentimus' ),
 					esc_html( $name )
 				) . '</p>';
 		}
@@ -237,9 +256,26 @@ final class Consent {
 		) . '</p>';
 
 		$b .= '<div class="actions">'
-			. '<button class="btn approve" type="submit" name="decision" value="approve">' . esc_html__( 'Approve', 'agentimus' ) . '</button>'
+			. '<button class="btn approve" type="submit" name="decision" value="approve">' . sprintf(
+				/* translators: %s: client-claimed name. */
+				esc_html__( 'Allow %s', 'agentimus' ),
+				esc_html( $name )
+			) . '</button>'
 			. '<button class="btn ghost" type="submit" name="decision" value="deny">' . esc_html__( 'Cancel', 'agentimus' ) . '</button>'
 			. '</div>';
+
+		if ( $req['wants_write'] ) {
+			// "Allow less": every box, all ticked, to untick. No script: a <details> opens it.
+			$b .= '<details class="less"><summary>' . esc_html__( 'Allow less', 'agentimus' ) . '</summary>';
+			$b .= '<p class="lessnote">' . esc_html__( 'Reading is always included. Untick what it should not do.', 'agentimus' ) . '</p>';
+			foreach ( ConnectionAccess::choices() as $choice ) {
+				$b .= '<label class="box"><input type="checkbox" name="boxes[]" value="' . esc_attr( $choice['key'] ) . '" checked>'
+					. '<span><strong>' . esc_html( $choice['label'] ) . '</strong><small>' . esc_html( $choice['about'] ) . '</small></span></label>';
+			}
+			$b .= '<div class="actions"><button class="btn approve" type="submit" name="decision" value="approve_some">'
+				. esc_html__( 'Allow only these', 'agentimus' ) . '</button></div>';
+			$b .= '</details>';
+		}
 
 		$b .= '<p class="fineprint">' . sprintf(
 			/* translators: %s: client-claimed name. */
@@ -279,6 +315,10 @@ final class Consent {
 			. '.grant:last-child{border-bottom:0}.grant input{margin-top:4px;accent-color:#1a6b52}'
 			. '.grant strong{display:block;font-size:14.5px}.grant small{color:#6d6759;display:block;font-size:13px}'
 			. '.wallnote{border:1px solid #d8c294;background:#f6ecd9;border-radius:8px;padding:11px 14px;font-size:13.5px;margin:0 0 14px}'
+			. '.less{margin:16px 0 0;border-top:1px solid #e3dbc9;padding-top:12px}.less summary{cursor:pointer;font-size:13.5px;color:#1a6b52}'
+			. '.lessnote{font-size:13px;color:#6d6759;margin:10px 0}'
+			. '.box{display:flex;gap:12px;padding:10px 0;align-items:flex-start;cursor:pointer}.box input{margin-top:4px;accent-color:#1a6b52}'
+			. '.box strong{display:block;font-size:14px}.box small{color:#6d6759;display:block;font-size:12.5px}'
 			. '.actas{font-size:13px;color:#6d6759;margin:0 0 22px}.actas code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#211f1a}'
 			. '.actions{display:flex;gap:10px}'
 			. '.btn{font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;border-radius:6px;padding:11px 20px;cursor:pointer;border:1px solid transparent}'

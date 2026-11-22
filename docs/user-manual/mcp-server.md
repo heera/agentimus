@@ -97,8 +97,17 @@ Whichever you use, the assistant appears under **Connected assistants** on the c
 1. Copy your server address and give it to the assistant. There is nothing to paste back.
 2. The assistant reads your site, introduces itself, and sends your browser to `https://your-site.com/agentimus/connect` — a page on your own site. If you are not signed in to WordPress, it asks you to sign in first.
 3. The page names what the assistant **calls itself** and the address it will **return to**. Both are worth a look. If this is not something you started, close the tab.
-4. Choose **Read only** or **Read and write**, then press **Approve**. You may grant less than the assistant asked for. Below the **Write** level, only **Read only** is offered, and the page says so.
-5. The assistant now appears under **Connected assistants**, with its own **Disconnect** button. Disconnecting one leaves the others working.
+4. Press **Allow** to give it everything your settings let agents do. It follows your settings from then on, so turning on an extra later needs no new approval. To give it less, open **Allow less**: every box is ticked, so untick what it should not do, then press **Allow only these**. Reading is always included. An assistant that asked only to read gets reading, whatever you tick.
+5. The assistant now appears under **Connected assistants**, with what it may do, a **Change access** button and its own **Disconnect** button. Disconnecting one leaves the others working.
+
+### What one connection may do
+
+Each connection, an approved assistant or the shared token, has its own access. **Change access** on its row picks one of two:
+
+- **Everything**: all that your settings allow agents. When you change those settings, it follows.
+- **Only some things**: reading, plus the boxes you tick: *Write and edit posts*, *Publish*, *Manage terms, media and the trash*, *Sort the review lists*, *Change Agentimus settings*, *Refresh data and purge the cache*. With nothing ticked it is read-only.
+
+Your settings above stay the limit either way: a box can't open what the level or an extra keeps off. Publishing needs both the *Publish* box and *Publish without your review*. An assistant only sees the tools its access opens. Only you, signed in to WordPress, can change a connection's access: an assistant can't, and neither can an application password. Application passwords are not connections here; they follow your settings.
 
 Only an administrator can approve a connection, and the connection acts as the account that approved it.
 
@@ -110,7 +119,7 @@ Confirmed working: Claude Desktop, Claude on claude.ai, and Cursor.
 
 Some assistants have no way to ask for approval. Give those one secret instead. On the card, open the **Shared token** fold:
 
-1. Choose **Read only** or **Read and write**. The second is offered only at the **Write** level.
+1. Choose **Read only** or **Read and write**. The second is offered only at the **Write** level. Read and write starts as **Everything**; **Change access** on its row narrows it later.
 2. Press **Create connection token**.
 3. Copy it now. It is shown **once** — Agentimus stores only a SHA-256 fingerprint of it, so it can never show it again.
 4. In the assistant, send it as a header:

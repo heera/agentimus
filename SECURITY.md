@@ -62,6 +62,12 @@ Design choices that keep the public surface safe:
   uninstall or delete Agentimus. Tools other plugins add to the Agentimus server are
   held to the same limits. Like the script rule, this covers the MCP address only:
   an application password used elsewhere follows its user's own permissions.
+- **Each connection has its own access.** An approved assistant or the shared token
+  holds Everything (what the site's switches allow) or only the boxes the owner
+  ticked. It is shown and can run only the tools its access opens. Only an
+  administrator signed in to the browser can change it: the route refuses an
+  application password, an agent's credential can't reach it, and the stored
+  records keep their value during an agent call.
 - **Parameterized storage.** All database writes/reads use `$wpdb->prepare()` or
   `$wpdb->insert()` format arrays — no string-interpolated SQL.
 - **Escaped output.** Headers use registered relations and `esc_url_raw()`; the Vue

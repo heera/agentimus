@@ -64,12 +64,18 @@ final class OauthConsentTest extends TestCase {
 
 	/* ---- the rendered form ------------------------------------------------ */
 
-	public function test_write_request_on_writes_on_site_offers_both_scopes() {
+	/** His ruling 11-22: one click. Allow gives Everything; Allow less opens every box, all ticked. */
+	public function test_write_request_offers_one_allow_button_and_allow_less() {
 		$consent = $this->consent( array( 'enable_mcp_server' => 1, 'enable_agent_writes' => 1 ) );
 		$html    = $consent->html( $this->request( 'write' ) );
 
-		$this->assertStringContainsString( 'name="grant" value="write" checked', $html ); // The request preselects…
-		$this->assertStringContainsString( 'name="grant" value="read"', $html );  // …but read stays offered: downgrade at the door.
+		$this->assertStringContainsString( 'name="decision" value="approve">Allow Claude</button>', $html );
+		$this->assertStringNotContainsString( 'name="grant"', $html ); // The old Read only / Read and write choice is gone.
+		$this->assertStringContainsString( '<summary>Allow less</summary>', $html );
+		foreach ( array( 'posts', 'publish', 'content', 'reviews', 'settings', 'maintenance' ) as $box ) {
+			$this->assertStringContainsString( 'name="boxes[]" value="' . $box . '" checked', $html );
+		}
+		$this->assertStringContainsString( 'name="decision" value="approve_some"', $html );
 		$this->assertStringNotContainsString( 'does not allow agent writes', $html );
 		$this->assertStringContainsString( '“Claude” asks to connect', $html );
 		$this->assertStringContainsString( 'claude.ai', $html ); // The checkable fact beside the claim.
@@ -81,6 +87,7 @@ final class OauthConsentTest extends TestCase {
 
 		$this->assertStringNotContainsString( 'name="grant" value="write"', $html ); // Walls beat requests: no write radio.
 		$this->assertStringContainsString( 'does not allow agent writes', $html );
+		$this->assertStringContainsString( 'can only read until you allow writes in Settings', $html );
 	}
 
 	public function test_read_request_shows_no_write_choice_and_no_note() {
@@ -89,6 +96,8 @@ final class OauthConsentTest extends TestCase {
 
 		$this->assertStringNotContainsString( 'name="grant" value="write"', $html );
 		$this->assertStringNotContainsString( 'does not allow agent writes', $html ); // Nothing was downgraded.
+		$this->assertStringNotContainsString( 'Allow less', $html ); // Reading has no boxes to untick.
+		$this->assertStringContainsString( 'It asks only to read', $html );
 	}
 
 	public function test_form_carries_the_original_params_and_a_nonce() {

@@ -14,6 +14,7 @@
 
 namespace Agentimus\Oauth;
 
+use Agentimus\Abilities\ConnectionAccess;
 use Agentimus\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -85,6 +86,52 @@ final class Rest {
 				),
 			)
 		);
+		// Change ONE connection's access: an approved assistant or the shared token.
+		register_rest_route(
+			self::NS,
+			'/connection-access',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'change_access' ),
+				'permission_callback' => array( $this, 'can_change_access' ),
+			)
+		);
+	}
+
+	/**
+	 * PUT /connection-access — { kind: 'grant'|'token', clientId, access: { preset, boxes } }.
+	 *
+	 * @param \WP_REST_Request $request The change.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function change_access( \WP_REST_Request $request ) {
+		$access = $request->get_param( 'access' );
+		if ( ! is_array( $access ) || ! isset( $access['preset'] ) || ! in_array( $access['preset'], array( ConnectionAccess::EVERYTHING, ConnectionAccess::SOME ), true ) ) {
+			return new \WP_Error( 'agentimus_bad_access', __( 'Choose Everything or Only some things.', 'agentimus' ), array( 'status' => 400 ) );
+		}
+		if ( 'token' === (string) $request->get_param( 'kind' ) ) {
+			if ( null === \Agentimus\McpToken::set_access( $access ) ) {
+				return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
+			}
+			return rest_ensure_response( array( 'token' => \Agentimus\McpToken::status() ) );
+		}
+		if ( null === Server::set_access( (string) $request->get_param( 'clientId' ), $access ) ) {
+			return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
+		}
+		return $this->oauth_grants();
+	}
+
+	/**
+	 * Only a person in the browser changes access: an administrator, and not
+	 * through an application password, which reaches every REST route.
+	 *
+	 * @return bool
+	 */
+	public function can_change_access() {
+		if ( function_exists( 'rest_get_authenticated_app_password' ) && null !== rest_get_authenticated_app_password() ) {
+			return false;
+		}
+		return current_user_can( 'manage_options' );
 	}
 
 	/**
@@ -145,7 +192,12 @@ final class Rest {
 	 * @return \WP_REST_Response
 	 */
 	public function oauth_grants() {
-		return rest_ensure_response( array( 'grants' => Server::grants() ) );
+		return rest_ensure_response(
+			array(
+				'grants'  => Server::grants(),
+				'choices' => ConnectionAccess::choices(),
+			)
+		);
 	}
 
 	/**

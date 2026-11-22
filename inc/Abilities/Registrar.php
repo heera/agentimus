@@ -191,20 +191,41 @@ final class Registrar {
 	 * @return array
 	 */
 	public function filter_tools_for_scope( $tools ) {
-		if ( McpToken::request_allows_writes() && Oauth\Server::request_allows_writes() ) {
+		$writes = McpToken::request_allows_writes() && Oauth\Server::request_allows_writes();
+		if ( $writes && null === ConnectionAccess::current() ) {
 			return $tools;
 		}
 		return array_values(
 			array_filter(
 				(array) $tools,
-				static function ( $tool ) {
+				static function ( $tool ) use ( $writes ) {
 					if ( ! is_object( $tool ) || ! method_exists( $tool, 'getName' ) ) {
 						return true; // Unknown shape — never drop it on a guess.
 					}
-					return ! self::is_write_tool_name( $tool->getName() );
+					$slug = self::write_slug_of( $tool->getName() );
+					if ( null === $slug ) {
+						return true; // A read tool.
+					}
+					return $writes && ConnectionAccess::allows_tool( $slug );
 				}
 			)
 		);
+	}
+
+	/**
+	 * The slug of one of OUR write tools from its wire name, or null.
+	 *
+	 * @param string $name Tool name as it reaches the wire.
+	 * @return string|null
+	 */
+	private static function write_slug_of( $name ) {
+		$name = (string) $name;
+		foreach ( self::WRITE_SLUGS as $slug ) {
+			if ( self::CATEGORY . '/' . $slug === $name || self::CATEGORY . '-' . $slug === $name ) {
+				return $slug;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -4637,6 +4658,8 @@ final class Registrar {
 		if ( ! $readonly ) {
 			$permission = McpToken::gate_write_permission( $permission );
 			$permission = Oauth\Server::gate_write_permission( $permission );
+			// And the boxes of the connection running the call (Everything or Only some things).
+			$permission = ConnectionAccess::gate( $slug, $permission );
 		}
 
 		wp_register_ability(

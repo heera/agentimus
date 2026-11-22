@@ -263,8 +263,14 @@ final class Server {
 	 * @param int    $user_id The approving user the grant will act as.
 	 * @return string The single-use authorization code.
 	 */
-	public static function issue_code( array $req, $scope, $user_id ) {
-		$code  = bin2hex( random_bytes( 32 ) );
+	public static function issue_code( array $req, $scope, $user_id, $access = null ) {
+		// The owner's access choice decides the scope its tokens carry. A caller
+		// that sends no record (an older path) keeps the scope it named.
+		$access = null === $access
+			? \Agentimus\Abilities\ConnectionAccess::normalize( null, $scope )
+			: \Agentimus\Abilities\ConnectionAccess::normalize( $access );
+		$scope  = \Agentimus\Abilities\ConnectionAccess::scope_for( $access );
+		$code   = bin2hex( random_bytes( 32 ) );
 		$state = self::state();
 
 		$state['codes'][ hash( 'sha256', $code ) ] = array(
@@ -283,6 +289,7 @@ final class Server {
 			$state['clients'][ $req['client_id'] ]['approved']    = time();
 			$state['clients'][ $req['client_id'] ]['approved_by'] = (int) $user_id;
 			$state['clients'][ $req['client_id'] ]['scope']       = 'write' === $scope ? 'write' : 'read';
+			$state['clients'][ $req['client_id'] ]['access']      = $access;
 		}
 		self::save( $state );
 		return $code;
@@ -526,6 +533,60 @@ final class Server {
 	}
 
 	/**
+	 * The access of the assistant whose grant seated THIS request, or null when
+	 * no grant did. An assistant approved before access records existed answers
+	 * from its scope (write = Everything, read = nothing ticked).
+	 *
+	 * @return array{preset: string, boxes: string[]}|null
+	 */
+	public static function request_access() {
+		if ( null === self::$request_grant ) {
+			return null;
+		}
+		$state  = self::state();
+		$id     = (string) self::$request_grant['client_id'];
+		$client = isset( $state['clients'][ $id ] ) && is_array( $state['clients'][ $id ] ) ? $state['clients'][ $id ] : null;
+		if ( null === $client ) {
+			return \Agentimus\Abilities\ConnectionAccess::normalize( null, self::$request_grant['scope'] );
+		}
+		return \Agentimus\Abilities\ConnectionAccess::normalize(
+			isset( $client['access'] ) ? $client['access'] : null,
+			isset( $client['scope'] ) ? (string) $client['scope'] : self::$request_grant['scope']
+		);
+	}
+
+	/**
+	 * Change ONE approved assistant's access. Its live tokens, refresh tokens and
+	 * waiting codes take the scope the new access needs, so the change holds on
+	 * the very next call. Only the owner's screen reaches this.
+	 *
+	 * @param string $client_id The assistant.
+	 * @param mixed  $access    The new record.
+	 * @return array|null The stored record, or null when there is no such approved assistant.
+	 */
+	public static function set_access( $client_id, $access ) {
+		$client_id = (string) $client_id;
+		$state     = self::state();
+		if ( empty( $state['clients'][ $client_id ]['approved'] ) ) {
+			return null;
+		}
+		$access = \Agentimus\Abilities\ConnectionAccess::normalize( $access );
+		$scope  = \Agentimus\Abilities\ConnectionAccess::scope_for( $access );
+
+		$state['clients'][ $client_id ]['access'] = $access;
+		$state['clients'][ $client_id ]['scope']  = $scope;
+		foreach ( array( 'codes', 'tokens', 'refresh' ) as $bucket ) {
+			foreach ( $state[ $bucket ] as $key => $entry ) {
+				if ( isset( $entry['client_id'] ) && $client_id === (string) $entry['client_id'] ) {
+					$state[ $bucket ][ $key ]['scope'] = $scope;
+				}
+			}
+		}
+		self::save( $state );
+		return $access;
+	}
+
+	/**
 	 * Whether THIS request may run write tools. True for every non-OAuth auth
 	 * path; a grant answers for its scope. Composed with the connection
 	 * token's identical gate by the Registrar.
@@ -592,11 +653,13 @@ final class Server {
 			if ( empty( $client['approved'] ) ) {
 				continue; // Registered but never approved — not a connection.
 			}
+			$scope  = isset( $client['scope'] ) && 'write' === $client['scope'] ? 'write' : 'read';
 			$rows[] = array(
 				'clientId' => (string) $client_id,
 				'name'     => (string) $client['name'],
 				'host'     => self::redirect_host( $client ),
-				'scope'    => isset( $client['scope'] ) && 'write' === $client['scope'] ? 'write' : 'read',
+				'scope'    => $scope,
+				'access'   => \Agentimus\Abilities\ConnectionAccess::normalize( isset( $client['access'] ) ? $client['access'] : null, $scope ),
 				'approved' => (int) $client['approved'],
 				'lastUsed' => isset( $client['last_used'] ) ? (int) $client['last_used'] : null,
 			);

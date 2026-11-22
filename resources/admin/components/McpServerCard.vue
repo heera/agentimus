@@ -18,6 +18,7 @@ import { confirm } from '../js/confirm.js';
 import { formatDate, formatTime } from '../js/wpDate.js';
 import { copyText } from '../js/clipboard.js';
 import { bindDocEsc } from '../js/docEsc.js';
+import { connectionAccessLabel } from '../js/connectionAccess.js';
 import { judgeInitialize } from '../js/mcpTest.js';
 import { LEVELS, levelOf, chooseLevel, customNote, limitFor, publishWarning } from '../js/agentLevel.js';
 import AppLink from './AppLink.vue';
@@ -49,6 +50,12 @@ export default {
       oauthGrants: [],
       oauthBusy: '',
       oauthError: '',
+      // Change access: the boxes the site offers (from /oauth/grants) and the
+      // connection being edited, as { kind, id, name, preset, boxes }.
+      accessChoices: [],
+      accessEdit: null,
+      accessBusy: false,
+      accessError: '',
       // The live last-call fact from /mcp-status; overrides the page-load copy.
       mcpLiveLastCall: null,
       // Which assistant's setup steps the help fold is showing.
@@ -156,6 +163,9 @@ export default {
     // (each its own identity), then the shared token as one row. The card's
     // whole point: every key that opens the door is listed in ONE place, with
     // the same exit next to it.
+    accessOpen() {
+      return !!this.accessEdit;
+    },
     mcpConnections() {
       const rows = this.oauthGrants.map((g) => ({
         kind: 'grant',
@@ -165,6 +175,7 @@ export default {
         when: this.grantWhen(g),
         live: !!g.lastUsed,
         scope: g.scope,
+        access: g.access,
         grant: g,
       }));
       if (this.mcpToken) {
@@ -178,6 +189,7 @@ export default {
             : `Created ${this.mcpTokenCreatedText} · not used yet`,
           live: !!(this.mcpToken && this.mcpToken.last_used_at),
           scope: this.mcpToken.scope,
+          access: this.mcpToken.access,
         });
       }
       return rows;
@@ -449,6 +461,10 @@ export default {
       if (this._unEscScope) this._unEscScope();
       this._unEscScope = open ? bindDocEsc(() => { this.mcpScopeOpen = false; }) : null;
     },
+    accessOpen(open) {
+      if (this._unEscAccess) this._unEscAccess();
+      this._unEscAccess = open ? bindDocEsc(() => { this.accessEdit = null; }) : null;
+    },
   },
   mounted() {
     window.addEventListener('focus', this.onWindowFocus);
@@ -500,8 +516,45 @@ export default {
       try {
         const res = await this.api.getOauthGrants();
         this.oauthGrants = (res && res.grants) || [];
+        this.accessChoices = (res && res.choices) || [];
       } catch (e) {
         this.oauthGrants = [];
+      }
+    },
+    /* ---- change one connection's access ----------------------------------- */
+    accessLabel(c) {
+      return connectionAccessLabel(c.access, c.scope, this.accessChoices.length);
+    },
+    openAccess(c) {
+      const access = c.access || { preset: c.scope === 'write' ? 'everything' : 'some', boxes: [] };
+      this.accessError = '';
+      this.accessEdit = {
+        kind: c.kind,
+        id: c.id,
+        name: c.name,
+        preset: access.preset,
+        // Opening Only some things from Everything starts with every box ticked.
+        boxes: access.preset === 'everything' ? this.accessChoices.map((b) => b.key) : [...access.boxes],
+      };
+    },
+    async saveAccess() {
+      const edit = this.accessEdit;
+      if (!edit || this.accessBusy) return;
+      this.accessBusy = true;
+      this.accessError = '';
+      try {
+        const access = { preset: edit.preset, boxes: edit.preset === 'some' ? edit.boxes : [] };
+        const res = await this.api.changeConnectionAccess(edit.kind, edit.kind === 'grant' ? edit.id : '', access);
+        if (edit.kind === 'token') {
+          this.mcpToken = (res && res.token) || this.mcpToken;
+        } else {
+          this.oauthGrants = (res && res.grants) || this.oauthGrants;
+        }
+        this.accessEdit = null;
+      } catch (e) {
+        this.accessError = e.message || 'Could not change this connection’s access.';
+      } finally {
+        this.accessBusy = false;
       }
     },
     // One assistant out, the others untouched — the reason per-agent grants
@@ -971,7 +1024,12 @@ export default {
                 <span
                   class="ar-grant__scope"
                   :class="{ 'is-write': c.scope === 'write', 'is-token': c.kind === 'token' }"
-                >{{ c.scope === 'write' ? 'Read · Write' : 'Read only' }}</span>
+                >{{ accessLabel(c) }}</span>
+                <button
+                  type="button"
+                  class="ar-btn ar-btn--ghost ar-btn--small"
+                  @click="openAccess(c)"
+                >Change access</button>
                 <button
                   v-if="c.kind === 'grant'"
                   type="button"
@@ -1356,6 +1414,63 @@ export default {
             </div>
             <div class="ar-modal__actions">
               <button type="button" class="ar-btn ar-btn--ghost" @click="mcpScopeOpen = false">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Change access: Everything, or the boxes ticked. The site's switches stay
+         the ceiling either way, and only this screen can change it. -->
+    <Teleport to="body">
+      <transition name="ar-modal">
+        <div v-if="accessEdit" class="ar-modal" @click.self="accessEdit = null">
+          <div
+            class="ar-modal__panel ar-modal__panel--confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ar-access-title"
+            tabindex="-1"
+          >
+            <div class="ar-modal__head">
+              <h2 id="ar-access-title" class="ar-modal__title">What {{ accessEdit.name }} May Do</h2>
+              <p class="ar-modal__lead">
+                Always within what your settings above let agents do. It can always read.
+              </p>
+            </div>
+            <!-- The boxes scroll; Save and Cancel stay in view on a short screen. -->
+            <div class="ar-modal__body">
+              <div class="ar-modal__scroll">
+                <div class="ar-access" role="radiogroup" aria-label="Access">
+                  <label class="ar-mcp-scope-opt" :class="{ 'is-sel': accessEdit.preset === 'everything' }">
+                    <input v-model="accessEdit.preset" type="radio" value="everything" name="ar-access-preset" />
+                    <span class="ar-mcp-scope-opt__body">
+                      <strong>Everything</strong>
+                      <small>All that your settings allow agents, and it follows when you change them.</small>
+                    </span>
+                  </label>
+                  <label class="ar-mcp-scope-opt" :class="{ 'is-sel': accessEdit.preset === 'some' }">
+                    <input v-model="accessEdit.preset" type="radio" value="some" name="ar-access-preset" />
+                    <span class="ar-mcp-scope-opt__body">
+                      <strong>Only some things</strong>
+                      <small>Reading, plus the boxes you tick.</small>
+                    </span>
+                  </label>
+                  <div v-if="accessEdit.preset === 'some'" class="ar-access__boxes">
+                    <label v-for="b in accessChoices" :key="b.key" class="ar-access__box">
+                      <input v-model="accessEdit.boxes" type="checkbox" :value="b.key" />
+                      <span><strong>{{ b.label }}</strong><small>{{ b.about }}</small></span>
+                    </label>
+                  </div>
+                </div>
+                <p v-if="accessError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ accessError }}</p>
+              </div>
+            </div>
+            <div class="ar-modal__actions">
+              <button type="button" class="ar-btn ar-btn--ghost" @click="accessEdit = null">Cancel</button>
+              <button type="button" class="ar-btn" :disabled="accessBusy" @click="saveAccess">
+                {{ accessBusy ? 'Saving…' : 'Save' }}
+              </button>
             </div>
           </div>
         </div>

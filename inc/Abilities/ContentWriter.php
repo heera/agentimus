@@ -378,6 +378,13 @@ final class ContentWriter {
 				array( 'status' => 403 )
 			);
 		}
+		if ( ! ConnectionAccess::allows( 'content' ) ) {
+			return new \WP_Error(
+				'agentimus_content_not_allowed',
+				__( 'This connection may not schedule posts. The owner can tick “Manage terms, media and the trash” and Publish for it under MCP Server → Change access. Nothing was written.', 'agentimus' ),
+				array( 'status' => 403 )
+			);
+		}
 
 		$status = isset( $input['status'] ) ? (string) $input['status'] : '';
 		if ( '' !== $status && 'publish' !== $status ) {
@@ -545,6 +552,13 @@ final class ContentWriter {
 		}
 
 		if ( 'publish' === $status && ! $already_published ) {
+			if ( ! ConnectionAccess::allows( 'publish' ) ) {
+				return new \WP_Error(
+					'agentimus_publish_not_allowed',
+					__( 'This connection may not publish. Create it as a draft (or pending) for the owner to review, or the owner can tick Publish for this connection under MCP Server → Change access.', 'agentimus' ),
+					array( 'status' => 403 )
+				);
+			}
 			if ( ! $this->settings->enabled( 'agent_writes_publish' ) ) {
 				return new \WP_Error(
 					'agentimus_publish_off',
