@@ -4,6 +4,7 @@
 [![WordPress plugin version](https://img.shields.io/wordpress/plugin/v/agentimus?label=wordpress.org)](https://wordpress.org/plugins/agentimus/)
 [![Tested up to](https://img.shields.io/wordpress/plugin/tested/agentimus)](https://wordpress.org/plugins/agentimus/)
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
+[![mcptry](https://mcptry.com/badge/it.heera/agentimus)](https://mcptry.com/servers/it.heera/agentimus)
 
 Two things for the age of AI agents. **(1)** Make any WordPress site legible and citable —
 `llms.txt`, a full-text edition, markdown delivery, JSON-LD, content-signal robots rules —
