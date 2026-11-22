@@ -68,6 +68,10 @@ Design choices that keep the public surface safe:
   administrator signed in to the browser can change it: the route refuses an
   application password, an agent's credential can't reach it, and the stored
   records keep their value during an agent call.
+- **Other plugins' abilities start off.** Agents reach them only through
+  run-ability, and only those the owner turned on under More → Abilities. At the
+  Read level only abilities their plugin declares read-only run. Each runs as the
+  signed-in user with its own permission check, inside the limits above.
 - **Parameterized storage.** All database writes/reads use `$wpdb->prepare()` or
   `$wpdb->insert()` format arrays — no string-interpolated SQL.
 - **Escaped output.** Headers use registered relations and `esc_url_raw()`; the Vue

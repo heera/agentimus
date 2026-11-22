@@ -160,6 +160,10 @@ export function createApi(boot) {
     getOauthGrants: () => request('/oauth/grants'),
     revokeOauthGrant: (clientId) =>
       request('/oauth/grants', { method: 'DELETE', body: JSON.stringify({ clientId }) }),
+    // Other plugins' abilities: every one with its switch, and turning some on or off.
+    getAbilities: () => request('/abilities'),
+    setAbilities: (names, on) =>
+      request('/abilities', { method: 'PUT', body: JSON.stringify({ names, on }) }),
     // Change ONE connection's access (an approved assistant, or the shared token).
     changeConnectionAccess: (kind, clientId, access) =>
       request('/connection-access', { method: 'PUT', body: JSON.stringify({ kind, clientId, access }) }),

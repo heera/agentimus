@@ -271,6 +271,18 @@ final class AbilitiesApi {
 	}
 
 	/**
+	 * A plugin's own name for a group of abilities, or '' when there is no single
+	 * honest one (see shared_category_label). Used by the Abilities screen.
+	 *
+	 * @param string $namespace The name prefix the abilities share.
+	 * @param array  $items     Each {name, ability}.
+	 * @return string
+	 */
+	public static function plugin_label( $namespace, $items ) {
+		return self::shared_category_label( $namespace, $items );
+	}
+
+	/**
 	 * The label of the one category every ability in a group belongs to, or ''.
 	 *
 	 * ⛔ Empty is returned for every case where a single name would be a guess: no

@@ -116,6 +116,8 @@ final class AgentParityDbTest extends DbTestCase {
 		'READ /oauth/grants'                  => 'secret: lists who holds access.',
 		'DELETE /oauth/grants'                => 'secret: cuts off an assistant.',
 		'WRITE /connection-access'            => 'switches: changes what one connection may do.',
+		'READ /abilities'                     => 'list-plugins',
+		'WRITE /abilities'                    => 'switches: turns other plugins\' abilities on or off for agents.',
 		'WRITE /oauth/register'               => 'public: OAuth client registration.',
 		'WRITE /oauth/token'                  => 'public: OAuth\'s code exchange.',
 		'WRITE /onboarding'                   => 'person: the owner\'s setup wizard.',
@@ -239,7 +241,7 @@ final class AgentParityDbTest extends DbTestCase {
 
 	/** ⛔ A secret, a switch or a log must never be written down as having a tool. */
 	public function test_the_routes_agents_may_never_reach_stay_out() {
-		foreach ( array( 'WRITE /mcp-token', 'READ /mcp-token', 'DELETE /oauth/grants', 'WRITE /connection-access', 'WRITE /visibility/reveal-key', 'WRITE /settings/reset', 'DELETE /activity', 'DELETE /agent-access', 'WRITE /visibility/clear' ) as $route ) {
+		foreach ( array( 'WRITE /mcp-token', 'READ /mcp-token', 'DELETE /oauth/grants', 'WRITE /connection-access', 'WRITE /abilities', 'WRITE /visibility/reveal-key', 'WRITE /settings/reset', 'DELETE /activity', 'DELETE /agent-access', 'WRITE /visibility/clear' ) as $route ) {
 			$this->assertNotContains( self::ROUTES[ $route ], $this->tools(), "$route must have no tool." );
 		}
 	}

@@ -21,6 +21,9 @@
  * during an agent call). An application password is no connection here: it keeps
  * following the site's switches.
  *
+ * A few tools that write nothing still sit in a box: the three that reach other
+ * plugins' abilities, which a connection without that box never sees.
+ *
  * ⛔ Every write tool belongs to exactly one box (ConnectionAccessTest holds it), so a
  * new tool can't slip past Only some things by belonging to none.
  *
@@ -47,6 +50,8 @@ final class ConnectionAccess {
 		'reviews'     => array( 'set-aside-page', 'set-aside-search-page', 'dismiss-search', 'review-client', 'recheck-client', 'retry-announcement' ),
 		'settings'    => array( 'update-settings', 'save-citation-product', 'apply-fix' ),
 		'maintenance' => array( 'refresh-data', 'purge-edge-cache' ),
+		// Other plugins' abilities (step C). run-ability checks each ability's level itself.
+		'abilities'   => array( 'list-plugins', 'list-plugin-abilities', 'run-ability' ),
 	);
 
 	/**
@@ -85,6 +90,11 @@ final class ConnectionAccess {
 				'key'   => 'maintenance',
 				'label' => __( 'Refresh data and purge the cache', 'agentimus' ),
 				'about' => __( 'Fetch fresh numbers from connected services and clear the edge cache.', 'agentimus' ),
+			),
+			array(
+				'key'   => 'abilities',
+				'label' => __( 'Use other plugins’ abilities', 'agentimus' ),
+				'about' => __( 'Only the ones you turn on under More → Abilities.', 'agentimus' ),
 			),
 		);
 	}
@@ -193,10 +203,10 @@ final class ConnectionAccess {
 	 * @return bool
 	 */
 	public static function allows_tool( $slug ) {
-		if ( ! in_array( $slug, Registrar::WRITE_SLUGS, true ) ) {
-			return true;
-		}
 		$box = self::box_of( $slug );
+		if ( null === $box && ! in_array( $slug, Registrar::WRITE_SLUGS, true ) ) {
+			return true; // A tool that only reads.
+		}
 		if ( null === self::current() ) {
 			return true;
 		}

@@ -510,7 +510,8 @@ final class HardBlocks {
 	 */
 	private static function kept_options() {
 		global $wpdb;
-		return array_merge( self::KEPT_OPTIONS, array( $wpdb->get_blog_prefix() . 'user_roles' ) );
+		// The roles list, and which other plugins' abilities the owner turned on.
+		return array_merge( self::KEPT_OPTIONS, array( $wpdb->get_blog_prefix() . 'user_roles', OtherAbilities::OPTION ) );
 	}
 
 	/**

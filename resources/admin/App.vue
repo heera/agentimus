@@ -25,6 +25,7 @@ import GoogleIndexPanel from './components/GoogleIndexPanel.vue';
 import SearchPerformance from './components/SearchPerformance.vue';
 import SearchOpportunities from './components/SearchOpportunities.vue';
 import AgentAccess from './components/AgentAccess.vue';
+import AbilitiesPanel from './components/AbilitiesPanel.vue';
 import IntegrationsPanel from './components/integrations/IntegrationsPanel.vue';
 import AnnouncementsPanel from './components/integrations/AnnouncementsPanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
@@ -69,7 +70,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, ReportPanel, TodayLine, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, AbilitiesPanel, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, ReportPanel, TodayLine, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -94,7 +95,7 @@ export default {
     // always mounted and always in the menu, but a cold load on #report was
     // dropping onto the dashboard because this list — not tabs() — is what a
     // refresh validates against. His catch, 2026-08-24.
-    let startTab = ['findings', 'dashboard', 'report', ...activityTabs, 'agent-access', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['findings', 'dashboard', 'report', ...activityTabs, 'agent-access', 'abilities', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -250,6 +251,15 @@ export default {
     };
   },
   computed: {
+    // The SAVED write level, for the Abilities screen's "needs Write" note: an
+    // unsaved toggle on the settings form does not change what can run.
+    savedWrites() {
+      try {
+        return !!JSON.parse(this.savedSnapshot).enable_agent_writes;
+      } catch (e) {
+        return false;
+      }
+    },
     score() {
       if (!this.readiness.length) return { pass: 0, total: 0, pct: 0 };
       // 'off' rows (a switched-off feature's informational shadow) stay out of
@@ -437,6 +447,8 @@ export default {
           label: 'Agent Access',
           badge: this.agentAccessUnseen,
         },
+        // Which of other plugins' abilities agents may use: the act side's switches.
+        { id: 'abilities', label: 'Abilities' },
         // What the site connects TO — services receiving its reports, plugins it
         // describes. It sits under the acting screens: connections are standing
         // arrangements, the noun form of what the screens above show happening.
@@ -541,6 +553,11 @@ export default {
             title: 'Request Log',
             audience: 'machines',
             description: 'Every visit a machine made to your site — which crawler or AI assistant it was, what it fetched, and whether it was served or turned away (“refused”).',
+          },
+          abilities: {
+            title: 'Abilities',
+            audience: 'machines',
+            description: 'Which of other plugins’ abilities AI assistants may use on your site. Every one starts off.',
           },
           'agent-access': {
             title: 'Agent Access',
@@ -911,6 +928,8 @@ export default {
         log: ['M3 4.2h10', 'M3 8h10', 'M3 11.8h6'],
         // A key: this screen is about the credentials that reach the machine surface.
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
+        // A switch: this screen turns other plugins' abilities on and off.
+        abilities: ['M5.2 4.6h5.6a3.4 3.4 0 0 1 0 6.8H5.2a3.4 3.4 0 0 1 0-6.8Z', 'M10.8 9.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z'],
         // A plug: this screen is about what the site connects to.
         integrations: ['M6 1.8v3.4M10 1.8v3.4', 'M4.6 5.2h6.8v2.4a3.4 3.4 0 0 1-6.8 0Z', 'M8 11v3.2'],
         // A megaphone: this screen is about what the site said out loud.
@@ -2695,6 +2714,15 @@ export default {
           :active="tab === 'agent-access'"
           :unread="agentAccessUnseen"
           @seen="agentAccessUnseen = 0"
+          @flash="flash"
+        />
+        <!-- Always mounted, like agent-access: listed unconditionally, fetches on
+             first reveal and re-reads on every return. -->
+        <AbilitiesPanel
+          v-show="tab === 'abilities'"
+          :api="api"
+          :active="tab === 'abilities'"
+          :writes="savedWrites"
           @flash="flash"
         />
         <!-- Always mounted, like agent-access: the nav lists it unconditionally,

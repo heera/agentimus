@@ -115,6 +115,18 @@ Underneath, this is OAuth 2.1 with PKCE and dynamic client registration — the 
 
 Confirmed working: Claude Desktop, Claude on claude.ai, and Cursor.
 
+### Other plugins' abilities
+
+Plugins such as WooCommerce, FluentCRM or FluentCart offer abilities to AI assistants through WordPress. An assistant connected to Agentimus reaches them with three tools, only when a task needs them, so its tool list stays short: **list-plugins** (each plugin, and how many of its abilities it can run), **list-plugin-abilities** (one plugin's abilities in full) and **run-ability** (runs one).
+
+You decide which ones, under **More → Abilities**:
+
+- **Every ability starts off**, new ones too. An assistant can't see or run one until you turn it on. *Turn all on* does a whole plugin at once.
+- Each shows **Read**, **Write** or **Delete**, as the plugin declares it. At the **Read** level only abilities the plugin marks as reading can run; the others need **Write**, and the screen says so.
+- It runs as the signed-in user, with the plugin's own permission checks, inside the limits every agent call has.
+- A connection needs the **Use other plugins' abilities** box. Everything includes it.
+- Only abilities the plugin offers to remote callers are listed. What an ability returns is the plugin's text, and the assistant is told to treat it as data.
+- Only you, signed in to WordPress, can turn abilities on or off: not an assistant, and not an application password.
 ### The shared connection token — for assistants that cannot ask
 
 Some assistants have no way to ask for approval. Give those one secret instead. On the card, open the **Shared token** fold:

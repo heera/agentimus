@@ -160,7 +160,10 @@ final class ConnectionAccessDbTest extends DbTestCase {
 		$seen = array();
 		foreach ( ConnectionAccess::BOXES as $box => $slugs ) {
 			foreach ( $slugs as $slug ) {
-				$this->assertContains( $slug, Registrar::WRITE_SLUGS, "{$box} names {$slug}, which is no write tool." );
+				// The one box that also holds tools writing nothing: the three that reach
+				// other plugins' abilities (step C), which a connection without it never sees.
+				$allowed = 'abilities' === $box ? array( 'list-plugins', 'list-plugin-abilities', 'run-ability' ) : Registrar::WRITE_SLUGS;
+				$this->assertContains( $slug, $allowed, "{$box} names {$slug}, which is no tool that box may hold." );
 				$this->assertArrayNotHasKey( $slug, $seen, "{$slug} is in two boxes." );
 				$seen[ $slug ] = $box;
 			}
