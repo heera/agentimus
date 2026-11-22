@@ -72,6 +72,10 @@ Design choices that keep the public surface safe:
   run-ability, and only those the owner turned on under More → Abilities. At the
   Read level only abilities their plugin declares read-only run. Each runs as the
   signed-in user with its own permission check, inside the limits above.
+- **A skill an agent saves waits off.** Saved skills steer every later agent, so
+  one an agent writes is stored off until the owner turns it on, and changing it
+  turns it off again. During an agent call no path can turn a skill on, mark an
+  agent's skill as the owner's, or delete one.
 - **Parameterized storage.** All database writes/reads use `$wpdb->prepare()` or
   `$wpdb->insert()` format arrays — no string-interpolated SQL.
 - **Escaped output.** Headers use registered relations and `esc_url_raw()`; the Vue

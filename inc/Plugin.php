@@ -115,6 +115,8 @@ final class Plugin {
 		( new Oauth\Consent( $this->settings ) )->register(); // The /agentimus/connect consent page.
 		( new Oauth\Rest( $this->settings ) )->register(); // /oauth/register · /oauth/token · /oauth/grants.
 		( new Abilities\OtherAbilitiesRest() )->register(); // /abilities: the owner's switches for other plugins' abilities.
+		Abilities\Skills::register(); // The private post type that holds saved skills.
+		( new Abilities\SkillsRest() )->register(); // /skills: the owner's Skills screen.
 		( new Tombstones() )->register(); // Records removals for the change feed (self-gates on enable_changes).
 		( new PageBuilders() )->register(); // Builder-owned pages: supplies the REAL body (Elementor/Beaver render) to every read surface via agentimus_markdown_source; ContentWriter asks it before replacing a body.
 		( new Schema( $this->settings ) )->register();

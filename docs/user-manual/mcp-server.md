@@ -127,6 +127,17 @@ You decide which ones, under **More → Abilities**:
 - A connection needs the **Use other plugins' abilities** box. Everything includes it.
 - Only abilities the plugin offers to remote callers are listed. What an ability returns is the plugin's text, and the assistant is told to treat it as data.
 - Only you, signed in to WordPress, can turn abilities on or off: not an assistant, and not an application password.
+### Skills: your rules for every agent
+
+A skill is one of your rules, or your way of doing a task, written down once so every agent follows it without being told again. For example: *"Publishing a post: add a featured image, pick one category, set an AI description."* Your writing voice stays in WordPress's content guidelines, which the write tools already carry.
+
+Agents check **list-skills** before a task and open one with **get-skill**. Manage them under **More → Skills**:
+
+- **A skill you write is on as soon as you save it.** Turn it off, edit it or delete it any time.
+- **An agent can save one too**, with **save-skill**, usually when you ask it to remember something. ⛔ It waits **off**, at the top of the screen under *Waiting for you*, until you turn it on. An agent that changes its own skill turns it off again. A saved skill steers every agent after it, so one planted by something an agent read never takes effect with nobody looking.
+- An agent can never change a skill you wrote, turn one off or delete one. Saving needs the **Write** level and the connection's **Save skills** box. Reading skills needs neither.
+- Skills are plain text, at most 50, stored privately in WordPress with their revisions. Only you, signed in to WordPress, can use the Skills screen.
+
 ### The shared connection token — for assistants that cannot ask
 
 Some assistants have no way to ask for approval. Give those one secret instead. On the card, open the **Shared token** fold:

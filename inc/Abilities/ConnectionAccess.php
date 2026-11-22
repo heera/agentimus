@@ -52,6 +52,8 @@ final class ConnectionAccess {
 		'maintenance' => array( 'refresh-data', 'purge-edge-cache' ),
 		// Other plugins' abilities (step C). run-ability checks each ability's level itself.
 		'abilities'   => array( 'list-plugins', 'list-plugin-abilities', 'run-ability' ),
+		// Saved skills (step D): reading them needs no box; saving one does.
+		'skills'      => array( 'save-skill' ),
 	);
 
 	/**
@@ -95,6 +97,11 @@ final class ConnectionAccess {
 				'key'   => 'abilities',
 				'label' => __( 'Use other plugins’ abilities', 'agentimus' ),
 				'about' => __( 'Only the ones you turn on under More → Abilities.', 'agentimus' ),
+			),
+			array(
+				'key'   => 'skills',
+				'label' => __( 'Save skills', 'agentimus' ),
+				'about' => __( 'Write down a rule or a way of working. Each waits off until you turn it on under More → Skills.', 'agentimus' ),
 			),
 		);
 	}

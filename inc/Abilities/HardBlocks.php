@@ -226,6 +226,13 @@ final class HardBlocks {
 		add_action( 'delete_plugin', array( self::class, 'stop_for_agentimus' ), 0 );
 
 		add_filter( 'upgrader_pre_download', array( self::class, 'only_wordpress_org_installs' ), PHP_INT_MAX, 4 );
+
+		// Saved skills: whatever an agent writes stays off, an agent's mark stays on
+		// it, and none is deleted, by any path (step D).
+		add_filter( 'wp_insert_post_data', array( self::class, 'skills_stay_off' ), PHP_INT_MAX, 2 );
+		add_filter( 'update_post_metadata', array( self::class, 'skills_keep_their_author' ), PHP_INT_MAX, 4 );
+		add_filter( 'add_post_metadata', array( self::class, 'skills_keep_their_author' ), PHP_INT_MAX, 4 );
+		add_filter( 'pre_delete_post', array( self::class, 'skills_stay' ), PHP_INT_MAX, 2 );
 	}
 
 	/**
@@ -254,6 +261,10 @@ final class HardBlocks {
 		remove_action( 'delete_plugin', array( self::class, 'stop_for_agentimus' ), 0 );
 
 		remove_filter( 'upgrader_pre_download', array( self::class, 'only_wordpress_org_installs' ), PHP_INT_MAX );
+		remove_filter( 'wp_insert_post_data', array( self::class, 'skills_stay_off' ), PHP_INT_MAX );
+		remove_filter( 'update_post_metadata', array( self::class, 'skills_keep_their_author' ), PHP_INT_MAX );
+		remove_filter( 'add_post_metadata', array( self::class, 'skills_keep_their_author' ), PHP_INT_MAX );
+		remove_filter( 'pre_delete_post', array( self::class, 'skills_stay' ), PHP_INT_MAX );
 
 		self::$held = array();
 	}
@@ -482,6 +493,52 @@ final class HardBlocks {
 			'agentimus_install_source',
 			__( 'An agent can install plugins and themes from WordPress.org only.', 'agentimus' )
 		);
+	}
+
+	/**
+	 * wp_insert_post_data: a skill an agent writes is stored off. Only the owner's
+	 * screen turns one on.
+	 *
+	 * @param array $data    The post as it will be saved.
+	 * @param array $postarr What was asked (unused).
+	 * @return array
+	 */
+	public static function skills_stay_off( $data, $postarr = array() ) {
+		if ( isset( $data['post_type'] ) && Skills::POST_TYPE === $data['post_type'] && 'publish' === ( isset( $data['post_status'] ) ? $data['post_status'] : '' ) ) {
+			$data['post_status'] = 'draft';
+		}
+		return $data;
+	}
+
+	/**
+	 * update_post_metadata: a skill's author mark can only say "agent" during an
+	 * agent call, so an agent can't pass its skill off as the owner's.
+	 *
+	 * @param mixed  $check    Null to let the update run.
+	 * @param int    $post_id  The post.
+	 * @param string $meta_key The key.
+	 * @param mixed  $value    The value.
+	 * @return mixed
+	 */
+	public static function skills_keep_their_author( $check, $post_id, $meta_key, $value ) {
+		if ( Skills::BY === $meta_key && 'agent' !== $value && Skills::POST_TYPE === get_post_type( $post_id ) ) {
+			return false;
+		}
+		return $check;
+	}
+
+	/**
+	 * pre_delete_post: an agent call never deletes a skill.
+	 *
+	 * @param mixed    $delete Null to let it run.
+	 * @param \WP_Post $post   The post.
+	 * @return mixed
+	 */
+	public static function skills_stay( $delete, $post ) {
+		if ( $post instanceof \WP_Post && Skills::POST_TYPE === $post->post_type ) {
+			return false;
+		}
+		return $delete;
 	}
 
 	/**

@@ -10231,3 +10231,23 @@ summary.ar-linkbtn:focus-visible { text-decoration: none; background: none; }
 .ar-abil__level.is-write { color: var(--ar-warn); border-color: var(--ar-warn); }
 .ar-abil__level.is-delete { color: var(--ar-bad); border-color: var(--ar-bad); }
 .ar-abil__wait { color: var(--ar-warn); font-size: 12px; }
+
+/* Skills: the owner's rules. Agent-saved ones waiting for the owner come first. */
+.ar-skills__error { color: var(--ar-bad); }
+.ar-skills__empty { margin: 0 0 12px; color: var(--ar-ink-soft); }
+.ar-skills__group { margin: 0 0 6px; font-size: 13px; color: var(--ar-warn); font-family: var(--ar-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.ar-skills__list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 4px; }
+.ar-skills__list.is-waiting { border: 1px solid var(--ar-warn); border-radius: var(--ar-radius); padding: 6px 12px; }
+.ar-skills__row { display: flex; align-items: flex-start; gap: 12px; }
+.ar-skills__row .ar-toggle { flex: 1 1 auto; min-width: 0; }
+.ar-skills__actions { display: flex; gap: 8px; flex: none; padding-top: 10px; }
+.ar-skills__meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.ar-skills__by { font-family: var(--ar-mono); font-size: 10.5px; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--ar-line-strong); }
+.ar-skills__by.is-agent { color: var(--ar-warn); border-color: var(--ar-warn); }
+.ar-skills__wait { color: var(--ar-warn); font-size: 12px; }
+.ar-skills__steps { min-height: 160px; resize: vertical; font-family: inherit; }
+.ar-skills__on { margin-top: 14px; }
+@media (max-width: 720px) {
+  .ar-skills__row { flex-direction: column; }
+  .ar-skills__actions { padding: 0 0 10px 54px; }
+}

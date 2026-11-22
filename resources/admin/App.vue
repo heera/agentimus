@@ -26,6 +26,7 @@ import SearchPerformance from './components/SearchPerformance.vue';
 import SearchOpportunities from './components/SearchOpportunities.vue';
 import AgentAccess from './components/AgentAccess.vue';
 import AbilitiesPanel from './components/AbilitiesPanel.vue';
+import SkillsPanel from './components/SkillsPanel.vue';
 import IntegrationsPanel from './components/integrations/IntegrationsPanel.vue';
 import AnnouncementsPanel from './components/integrations/AnnouncementsPanel.vue';
 import ReviewMenu from './components/ReviewMenu.vue';
@@ -70,7 +71,7 @@ const LEGACY_HASHES = { today: 'findings', attention: 'findings', 'ai-traffic': 
 
 export default {
   name: 'AgentimusApp',
-  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, AbilitiesPanel, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, ReportPanel, TodayLine, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
+  components: { ScoreRail, SettingsForm, ReadinessPanel, DiscoveryHub, ActivityPanel, AudiencePanel, SurfaceTiles, SiteSystems, WhatsNew, ReviewAsk, AssistantLauncher, AssistantDrawer, AiTrafficPanel, RequestLog, EdgePanel, BingPanel, GoogleIndexPanel, SearchPerformance, SearchOpportunities, AgentAccess, AbilitiesPanel, SkillsPanel, IntegrationsPanel, AnnouncementsPanel, ReviewMenu, OnboardingWizard, AboutPanel, ConfirmDialog, VisibilityPanel, ReportPanel, TodayLine, TodayPanel, ContentWorklist, CheckScopePanel, SupportDialog },
   // The styled hover bubble (shared with the activity tables) — the score rail's
   // rung and next-step hints use it instead of slow, unthemeable native titles.
   props: {
@@ -95,7 +96,7 @@ export default {
     // always mounted and always in the menu, but a cold load on #report was
     // dropping onto the dashboard because this list — not tabs() — is what a
     // refresh validates against. His catch, 2026-08-24.
-    let startTab = ['findings', 'dashboard', 'report', ...activityTabs, 'agent-access', 'abilities', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
+    let startTab = ['findings', 'dashboard', 'report', ...activityTabs, 'agent-access', 'abilities', 'skills', 'integrations', 'announcements', 'visibility', 'settings', 'readiness', 'discovery', 'about'].includes(fromHash) ? fromHash : 'dashboard';
     if (activityTabs.includes(startTab) && !actOn) startTab = 'dashboard';
     return {
       api: createApi(this.boot),
@@ -449,6 +450,8 @@ export default {
         },
         // Which of other plugins' abilities agents may use: the act side's switches.
         { id: 'abilities', label: 'Abilities' },
+        // The owner's rules every agent reads before a task.
+        { id: 'skills', label: 'Skills' },
         // What the site connects TO — services receiving its reports, plugins it
         // describes. It sits under the acting screens: connections are standing
         // arrangements, the noun form of what the screens above show happening.
@@ -553,6 +556,11 @@ export default {
             title: 'Request Log',
             audience: 'machines',
             description: 'Every visit a machine made to your site — which crawler or AI assistant it was, what it fetched, and whether it was served or turned away (“refused”).',
+          },
+          skills: {
+            title: 'Skills',
+            audience: 'machines',
+            description: 'Your rules and ways of doing things, which every AI assistant reads before working on your site.',
           },
           abilities: {
             title: 'Abilities',
@@ -930,6 +938,8 @@ export default {
         'agent-access': ['M9.9 6.1a2.6 2.6 0 1 0 3.7 3.7 2.6 2.6 0 0 0-3.7-3.7Z', 'M9.9 9.8 4 15.7', 'M6.4 13.2l1.6 1.6'],
         // A switch: this screen turns other plugins' abilities on and off.
         abilities: ['M5.2 4.6h5.6a3.4 3.4 0 0 1 0 6.8H5.2a3.4 3.4 0 0 1 0-6.8Z', 'M10.8 9.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z'],
+        // A note: this screen holds the owner's written rules.
+        skills: ['M4 2.4h6l2.6 2.6v8.6H4Z', 'M6.2 7.4h4.2', 'M6.2 10h4.2'],
         // A plug: this screen is about what the site connects to.
         integrations: ['M6 1.8v3.4M10 1.8v3.4', 'M4.6 5.2h6.8v2.4a3.4 3.4 0 0 1-6.8 0Z', 'M8 11v3.2'],
         // A megaphone: this screen is about what the site said out loud.
@@ -2723,6 +2733,12 @@ export default {
           :api="api"
           :active="tab === 'abilities'"
           :writes="savedWrites"
+          @flash="flash"
+        />
+        <SkillsPanel
+          v-show="tab === 'skills'"
+          :api="api"
+          :active="tab === 'skills'"
           @flash="flash"
         />
         <!-- Always mounted, like agent-access: the nav lists it unconditionally,

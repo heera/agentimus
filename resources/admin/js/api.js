@@ -164,6 +164,12 @@ export function createApi(boot) {
     getAbilities: () => request('/abilities'),
     setAbilities: (names, on) =>
       request('/abilities', { method: 'PUT', body: JSON.stringify({ names, on }) }),
+    // Saved skills: the owner's rules that every agent reads before a task.
+    getSkills: () => request('/skills'),
+    createSkill: (body) => request('/skills', { method: 'POST', body: JSON.stringify(body) }),
+    updateSkill: (id, body) => request(`/skills/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    setSkillOn: (id, on) => request(`/skills/${id}`, { method: 'PUT', body: JSON.stringify({ on }) }),
+    deleteSkill: (id) => request(`/skills/${id}`, { method: 'DELETE' }),
     // Change ONE connection's access (an approved assistant, or the shared token).
     changeConnectionAccess: (kind, clientId, access) =>
       request('/connection-access', { method: 'PUT', body: JSON.stringify({ kind, clientId, access }) }),
