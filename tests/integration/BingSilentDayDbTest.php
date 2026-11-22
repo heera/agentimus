@@ -128,13 +128,16 @@ final class BingSilentDayDbTest extends DbTestCase {
 	 * ON DUPLICATE KEY UPDATE would replace good numbers with zeros.
 	 */
 	public function test_a_silent_row_never_overwrites_numbers_already_stored() {
-		Table::upsert( array( $this->full( '2026-08-22', 230, 64 ) ) );
-		$this->assertSame( 230, (int) $this->row_for( '2026-08-22' )['in_index'] );
+		// ⚠️ ago(), not a calendar day: row_for() reads a 90-day window, and the
+		// fixed '2026-08-22' this used aged out of it on 2026-11-20.
+		$day = $this->ago( 1 );
+		Table::upsert( array( $this->full( $day, 230, 64 ) ) );
+		$this->assertSame( 230, (int) $this->row_for( $day )['in_index'] );
 
 		// The next poll answers for the same date with nothing in it.
-		Table::upsert( array( $this->silent( '2026-08-22' ) ) );
+		Table::upsert( array( $this->silent( $day ) ) );
 
-		$kept = $this->row_for( '2026-08-22' );
+		$kept = $this->row_for( $day );
 		$this->assertSame( 230, (int) $kept['in_index'], '⛔ A non-answer must never erase a reading.' );
 		$this->assertSame( 64, (int) $kept['crawled'] );
 		$this->assertTrue( Table::reported( $kept ) );
