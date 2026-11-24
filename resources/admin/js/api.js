@@ -1,6 +1,19 @@
 /**
  * Thin REST helper. Uses the WordPress REST nonce; no extra dependency.
  */
+/**
+ * The base address plus a route. ⛔ With plain permalinks the base is
+ * "…/index.php?rest_route=/agentimus/v1", so a route's own "?" must become
+ * "&": a second "?" made WordPress answer "No route was found" for every
+ * screen that filters (found 2026-11-25 on a fresh install's Request Log).
+ */
+export function joinUrl(base, path) {
+  const p = String(path || '');
+  const q = p.indexOf('?');
+  if (q === -1 || base.indexOf('?') === -1) return `${base}${p}`;
+  return `${base}${p.slice(0, q)}&${p.slice(q + 1)}`;
+}
+
 export function createApi(boot) {
   const base = (boot.restUrl || '').replace(/\/$/, '');
   const headers = {
@@ -87,7 +100,7 @@ export function createApi(boot) {
     return body;
   }
 
-  const request = (path, options = {}) => requestUrl(`${base}${path}`, options);
+  const request = (path, options = {}) => requestUrl(joinUrl(base, path), options);
   return {
     saveSettings: (settings) =>
       request('/settings', { method: 'POST', body: JSON.stringify({ settings }) }),
@@ -173,6 +186,9 @@ export function createApi(boot) {
     // Change ONE connection's access (an approved assistant, or the shared token).
     changeConnectionAccess: (kind, clientId, access) =>
       request('/connection-access', { method: 'PUT', body: JSON.stringify({ kind, clientId, access }) }),
+    // Pause or resume ONE connection (an approved assistant, or the shared token).
+    changeConnectionPause: (kind, clientId, paused) =>
+      request('/connection-pause', { method: 'PUT', body: JSON.stringify({ kind, clientId, paused }) }),
     getActivity: () => request('/activity'),
     getActivityDay: (date) => request(`/activity/day?date=${encodeURIComponent(date)}`),
     // The AI-traffic screen's own report: a day range (bounded by retention, not the

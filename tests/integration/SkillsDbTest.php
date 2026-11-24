@@ -196,8 +196,10 @@ final class SkillsDbTest extends DbTestCase {
 		$_SERVER['REQUEST_URI']        = '/wp-json/agentimus/v1/mcp';
 		$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
 		$this->assertSame( $this->admin, McpToken::authenticate( false ) );
-		$gate = ConnectionAccess::gate( 'save-skill', '__return_true' );
-		$this->assertFalse( $gate( array() ), 'Without the box, an agent can’t save skills.' );
+		$gate    = ConnectionAccess::gate( 'save-skill', '__return_true' );
+		$refused = $gate( array() );
+		$this->assertWPError( $refused, 'Without the box, an agent can’t save skills.' );
+		$this->assertStringContainsString( '“Save skills”', $refused->get_error_message() );
 	}
 
 	public function test_the_read_tools_are_on_the_server_at_every_level() {

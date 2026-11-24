@@ -90,3 +90,21 @@ test('no network says the site could not be reached', async () => {
   assert.equal(e.kind, 'network');
   assert.match(e.message, /Couldn’t reach your site/);
 });
+
+// Found 2026-11-25 on a fresh install with plain permalinks: the base already
+// carries "?rest_route=", and a second "?" made every filtered screen answer
+// "No route was found" (the Request Log, the Cloudflare summary).
+test('with plain permalinks a route’s own query joins with &', async () => {
+  const seen = [];
+  globalThis.fetch = async (url) => { seen.push(url); return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  const plain = createApi({ restUrl: 'https://site.test/index.php?rest_route=/agentimus/v1', nonce: 'n' });
+  await plain.getCloudflareSummary(7);
+  await plain.getFindings();
+  assert.equal(seen[0], 'https://site.test/index.php?rest_route=/agentimus/v1/cloudflare/summary&days=7');
+  assert.equal(seen[1].includes('?rest_route=/agentimus/v1/findings'), true);
+  assert.equal(seen.every((u) => u.split('?').length === 2), true);
+
+  seen.length = 0;
+  await api.getCloudflareSummary(7); // Pretty permalinks keep their "?".
+  assert.equal(seen[0], 'https://site.test/wp-json/agentimus/v1/cloudflare/summary?days=7');
+});

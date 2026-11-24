@@ -150,8 +150,14 @@ final class ConnectionAccessDbTest extends DbTestCase {
 
 	/** Whether a write tool's call would pass this connection's boxes. */
 	private function call_allowed( $slug ) {
-		$gate = ConnectionAccess::gate( $slug, '__return_true' );
-		return (bool) $gate( array() );
+		$gate   = ConnectionAccess::gate( $slug, '__return_true' );
+		$result = $gate( array() );
+		if ( true !== $result ) {
+			// A refusal says why (his call 2026-11-25): never a bare false.
+			$this->assertWPError( $result, "$slug was refused without a reason" );
+			$this->assertSame( 'agentimus_not_in_access', $result->get_error_code() );
+		}
+		return true === $result;
 	}
 
 	/* -- the boxes -------------------------------------------------------- */
@@ -193,6 +199,25 @@ final class ConnectionAccessDbTest extends DbTestCase {
 		foreach ( Registrar::WRITE_SLUGS as $slug ) {
 			$this->assertSame( in_array( $slug, $expected, true ), $this->call_allowed( $slug ), $slug );
 		}
+	}
+
+	/**
+	 * His call 2026-11-25: a bare "Permission denied" read like a broken login.
+	 * The refusal names the box this connection lacks and who can change it.
+	 */
+	public function test_a_refused_tool_says_which_access_is_missing() {
+		list( , $token ) = $this->approve( ConnectionAccess::some( array( 'content' ) ) );
+		$this->sign_in( $token );
+
+		$gate    = ConnectionAccess::gate( 'create-content', '__return_true' );
+		$refused = $gate( array() );
+		$this->assertWPError( $refused );
+		$this->assertSame( 'agentimus_not_in_access', $refused->get_error_code() );
+		$this->assertSame( 403, $refused->get_error_data()['status'] );
+		$this->assertSame( 'This connection’s access doesn’t include “Write and edit posts”. Nothing was done. The site owner can change it with Change access on the MCP Server card.', $refused->get_error_message() );
+
+		$allowed = ConnectionAccess::gate( 'trash-content', '__return_true' );
+		$this->assertTrue( $allowed( array() ) ); // The ticked box still passes.
 	}
 
 	public function test_nothing_ticked_is_read_only() {

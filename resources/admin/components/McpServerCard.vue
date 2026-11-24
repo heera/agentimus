@@ -24,10 +24,11 @@ import { LEVELS, levelOf, chooseLevel, customNote, limitFor, publishWarning } fr
 import { recipeFor } from '../js/connectWizard.js';
 import AppLink from './AppLink.vue';
 import ConnectWizard from './ConnectWizard.vue';
+import SelectMenu from './SelectMenu.vue';
 
 export default {
   name: 'McpServerCard',
-  components: { AppLink, ConnectWizard },
+  components: { AppLink, ConnectWizard, SelectMenu },
   props: {
     settings: { type: Object, required: true },
     mcpServer: { type: Object, default: () => ({}) },
@@ -52,6 +53,8 @@ export default {
       oauthGrants: [],
       oauthBusy: '',
       oauthError: '',
+      // The row whose Pause or Resume is saving, by id.
+      pauseBusy: '',
       // Change access: the boxes the site offers (from /oauth/grants) and the
       // connection being edited, as { kind, id, name, preset, boxes }.
       accessChoices: [],
@@ -99,6 +102,16 @@ export default {
     },
     agentLevelLimit() {
       return limitFor(this.settings);
+    },
+    // The per-connection call limit: off by default (his call 11-25).
+    callLimitOptions() {
+      return [
+        { value: 0, label: 'No limit' },
+        { value: 30, label: '30 a minute' },
+        { value: 60, label: '60 a minute' },
+        { value: 120, label: '120 a minute' },
+        { value: 300, label: '300 a minute' },
+      ];
     },
     agentCustomNote() {
       return customNote(this.settings);
@@ -180,6 +193,7 @@ export default {
         live: !!g.lastUsed,
         scope: g.scope,
         access: g.access,
+        paused: !!g.paused,
         grant: g,
       }));
       if (this.mcpToken) {
@@ -194,6 +208,7 @@ export default {
           live: !!(this.mcpToken && this.mcpToken.last_used_at),
           scope: this.mcpToken.scope,
           access: this.mcpToken.access,
+          paused: !!this.mcpToken.paused,
         });
       }
       return rows;
@@ -527,6 +542,25 @@ export default {
         this.accessError = e.message || 'Could not change this connection’s access.';
       } finally {
         this.accessBusy = false;
+      }
+    },
+    // Pause keeps the keys and refuses every call; Resume needs no new
+    // approval. Reversible, so no dialog: the row says what it is at once.
+    async togglePause(c) {
+      if (this.pauseBusy) return;
+      this.pauseBusy = c.id;
+      this.oauthError = '';
+      try {
+        const res = await this.api.changeConnectionPause(c.kind, c.kind === 'grant' ? c.id : '', !c.paused);
+        if (c.kind === 'token') {
+          this.mcpToken = (res && res.token) || this.mcpToken;
+        } else {
+          this.oauthGrants = (res && res.grants) || this.oauthGrants;
+        }
+      } catch (e) {
+        this.oauthError = e.message || (c.paused ? 'Could not resume that connection.' : 'Could not pause that connection.');
+      } finally {
+        this.pauseBusy = '';
       }
     },
     // One assistant out, the others untouched — the reason per-agent grants
@@ -893,6 +927,15 @@ export default {
             </div>
           </div>
           <p class="ar-card__note ar-card__note--wide ar-level__now">{{ agentLevelLimit }}</p>
+          <!-- Rests, dimmed, while the level is Off, like the tool-list switch:
+               there is no connection to count. -->
+          <div id="ar-feat-mcp_call_limit" class="ar-level__limit" :inert="!settings.enable_mcp_server">
+            <span class="ar-level__limit-text">
+              <strong>Calls per minute, per connection</strong>
+              <small>For each connected assistant, the shared token and each application password. Over it, the assistant is told to wait until the next minute. Useful when a busy assistant slows your site.</small>
+            </span>
+            <SelectMenu v-model="settings.mcp_call_limit" :options="callLimitOptions" aria-label="Calls per minute, per connection" />
+          </div>
           <div class="ar-level__extras" :inert="!agentCanWrite">
             <h4 class="ar-level__extras-title">Extras<span v-if="!agentCanWrite"> · need Write</span></h4>
             <label id="ar-feat-agent_writes_publish" class="ar-level__extra">
@@ -984,13 +1027,14 @@ export default {
               <button type="button" class="ar-btn ar-btn--small ar-mcp-roster__add" @click="openConnect">Connect an assistant</button>
             </p>
             <p v-if="mcpConnections.length" class="ar-field__hint ar-mcp-roster__note">
-              The assistants you approved, plus the shared token. Disconnecting one
-              leaves the others working. Application passwords have their own section below.
+              The assistants you approved, plus the shared token. Pause stops one for now and
+              keeps it connected; Disconnect ends it. Either leaves the others working.
+              Application passwords have their own section below.
             </p>
 
             <ul v-if="mcpConnections.length" class="ar-grants">
               <li v-for="c in mcpConnections" :key="c.id" class="ar-grant">
-                <span class="ar-grant__dot" :class="{ 'is-idle': !c.live }" aria-hidden="true"></span>
+                <span class="ar-grant__dot" :class="{ 'is-idle': !c.live, 'is-paused': c.paused }" aria-hidden="true"></span>
                 <span class="ar-grant__who">
                   <strong>{{ c.name }}</strong>
                   <span v-if="c.host" class="ar-grant__host">{{ c.host }}</span>
@@ -999,13 +1043,19 @@ export default {
                 </span>
                 <span
                   class="ar-grant__scope"
-                  :class="{ 'is-write': c.scope === 'write', 'is-token': c.kind === 'token' }"
-                >{{ accessLabel(c) }}</span>
+                  :class="{ 'is-write': c.scope === 'write' && !c.paused, 'is-token': c.kind === 'token' && !c.paused, 'is-paused': c.paused }"
+                >{{ c.paused ? 'Paused' : accessLabel(c) }}</span>
                 <button
                   type="button"
                   class="ar-btn ar-btn--ghost ar-btn--small"
                   @click="openAccess(c)"
                 >Change access</button>
+                <button
+                  type="button"
+                  class="ar-btn ar-btn--ghost ar-btn--small ar-grant__pause"
+                  :disabled="pauseBusy === c.id"
+                  @click="togglePause(c)"
+                >{{ pauseBusy === c.id ? (c.paused ? 'Resuming…' : 'Pausing…') : (c.paused ? 'Resume' : 'Pause') }}</button>
                 <button
                   v-if="c.kind === 'grant'"
                   type="button"

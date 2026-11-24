@@ -37,6 +37,20 @@ final class UninstallDbTest extends DbTestCase {
 		update_option( 'agentimus_agent_access_hooks', '1' );
 		update_option( 'agentimus_visibility', array( 'seeded' => true ) );
 		update_option( 'agentimus_signing_keys', array( 'k' => 'v' ) );
+		// 1.57.0's footprint: the Abilities switches, a saved skill with a
+		// revision, and a call count. Found 2026-11-25 left behind.
+		update_option( 'agentimus_ability_switches', array( 'core/get-site-info' ) );
+		$skill = wp_insert_post( array( 'post_type' => 'agentimus_skill', 'post_status' => 'publish', 'post_title' => 'A skill', 'post_content' => 'Steps.' ) );
+		wp_update_post( array( 'ID' => $skill, 'post_content' => 'Steps, changed.' ) );
+		set_transient( 'agentimus_calls_abc', array( 'm' => 1, 'n' => 1 ), 120 );
+		// Left behind by earlier releases, found the same day on a real uninstall.
+		$older = array( 'agentimus_cache_built_by', 'agentimus_types_fingerprint', 'agentimus_cron_last_run', 'agentimus_reachability', 'agentimus_theme_image_probe' );
+		foreach ( $older as $name ) {
+			update_option( $name, 'x' );
+		}
+		wp_schedule_event( time() + 60, 'daily', 'agentimus_reachability_check' );
+		wp_schedule_single_event( time() + 60, 'agentimus_theme_image_probe_refresh' );
+		$this->assertGreaterThan( 0, $skill, 'precondition: the skill exists' );
 
 		// A Cloudflare rule of ours is out of reach once the token is deleted.
 		$cloudflare = new \Agentimus\Cloudflare\Settings();
@@ -79,5 +93,13 @@ final class UninstallDbTest extends DbTestCase {
 		$this->assertFalse( get_option( 'agentimus_visibility', false ), 'visibility option deleted' );
 		$this->assertFalse( get_option( 'agentimus_signing_keys', false ), 'signing keys deleted' );
 		$this->assertFalse( get_option( 'agentimus_agent_access_hooks', false ), 'agent-access hook verdict deleted' );
+		$this->assertFalse( get_option( 'agentimus_ability_switches', false ), 'ability switches deleted' );
+		foreach ( $older as $name ) {
+			$this->assertFalse( get_option( $name, false ), "$name deleted" );
+		}
+		$this->assertFalse( wp_next_scheduled( 'agentimus_reachability_check' ), 'reachability job cleared' );
+		$this->assertFalse( wp_next_scheduled( 'agentimus_theme_image_probe_refresh' ), 'theme image job cleared' );
+		$this->assertSame( '0', (string) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'agentimus_skill' OR ( post_type = 'revision' AND post_parent = " . (int) $skill . ' )' ), 'skills and their revisions deleted' );
+		$this->assertSame( '0', (string) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '%agentimus\\_calls\\_%'" ), 'call counts deleted' );
 	}
 }

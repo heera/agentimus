@@ -105,6 +105,18 @@ final class OauthServerTest extends TestCase {
 		$this->assertSame( array( $as['issuer'] ), $pr['authorization_servers'] );
 	}
 
+	/**
+	 * Found 2026-11-25 on a fresh install: with plain permalinks there are no
+	 * rewrites, so /agentimus/connect showed the blog's home page and no app
+	 * could ever be approved.
+	 */
+	public function test_the_approval_page_address_works_with_plain_permalinks() {
+		$this->assertSame( 'https://example.test/agentimus/connect', Server::authorization_server_metadata()['authorization_endpoint'] );
+
+		update_option( 'permalink_structure', '' );
+		$this->assertSame( 'https://example.test/?agentimus_connect=1', Server::authorization_server_metadata()['authorization_endpoint'] );
+	}
+
 	/* ---- registration ----------------------------------------------------- */
 
 	public function test_registration_requires_a_valid_redirect_uri() {

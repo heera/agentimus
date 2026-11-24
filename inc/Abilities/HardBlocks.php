@@ -117,6 +117,7 @@ final class HardBlocks {
 	const ACCESS_SETTINGS = array(
 		'enable_mcp_server',
 		'mcp_public_tool_list',
+		'mcp_call_limit',
 		'enable_agent_writes',
 		'agent_writes_publish',
 		'agent_writes_settings',

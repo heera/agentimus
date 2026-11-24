@@ -109,6 +109,7 @@ final class Plugin {
 		McpToken::watch(); // Bearer connection-token auth, honored only on the MCP route.
 		Oauth\Server::watch(); // OAuth access-token auth — same route, next seat in the inspector line.
 		Abilities\HardBlocks::watch(); // What an agent can never do during a call on the MCP route, whatever its user's role.
+		Abilities\ConnectionGuard::watch( $this->settings ); // A paused connection, or one over the owner's call limit, is refused on the MCP route.
 		( new McpPublicSurface( $this->settings ) )->register(); // Anonymous MCP handshake: initialize/ping answer without auth, and tools/list too when the owner turns on mcp_public_tool_list; everything else keeps its 401.
 
 		( new Endpoints( $this->settings ) )->register();

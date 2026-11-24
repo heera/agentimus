@@ -227,10 +227,35 @@ final class ConnectionAccess {
 	 * @param callable $permission The tool's own permission callback.
 	 * @return callable
 	 */
+	/**
+	 * Why a connection may not use a tool, in words the agent can pass on: a
+	 * bare "Permission denied" read like a broken login, so an agent retried
+	 * or told the person the site was down (his call 2026-11-25). It names
+	 * only the box this connection lacks, nothing else about the site.
+	 *
+	 * @param string $slug The tool, without the agentimus- prefix.
+	 * @return \WP_Error
+	 */
+	public static function refusal( $slug ) {
+		$box   = self::box_of( $slug );
+		$label = '';
+		foreach ( self::choices() as $choice ) {
+			if ( $choice['key'] === $box ) {
+				$label = $choice['label'];
+			}
+		}
+		$message = '' === $label
+			? __( 'This connection’s access doesn’t include this tool.', 'agentimus' )
+			/* translators: %s: the name of an access box, e.g. "Write and edit posts". */
+			: sprintf( __( 'This connection’s access doesn’t include “%s”.', 'agentimus' ), $label );
+		$message .= ' ' . __( 'Nothing was done. The site owner can change it with Change access on the MCP Server card.', 'agentimus' );
+		return new \WP_Error( 'agentimus_not_in_access', $message, array( 'status' => 403 ) );
+	}
+
 	public static function gate( $slug, callable $permission ) {
 		return static function ( $input = null ) use ( $slug, $permission ) {
 			if ( ! self::allows_tool( $slug ) ) {
-				return false;
+				return self::refusal( $slug );
 			}
 			return call_user_func( $permission, $input );
 		};

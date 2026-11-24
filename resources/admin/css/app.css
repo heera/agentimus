@@ -10280,3 +10280,12 @@ summary.ar-linkbtn:focus-visible { text-decoration: none; background: none; }
 }
 .ar-wiz__connect { margin: 16px auto 0; max-width: 52ch; font-size: 13px; color: var(--ar-ink-soft); }
 .ar-wiz__connect .ar-linkbtn { margin-left: 6px; }
+
+/* ---- Step G: pause and the call limit ---------------------------------------- */
+.ar-grant__dot.is-paused { background: var(--ar-warn); }
+.ar-grant__scope.is-paused { border-color: var(--ar-warn); color: var(--ar-warn); }
+.ar-grant .ar-btn--small.ar-grant__pause { min-width: 104px; }
+.ar-level__limit { display: flex; align-items: center; gap: 16px; margin: 14px 0 4px; flex-wrap: wrap; }
+.ar-level__limit-text { flex: 1 1 280px; min-width: 0; }
+.ar-level__limit-text strong { display: block; font-size: 13px; }
+.ar-level__limit-text small { display: block; font-size: 12px; color: var(--ar-ink-soft); line-height: 1.5; }

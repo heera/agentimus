@@ -63,6 +63,23 @@ function agentimus_uninstall_site() {
 	delete_option( 'agentimus_identity_probes' ); // Self-declared crawler home pages and what answered there.
 	delete_option( 'agentimus_mcp_token' );
 	delete_option( 'agentimus_oauth' );
+	delete_option( 'agentimus_ability_switches' ); // Which other plugins' abilities agents may run (1.57.0).
+	// Left behind by earlier releases, found 2026-11-25 on a real uninstall.
+	delete_option( 'agentimus_cache_built_by' );
+	delete_option( 'agentimus_types_fingerprint' );
+	delete_option( 'agentimus_cron_last_run' );
+	delete_option( 'agentimus_reachability' );
+	delete_option( 'agentimus_theme_image_probe' );
+	wp_clear_scheduled_hook( 'agentimus_reachability_check' );
+	wp_clear_scheduled_hook( 'agentimus_theme_image_probe_refresh' );
+	// Saved skills (1.57.0): private posts of their own type, with their
+	// revisions. Found 2026-11-25 left behind by an uninstall.
+	$agentimus_skills = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'agentimus_skill'" ); // phpcs:ignore WordPress.DB
+	foreach ( (array) $agentimus_skills as $agentimus_skill_id ) {
+		wp_delete_post( (int) $agentimus_skill_id, true );
+	}
+	// The per-connection call counts (1.57.0) expire within two minutes; gone now.
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_agentimus\\_calls\\_%' OR option_name LIKE '\\_transient\\_timeout\\_agentimus\\_calls\\_%'" ); // phpcs:ignore WordPress.DB
 	delete_option( 'agentimus_seo_mode' );      // SeoContext verdict cache — survived a real uninstall, caught 2026-08-01.
 	delete_option( 'agentimus_next_steps' );    // The post-setup "Worth a look next" card state.
 	delete_option( 'agentimus_digest_last' );   // Weekly digest snapshot + unsubscribe key.

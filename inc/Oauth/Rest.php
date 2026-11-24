@@ -86,6 +86,16 @@ final class Rest {
 				),
 			)
 		);
+		// Pause or resume ONE connection: an approved assistant or the shared token.
+		register_rest_route(
+			self::NS,
+			'/connection-pause',
+			array(
+				'methods'             => \WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'change_pause' ),
+				'permission_callback' => array( $this, 'can_change_access' ),
+			)
+		);
 		// Change ONE connection's access: an approved assistant or the shared token.
 		register_rest_route(
 			self::NS,
@@ -116,6 +126,27 @@ final class Rest {
 			return rest_ensure_response( array( 'token' => \Agentimus\McpToken::status() ) );
 		}
 		if ( null === Server::set_access( (string) $request->get_param( 'clientId' ), $access ) ) {
+			return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
+		}
+		return $this->oauth_grants();
+	}
+
+	/**
+	 * PUT /connection-pause — { kind: 'grant'|'token', clientId, paused: bool }.
+	 * The same people who may change access, the same way.
+	 *
+	 * @param \WP_REST_Request $request The change.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function change_pause( \WP_REST_Request $request ) {
+		$paused = rest_sanitize_boolean( $request->get_param( 'paused' ) );
+		if ( 'token' === (string) $request->get_param( 'kind' ) ) {
+			if ( null === \Agentimus\McpToken::set_paused( $paused ) ) {
+				return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
+			}
+			return rest_ensure_response( array( 'token' => \Agentimus\McpToken::status() ) );
+		}
+		if ( null === Server::set_paused( (string) $request->get_param( 'clientId' ), $paused ) ) {
 			return new \WP_Error( 'agentimus_unknown_grant', __( 'That connection no longer exists.', 'agentimus' ), array( 'status' => 404 ) );
 		}
 		return $this->oauth_grants();

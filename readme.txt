@@ -35,10 +35,11 @@ By default it makes no outbound requests, collects no analytics and logs no IP a
 **Operate your site from your AI agent (MCP) — opt-in**
 
 * **A Model Context Protocol server on your own site** — one switch runs an MCP server at `/wp-json/agentimus/v1/mcp`; the library ships with the plugin, nothing extra to install.
-* **Connect by approving, not by pasting keys** — an assistant asks *you* for permission on a consent page on your own site; you choose **Read only** or **Read and write**, and each gets its own key and Disconnect. OAuth 2.1 with PKCE, nothing brokered by a third party; a revocable **shared token** covers clients that can't ask.
-* **Read your site's data** — connected agents run the read-only tools — score, AI traffic, request log, bot identification, page previews — and your llms.txt, discovery and agent-card documents are offered as readable **resources**.
+* **Connect by approving, not by pasting keys** — a short wizard, then the assistant asks *you* on your own site: **Allow**, or **Allow less**. Each connection has its own access, **Pause** and **Disconnect**. OAuth 2.1 with PKCE, no third party; a **shared token** covers clients that can't ask.
+* **Read your site's data** — score, AI traffic, request log, Site Health, updates, comments, page previews — and your llms.txt, discovery and agent card as readable **resources**.
 * **Draft, edit and publish posts — at the level you choose** — at **Write**, an agent can create and edit posts and pages fully dressed (categories, tags, featured image, AI topics and descriptions), apply Readiness fixes, organise terms and media, and trash or restore posts. An extra, **Publish without your review**, lets it publish and schedule; otherwise it leaves drafts.
-* **Safe by construction** — every write runs as the signed-in WordPress user, never exceeding their permissions, and is recorded under **More → Agent Access**. Nothing is public, and below Write the write tools do not exist. Agents can't store scripts or delete permanently. Extras cover settings and upkeep.
+* **Your rules, other plugins' abilities** — agents read your saved **skills** first. Other plugins' abilities run only once you turn them on.
+* **Safe by construction** — every write runs as the signed-in user and shows under **More → Agent Access**. Below Write, write tools do not exist. Plugin files, users, keys and the site address stay off limits; scripts are refused; nothing is deleted for good.
 
 **Write with AI in wp-admin — the built-in assistant (opt-in)**
 
@@ -298,6 +299,22 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.57.0 =
+* New: Connect an assistant, a four-step guide on the MCP Server card. Pick your app, follow its steps, approve, and the guide moves on by itself once the app has signed in.
+* New: each connection has its own access. Allow gives everything your settings allow agents; Allow less lets you untick what it should not do. Change access on each row changes it later. Existing connections keep what they had.
+* New: Pause and Resume on each connection. A paused assistant keeps its key, but every call is refused until you resume it, with no new approval.
+* New: an optional limit on calls per minute for each connection, off by default. Over it, the assistant is told how long to wait.
+* New: skills, under More → Skills. A skill is your steps for a job, in plain text. Agents are told to read the skills that fit before a task. A skill an agent saves waits off until you turn it on, and an agent can never change yours.
+* New: other plugins' abilities, under More → Abilities. Turn them on one by one; every ability starts off, new ones too. At the Read level only read-only abilities run.
+* New: four read tools for agents: the site's basic facts, Site Health, waiting updates, and comments (no email or IP address).
+* New: agents and MCP directories can see your tool list before they connect. Using a tool still needs your approval or a key. Turn it off at the top of the MCP Server card.
+* Security: during every agent call, some things stay off whatever the login: editing plugin or theme files, WordPress updates, users and application passwords, the site address, secret keys and admin email, and turning off or deleting Agentimus. Agents may install plugins and themes only from WordPress.org.
+* Security: with the tool list shown before sign-in, the write tools carried your content guidelines to anyone. Your guidelines and skills now reach only a signed-in agent.
+* Fixed: on a site whose security header limits where forms may send the browser, approving an assistant never finished. It now does.
+* Fixed: an assistant you disconnected could never ask to connect again, though the dialog said it could. It now can.
+* Fixed: on sites with WordPress's plain permalinks, the approval page showed the home page, so no assistant could connect, and screens with filters, such as the Request Log, said "No route was found". Both work now.
+* Fixed: deleting the plugin now also removes saved skills, the Abilities switches, and a few settings and scheduled jobs that earlier versions left behind.
+
 = 1.56.0 =
 * New: agents can see what is not live. A new tool lists drafts, pending, scheduled and trashed items.
 * New: agents can schedule a post. Send a go-live time when creating or updating it. This needs the extra "Publish without your review", because nobody checks the post at that moment. A live post can't be scheduled, because that would take it offline.
@@ -442,12 +459,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: asking the Google Index tool about a page the daily check had not reached yet answered with an error instead of "not checked yet" — the tool's own output rules did not allow an empty row. An assistant asking about a brand-new page now gets the honest answer.
 * New: the share card names your X account. X already builds a link preview from the Open Graph tags, image included, whether or not you have connected X to Agentimus. When you have, the card also carries a twitter:site tag with the connected account, so the preview is attributed to you. Nothing is guessed when X is not connected.
 
-= 1.51.1 =
-* Security: a connection key, or an approved assistant's access token, was accepted on two neighbouring admin routes and not only at the MCP endpoint it was issued for — the check matched the route by prefix, and the route that creates keys starts with the same letters. In WordPress's plain ?rest_route= form that seated the key as the administrator who created it, and one request could mint a write key from a read-only one whenever agent writes were on. Reported by Ananda Dhakal of Patchstack. The route is now matched exactly in every form WordPress accepts, and a second check holds every plugin credential to the route WordPress actually dispatched, refusing it anywhere else. If you are not sure who holds a read-only key, create a new one; that retires the old one.
-
-The most recent releases are listed here, back to 1.51.1. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.51.2. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.57.0 =
+A step-by-step guide to connect an assistant, access per connection, Pause, skills and other plugins' abilities. Firm limits on every agent call. Existing connections keep what they had.
 
 = 1.56.0 =
 Agents can now schedule posts, organise terms and media, and trash or restore posts. One simple choice sets what they may do. Nothing changes until you pick a level.

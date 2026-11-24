@@ -186,6 +186,7 @@ async function loadCard() {
   const script = rewriteDefault(descriptor.script.content, '__component')
     .replace(/import AppLink from '[^']+';/, 'const AppLink = { render() { return null; } };')
     .replace(/import ConnectWizard from '[^']+';/, 'const ConnectWizard = { render() { return null; } };')
+    .replace(/import SelectMenu from '[^']+';/, 'const SelectMenu = { render() { return null; } };')
     .replace(/from '(\.\.\/[^']+)'/g, (_, rel) => `from '${pathToFileURL(resolve(componentDir, rel)).href}'`);
   const { code, errors } = compileTemplate({ source: descriptor.template.content, filename: 'McpServerCard.vue', id: 'mcp-card', compilerOptions: { bindingMetadata: {} } });
   assert.deepEqual(errors, []);

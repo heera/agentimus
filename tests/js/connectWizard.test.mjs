@@ -172,7 +172,7 @@ test('Done names the connection, its access and Change access', async () => {
 });
 
 test('the MCP card draws with its Connect an assistant button', async () => {
-  const McpServerCard = await load('McpServerCard', ['AppLink', 'ConnectWizard']);
+  const McpServerCard = await load('McpServerCard', ['AppLink', 'ConnectWizard', 'SelectMenu']);
   const html = await draw(McpServerCard, {
     settings: { enable_mcp_server: true, enable_agent_writes: true },
     mcpServer: { endpoint: 'https://ex.test/mcp' },
@@ -182,7 +182,7 @@ test('the MCP card draws with its Connect an assistant button', async () => {
 });
 
 test('a row whose app never signed in says so, not "not used yet"', async () => {
-  const McpServerCard = await load('McpServerCard', ['AppLink', 'ConnectWizard']);
+  const McpServerCard = await load('McpServerCard', ['AppLink', 'ConnectWizard', 'SelectMenu']);
   // wpDate reads the site's date settings and language from the page.
   globalThis.window = globalThis.window || {};
   globalThis.document = globalThis.document || { documentElement: { lang: 'en' } };
@@ -200,8 +200,11 @@ test('the wizard’s own classes are styled nowhere else', () => {
   const css = readFileSync(resolve(here, '../../resources/admin/css/app.css'), 'utf8');
   const start = css.indexOf('/* ---- Connect wizard (ConnectWizard.vue');
   assert.ok(start > 0, 'the wizard’s CSS section is missing');
-  const own = css.slice(start);
-  const rest = css.slice(0, start);
+  // The section runs to the next section heading, or the end of the file.
+  const next = css.indexOf('/* ---- ', start + 10);
+  const end = next === -1 ? css.length : next;
+  const own = css.slice(start, end);
+  const rest = css.slice(0, start) + css.slice(end);
   // The classes this section styles first in a selector are its own; ones it
   // only reaches through (.ar-modal__head under the panel) are shared on purpose.
   const mine = [...new Set([...own.matchAll(/(?:^|[,}]\s*)\.(ar-[\w-]+)/gm)].map((m) => m[1]))];
@@ -209,4 +212,50 @@ test('the wizard’s own classes are styled nowhere else', () => {
   for (const c of mine) {
     assert.equal(new RegExp(`\\.${c}(?![\\w-])`).test(rest), false, `.${c} is also styled outside the wizard`);
   }
+});
+
+/* ---- step G: pause and the call limit, on the card ---------------------------- */
+
+const drawCard = async (state) => draw(await load('McpServerCard', ['AppLink', 'ConnectWizard', 'SelectMenu']), {
+  settings: { enable_mcp_server: true, enable_agent_writes: true, mcp_call_limit: 0 },
+  mcpServer: { endpoint: 'https://ex.test/mcp' },
+}, state);
+
+test('each connection row has Pause, and a paused one says Paused and offers Resume', async () => {
+  const html = await drawCard({
+    oauthGrants: [
+      { clientId: 'a', name: 'Claude', approved: 1764000000, scope: 'write', access: { preset: 'everything', boxes: [] }, paused: false },
+      { clientId: 'b', name: 'Cursor', approved: 1764000000, scope: 'write', access: { preset: 'everything', boxes: [] }, paused: true },
+    ],
+  });
+  const rows = html.split('class="ar-grant"').slice(1);
+  assert.equal(rows.length, 2);
+  assert.match(rows[0], />Pause<\/button>/);
+  assert.doesNotMatch(rows[0], />Paused</);
+  assert.match(rows[1], /is-paused[^>]*>Paused</);
+  assert.match(rows[1], />Resume<\/button>/);
+});
+
+test('the call limit is one choice on the card, off by default', async () => {
+  const html = await drawCard({});
+  assert.match(html, /id="ar-feat-mcp_call_limit"/);
+  assert.match(html, /Calls per minute, per connection/);
+  const card = await load('McpServerCard', ['AppLink', 'ConnectWizard', 'SelectMenu']);
+  const opts = card.computed.callLimitOptions.call({});
+  assert.deepEqual(opts.map((o) => o.value), [0, 30, 60, 120, 300]);
+  assert.equal(opts[0].label, 'No limit');
+});
+
+test('Pause sends the opposite of the row’s state, for that row', async () => {
+  const card = await load('McpServerCard', ['AppLink', 'ConnectWizard', 'SelectMenu']);
+  const sent = [];
+  const self = {
+    pauseBusy: '', oauthError: '', oauthGrants: [], mcpToken: null,
+    api: { changeConnectionPause: async (...a) => { sent.push(a); return { grants: [{ clientId: 'a', paused: true }] }; } },
+  };
+  await card.methods.togglePause.call(self, { kind: 'grant', id: 'a', paused: false });
+  assert.deepEqual(sent[0], ['grant', 'a', true]);
+  assert.equal(self.oauthGrants[0].paused, true);
+  await card.methods.togglePause.call(self, { kind: 'token', id: 'shared-token', paused: true });
+  assert.deepEqual(sent[1], ['token', '', false]);
 });

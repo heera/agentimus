@@ -261,9 +261,14 @@ Flip the switch off and save. The endpoint stops existing immediately — every 
 
 To cut off one assistant while leaving the server up for the others:
 
+- **Pause** beside an assistant (or the shared token) stops it for now: every call it makes is refused with "paused by the site owner", but it stays connected. **Resume** lets it work again with no new approval.
 - **Disconnect** beside an approved assistant, under **Connected assistants**, ends that connection alone. The assistant can connect again later; it asks for your approval like the first time.
 - **Revoke Token** ends every assistant holding the shared connection token, all at once. **Rotate Token** does the same and hands you a fresh secret.
 - Revoking an application password (Users → Profile) ends that one tool.
+
+### Limiting how often an assistant calls
+
+**Calls per minute, per connection**, under *What can agents do on this site?*, caps how many calls each connected assistant, the shared token and each application password may make in a minute. It is off by default. Choose 30, 60, 120 or 300 if a busy assistant slows your site. Over the limit, the assistant is told how many seconds to wait until the next minute. Only you can change it; an agent can't.
 
 ## What about other plugins' MCP servers?
 

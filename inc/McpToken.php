@@ -112,7 +112,39 @@ final class McpToken {
 			'created_at'   => (int) $state['created_at'],
 			'last_used_at' => empty( $state['last_used_at'] ) ? null : (int) $state['last_used_at'],
 			'last_used_ua' => (string) $state['last_used_ua'],
+			'paused'       => ! empty( $state['paused'] ),
 		);
+	}
+
+	/**
+	 * Pause or resume the shared token: paused, every call it makes is refused
+	 * and the token itself stays, so resuming needs nothing new from any app.
+	 *
+	 * @param bool $paused Pause (true) or resume (false).
+	 * @return bool|null The new state, or null when there is no token.
+	 */
+	public static function set_paused( $paused ) {
+		$state = get_option( self::OPTION, null );
+		if ( ! is_array( $state ) || empty( $state['hash'] ) ) {
+			return null;
+		}
+		if ( $paused ) {
+			$state['paused'] = time();
+		} else {
+			unset( $state['paused'] );
+		}
+		update_option( self::OPTION, $state, false );
+		return (bool) $paused;
+	}
+
+	/**
+	 * Whether the shared token is paused.
+	 *
+	 * @return bool
+	 */
+	public static function is_paused() {
+		$state = get_option( self::OPTION, null );
+		return is_array( $state ) && ! empty( $state['paused'] );
 	}
 
 	/**

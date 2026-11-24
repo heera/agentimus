@@ -4,6 +4,22 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.57.0
+* New: Connect an assistant, a four-step guide on the MCP Server card. Pick your app, follow its steps, approve, and the guide moves on by itself once the app has signed in.
+* New: each connection has its own access. Allow gives everything your settings allow agents; Allow less lets you untick what it should not do. Change access on each row changes it later. Existing connections keep what they had.
+* New: Pause and Resume on each connection. A paused assistant keeps its key, but every call is refused until you resume it, with no new approval.
+* New: an optional limit on calls per minute for each connection, off by default. Over it, the assistant is told how long to wait.
+* New: skills, under More → Skills. A skill is your steps for a job, in plain text. Agents are told to read the skills that fit before a task. A skill an agent saves waits off until you turn it on, and an agent can never change yours.
+* New: other plugins' abilities, under More → Abilities. Turn them on one by one; every ability starts off, new ones too. At the Read level only read-only abilities run.
+* New: four read tools for agents: the site's basic facts, Site Health, waiting updates, and comments (no email or IP address).
+* New: agents and MCP directories can see your tool list before they connect. Using a tool still needs your approval or a key. Turn it off at the top of the MCP Server card.
+* Security: during every agent call, some things stay off whatever the login: editing plugin or theme files, WordPress updates, users and application passwords, the site address, secret keys and admin email, and turning off or deleting Agentimus. Agents may install plugins and themes only from WordPress.org.
+* Security: with the tool list shown before sign-in, the write tools carried your content guidelines to anyone. Your guidelines and skills now reach only a signed-in agent.
+* Fixed: on a site whose security header limits where forms may send the browser, approving an assistant never finished. It now does.
+* Fixed: an assistant you disconnected could never ask to connect again, though the dialog said it could. It now can.
+* Fixed: on sites with WordPress's plain permalinks, the approval page showed the home page, so no assistant could connect, and screens with filters, such as the Request Log, said "No route was found". Both work now.
+* Fixed: deleting the plugin now also removes saved skills, the Abilities switches, and a few settings and scheduled jobs that earlier versions left behind.
+
 ## 1.56.0
 * New: agents can see what is not live. A new tool lists drafts, pending, scheduled and trashed items.
 * New: agents can schedule a post. Send a go-live time when creating or updating it. This needs the extra "Publish without your review", because nobody checks the post at that moment. A live post can't be scheduled, because that would take it offline.

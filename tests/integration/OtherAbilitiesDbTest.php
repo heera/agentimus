@@ -293,8 +293,10 @@ final class OtherAbilitiesDbTest extends DbTestCase {
 		$names = $this->listed( array( 'list-plugins', 'list-plugin-abilities', 'run-ability', 'read-readiness' ) );
 		$this->assertSame( array( 'read-readiness' ), $names );
 		foreach ( array( 'list-plugins', 'list-plugin-abilities', 'run-ability' ) as $slug ) {
-			$gate = ConnectionAccess::gate( $slug, '__return_true' );
-			$this->assertFalse( $gate( array() ), $slug );
+			$gate    = ConnectionAccess::gate( $slug, '__return_true' );
+			$refused = $gate( array() );
+			$this->assertWPError( $refused, $slug );
+			$this->assertStringContainsString( '“Use other plugins’ abilities”', $refused->get_error_message(), $slug );
 		}
 	}
 

@@ -86,6 +86,13 @@ final class Server {
 	 * @return string
 	 */
 	public static function authorize_url() {
+		// ⛔ Plain permalinks have no rewrites: /agentimus/connect fell through to
+		// the blog's home page, so no app could ever be approved on a site that
+		// kept WordPress's default links (found 2026-11-25 on a fresh install).
+		// The query var the rewrite sets works on its own there.
+		if ( '' === (string) get_option( 'permalink_structure', '' ) ) {
+			return add_query_arg( array( Consent::QUERY_VAR => '1' ), home_url( '/' ) );
+		}
 		return home_url( '/agentimus/connect' );
 	}
 
@@ -677,9 +684,55 @@ final class Server {
 				// null = approved before this was recorded (unknown); 0 = the
 				// app never came back with its code; else when it did.
 				'signedIn' => array_key_exists( 'signed_in', $client ) ? (int) $client['signed_in'] : null,
+				'paused'   => ! empty( $client['paused'] ),
 			);
 		}
 		return $rows;
+	}
+
+	/**
+	 * Pause or resume ONE approved app. Paused, its keys stay but every call is
+	 * refused ({@see \Agentimus\Abilities\ConnectionGuard}); resuming needs no
+	 * new approval. Only the owner's screen reaches this, and HardBlocks keeps
+	 * the record during an agent call.
+	 *
+	 * @param string $client_id The app.
+	 * @param bool   $paused    Pause (true) or resume (false).
+	 * @return bool|null The new state, or null when no approved app has that id.
+	 */
+	public static function set_paused( $client_id, $paused ) {
+		$client_id = (string) $client_id;
+		$state     = self::state();
+		if ( empty( $state['clients'][ $client_id ]['approved'] ) ) {
+			return null;
+		}
+		if ( $paused ) {
+			$state['clients'][ $client_id ]['paused'] = time();
+		} else {
+			unset( $state['clients'][ $client_id ]['paused'] );
+		}
+		self::save( $state );
+		return (bool) $paused;
+	}
+
+	/**
+	 * Whether this approved app is paused.
+	 *
+	 * @param string $client_id The app.
+	 * @return bool
+	 */
+	public static function is_paused( $client_id ) {
+		$state = self::state();
+		return ! empty( $state['clients'][ (string) $client_id ]['paused'] );
+	}
+
+	/**
+	 * The app whose grant seated THIS request, or '' when no grant did.
+	 *
+	 * @return string
+	 */
+	public static function request_client_id() {
+		return null === self::$request_grant ? '' : (string) self::$request_grant['client_id'];
 	}
 
 	/**
@@ -701,7 +754,7 @@ final class Server {
 		$state     = self::state();
 		$found     = isset( $state['clients'][ $client_id ]['approved'] ) && ! empty( $state['clients'][ $client_id ]['approved'] );
 		if ( isset( $state['clients'][ $client_id ] ) ) {
-			foreach ( array( 'approved', 'approved_by', 'scope', 'access', 'last_used', 'signed_in' ) as $field ) {
+			foreach ( array( 'approved', 'approved_by', 'scope', 'access', 'last_used', 'signed_in', 'paused' ) as $field ) {
 				unset( $state['clients'][ $client_id ][ $field ] );
 			}
 		}

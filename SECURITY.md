@@ -68,6 +68,14 @@ Design choices that keep the public surface safe:
   administrator signed in to the browser can change it: the route refuses an
   application password, an agent's credential can't reach it, and the stored
   records keep their value during an agent call.
+- **A connection can be paused, and calls can be limited.** A paused assistant or
+  shared token keeps its keys, and every call it makes on the MCP address is
+  refused (403, never 401, so it is not sent back to approval). The owner can also
+  set one limit of calls per minute for each connection, application passwords
+  included (off by default); over it, calls are refused with 429 and Retry-After
+  until the next minute. The limit is a brake, not a boundary: without a
+  persistent object cache its count is not atomic. Pause, the limit and their records follow the same rules as access:
+  browser administrator only, kept during an agent call.
 - **Other plugins' abilities start off.** Agents reach them only through
   run-ability, and only those the owner turned on under More → Abilities. At the
   Read level only abilities their plugin declares read-only run. Each runs as the
