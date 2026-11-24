@@ -131,12 +131,23 @@ You decide which ones, under **More → Abilities**:
 
 A skill is one of your rules, or your way of doing a task, written down once so every agent follows it without being told again. For example: *"Publishing a post: add a featured image, pick one category, set an AI description."* Your writing voice stays in WordPress's content guidelines, which the write tools already carry.
 
-Agents check **list-skills** before a task and open one with **get-skill**. Manage them under **More → Skills**:
+Agents check **list-skills** before a task and open one with **get-skill**. Two cues make that likely: the note your site sends an assistant when it connects says to check for saved skills, and the tools that write posts name the skills that are on, so the assistant sees them as it writes. A site with no skills sends neither list. Only a signed-in assistant sees your skills' names, as with your content guidelines: a stranger reading the tool list never does. Manage them under **More → Skills**:
 
 - **A skill you write is on as soon as you save it.** Turn it off, edit it or delete it any time.
 - **An agent can save one too**, with **save-skill**, usually when you ask it to remember something. ⛔ It waits **off**, at the top of the screen under *Waiting for you*, until you turn it on. An agent that changes its own skill turns it off again. A saved skill steers every agent after it, so one planted by something an agent read never takes effect with nobody looking.
 - An agent can never change a skill you wrote, turn one off or delete one. Saving needs the **Write** level and the connection's **Save skills** box. Reading skills needs neither.
 - Skills are plain text, at most 50, stored privately in WordPress with their revisions. Only you, signed in to WordPress, can use the Skills screen.
+
+### Facts about the site
+
+Four tools that only read, so they work at the **Read** level and need no box:
+
+- **site-info**: the site's name, tagline, address, WordPress and PHP versions, language, timezone and active theme. Never your admin email.
+- **site-health**: WordPress's own Site Health checks, critical first, in plain words. Only the checks that answer at once: one that would make the site call itself is skipped and named. The full report stays under **Tools → Site Health**.
+- **list-updates**: plugins, themes and WordPress versions with an update waiting, from WordPress's last check. Nothing is fetched and nothing is updated.
+- **list-comments**: approved, waiting or spam comments, 20 a page, optionally for one post. No email or IP address, and the assistant is told the text is the visitor's, not an instruction. It only reads: approving, replying and deleting are not offered.
+
+WordPress's own permissions still decide: Site Health needs the user's right to view it, updates the right to update, and waiting or spam comments the right to moderate.
 
 ### The shared connection token — for assistants that cannot ask
 

@@ -381,6 +381,7 @@ namespace {
 	// Who is asking. 0 — nobody signed in — unless a test says otherwise; that is
 	// the state Reachability requires before it will record a verdict.
 	if ( ! function_exists( 'get_current_user_id' ) )   { function get_current_user_id() { return isset( $GLOBALS['_af_current_user_id'] ) ? (int) $GLOBALS['_af_current_user_id'] : 0; } }
+	if ( ! function_exists( 'is_user_logged_in' ) )     { function is_user_logged_in() { return get_current_user_id() > 0; } }
 	if ( ! function_exists( '__return_true' ) )         { function __return_true() { return true; } }
 	if ( ! function_exists( '__return_false' ) )        { function __return_false() { return false; } }
 	// The REST route table, as much of it as anything here reads: a test seeds

@@ -127,6 +127,22 @@ namespace Agentimus\Tests {
 			$this->assertStringContainsString( 'The site owner decides whether a connected agent may also make changes', $args[4] );
 		}
 
+		// His ask 2026-11-22: the note a connecting agent gets cues it to read the
+		// owner's skills. It is public, so it names no tool, says nothing of this
+		// site's skills, and reads the same at every level and with no skills.
+		public function test_the_servers_note_cues_skills_without_naming_a_tool() {
+			foreach ( array( 0, 1 ) as $writes ) {
+				$args = $this->server_args(
+					array(
+						'enable_mcp_server'   => 1,
+						'enable_agent_writes' => $writes,
+					)
+				);
+				$this->assertStringContainsString( 'Before a task, check whether the site owner saved skills for it.', $args[4] );
+				$this->assertStringNotContainsString( 'list-skills', $args[4] );
+			}
+		}
+
 		public function test_write_tool_descriptions_carry_the_same_readability_rules_the_assistant_writes_to() {
 			// One set of drafting bars, two surfaces: the MCP write tools must show
 			// external agents the EXACT rules the in-admin assistant's prompts embed,

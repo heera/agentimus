@@ -116,6 +116,41 @@ final class Skills {
 		);
 	}
 
+	/**
+	 * The note the write tools carry: the skills that are on, by name and when to
+	 * use them, so an agent sees them at the moment it writes. Empty when there are
+	 * none, so a site without skills adds nothing.
+	 *
+	 * @return string
+	 */
+	public static function hint() {
+		$skills = self::on();
+		if ( array() === $skills ) {
+			return '';
+		}
+		$lines = array();
+		foreach ( array_slice( $skills, 0, 10 ) as $skill ) {
+			$when    = '' !== $skill['when'] ? ' (' . self::clip( $skill['when'], 120 ) . ')' : '';
+			$lines[] = '• “' . $skill['name'] . '”' . $when;
+		}
+		$more = count( $skills ) > 10 ? "\n…and " . ( count( $skills ) - 10 ) . ' more in list-skills.' : '';
+		return "\n\nThe site owner saved skills: their rules for work here. Before writing, open the ones that fit with get-skill and follow them:\n"
+			. implode( "\n", $lines ) . $more;
+	}
+
+	/**
+	 * Cut text to a length, at a character, with an ellipsis.
+	 *
+	 * @param string $text  Text.
+	 * @param int    $limit Characters.
+	 * @return string
+	 */
+	private static function clip( $text, $limit ) {
+		return self::length( $text ) > $limit
+			? rtrim( function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $limit ) : substr( $text, 0, $limit ) ) . '…'
+			: $text;
+	}
+
 	/* -- an agent saves --------------------------------------------------- */
 
 	/**
