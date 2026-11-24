@@ -10251,3 +10251,32 @@ summary.ar-linkbtn:focus-visible { text-decoration: none; background: none; }
   .ar-skills__row { flex-direction: column; }
   .ar-skills__actions { padding: 0 0 10px 54px; }
 }
+
+/* ---- Connect wizard (ConnectWizard.vue, step F) ------------------------------
+   Four stations in the head; the body scrolls, the actions stay in view. */
+.ar-mcp-roster__add { margin-left: auto; font-family: inherit; }
+.ar-cwiz .ar-modal__head { padding-top: 20px; }
+.ar-cwiz__stepper { margin-bottom: 16px; }
+.ar-cwiz__step { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 4px; }
+.ar-cwiz__step > * { margin: 0; }
+.ar-cwiz__step .ar-mcp-picker { margin: 0; }
+/* The whole command, wrapped: Copy takes it all, but the owner should read it. */
+.ar-cwiz__step .ar-mcp-addr__url { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.ar-cwiz__wait { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ar-ink); }
+.ar-cwiz__spin {
+  flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--ar-line-strong); border-top-color: var(--ar-accent);
+  animation: ar-spin 0.9s linear infinite;
+}
+.ar-cwiz__done { align-items: center; text-align: center; }
+.ar-cwiz__done .ar-wiz__done-check { width: 52px; height: 52px; margin: 0 auto; }
+.ar-cwiz__access { font-size: 13px; color: var(--ar-ink-soft); display: flex; gap: 10px; align-items: baseline; justify-content: center; flex-wrap: wrap; }
+.ar-cwiz__access strong { color: var(--ar-ink); }
+.ar-cwiz__try { width: 100%; text-align: left; border-left: 2px solid var(--ar-accent); padding: 2px 0 2px 14px; }
+.ar-cwiz__try .ar-mcp-eyebrow { margin: 0 0 4px; }
+.ar-cwiz__ask { margin: 0; font-size: 14px; color: var(--ar-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .ar-cwiz__spin { animation: none; }
+}
+.ar-wiz__connect { margin: 16px auto 0; max-width: 52ch; font-size: 13px; color: var(--ar-ink-soft); }
+.ar-wiz__connect .ar-linkbtn { margin-left: 6px; }

@@ -448,6 +448,44 @@ final class OauthServerTest extends TestCase {
 		$this->assertEqualsWithDelta( time(), $rows[0]['lastUsed'], 5 );
 	}
 
+	/**
+	 * Found 2026-11-25: Disconnect deleted the registration, and Claude Code,
+	 * which keeps its client id, could never ask again ("Unknown client_id").
+	 */
+	public function test_a_disconnected_app_can_ask_again_and_holds_nothing_until_approved() {
+		list( $client, , $code ) = $this->code_for();
+		$tokens                  = $this->exchange( $client, $code );
+
+		$this->assertTrue( Server::revoke_client( $client['client_id'] ) );
+
+		$this->assertSame( array(), Server::grants() ); // No longer a connection…
+		$this->bearer( $tokens['access_token'] );
+		$this->assertFalse( Server::authenticate( false ) ); // …its key is dead…
+		$this->assertTrue( is_wp_error( Server::exchange_token( array( 'grant_type' => 'refresh_token', 'refresh_token' => $tokens['refresh_token'] ) ) ) ); // …and so is its refresh.
+
+		$req = Server::validate_authorize_request(
+			array(
+				'client_id'             => $client['client_id'],
+				'redirect_uri'          => 'https://claude.ai/api/mcp/auth_callback',
+				'response_type'         => 'code',
+				'code_challenge'        => self::RFC_CHALLENGE,
+				'code_challenge_method' => 'S256',
+				'scope'                 => 'write',
+			)
+		);
+		$this->assertFalse( is_wp_error( $req ) ); // …but it may ask for approval again.
+		$this->assertFalse( Server::revoke_client( $client['client_id'] ) ); // Nothing left to disconnect.
+	}
+
+	/** Approved is not connected: the code exchange is when the app signs in. */
+	public function test_the_code_exchange_records_the_apps_sign_in() {
+		list( $client, , $code ) = $this->code_for();
+		$this->assertSame( 0, Server::grants()[0]['signedIn'] ); // Approved, not back yet.
+
+		$this->exchange( $client, $code );
+		$this->assertEqualsWithDelta( time(), Server::grants()[0]['signedIn'], 5 );
+	}
+
 	public function test_grants_lists_only_approved_clients() {
 		$this->register( 'Lurker' ); // Registered, never approved.
 		$this->assertSame( array(), Server::grants() );

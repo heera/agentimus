@@ -784,6 +784,17 @@ export default {
                   <li><span>Your AI rules are stated everywhere crawlers look</span></li>
                   <li v-if="appliedPublicFix"><span>Search engine visibility is on — AI and search engines welcome</span></li>
                 </ul>
+                <!-- The offer to connect an assistant (step F, his call 11-25). Optional:
+                     the dashboard is useful with no assistant connected. -->
+                <p class="ar-wiz__connect">
+                  <template v-if="settings.enable_mcp_server">Want an assistant working on your site too?</template>
+                  <template v-else>Want an assistant working on your site too? First choose what agents may do.</template>
+                  <button
+                    type="button"
+                    class="ar-linkbtn ar-linkbtn--act"
+                    @click="$emit('navigate', { tab: 'settings', anchor: 'ar-sec-mcp', open: settings.enable_mcp_server ? 'connectAssistant' : '' })"
+                  >{{ settings.enable_mcp_server ? 'Connect an assistant now' : 'Open agent settings' }}</button>
+                </p>
               </div>
 
               <!-- PROOF: ask a real assistant, then watch the site's own request

@@ -92,13 +92,25 @@ There are three ways to do that. Try them in this order:
 
 Whichever you use, the assistant appears under **Connected assistants** on the card, and every call it makes shows in **More → Agent Access**.
 
+### Connect an assistant, step by step
+
+**Connect an assistant**, beside **Connected assistants**, walks you through it in four steps:
+
+1. **Your app.** Pick Claude, Claude Code, ChatGPT, Cursor, VS Code or something else.
+2. **Add it.** Your server address and that app's own steps, each with a **Copy** button. Press **I've added it**.
+3. **Approve.** Approve the app on the page it opens. The wizard checks every few seconds and moves on once the app has signed in, not just once you clicked Allow. Only a connection approved after you opened the wizard counts, so an assistant you connected earlier can't stand in for this one. After 10 minutes it stops and offers **Check again**.
+4. **Done.** The app's name, what it may do, a **Change access** button and a first question to ask it.
+
+The wizard only shows steps and reads your connections; you can close it at any point. An app you approve later still appears under Connected assistants. It appears once you choose Read or Write above. The first-run setup also ends with an offer to connect one.
+
 ### Approval — the assistant asks, you decide
 
 1. Copy your server address and give it to the assistant. There is nothing to paste back.
 2. The assistant reads your site, introduces itself, and sends your browser to `https://your-site.com/agentimus/connect` — a page on your own site. If you are not signed in to WordPress, it asks you to sign in first.
 3. The page names what the assistant **calls itself** and the address it will **return to**. Both are worth a look. If this is not something you started, close the tab.
 4. Press **Allow** to give it everything your settings let agents do. It follows your settings from then on, so turning on an extra later needs no new approval. To give it less, open **Allow less**: every box is ticked, so untick what it should not do, then press **Allow only these**. Reading is always included. An assistant that asked only to read gets reading, whatever you tick.
-5. The assistant now appears under **Connected assistants**, with what it may do, a **Change access** button and its own **Disconnect** button. Disconnecting one leaves the others working.
+5. The page says it is returning you to the assistant, and moves on by itself (or press **Continue**). It works even when your site's security header limits where its forms may send you.
+6. The assistant now appears under **Connected assistants**, with what it may do, a **Change access** button and its own **Disconnect** button. Disconnecting one leaves the others working. A row reading **never signed in** was approved, but the assistant never came back to finish; it holds no key, so disconnect it and connect again.
 
 ### What one connection may do
 
@@ -249,7 +261,7 @@ Flip the switch off and save. The endpoint stops existing immediately — every 
 
 To cut off one assistant while leaving the server up for the others:
 
-- **Disconnect** beside an approved assistant, under **Connected assistants**, ends that connection alone.
+- **Disconnect** beside an approved assistant, under **Connected assistants**, ends that connection alone. The assistant can connect again later; it asks for your approval like the first time.
 - **Revoke Token** ends every assistant holding the shared connection token, all at once. **Rotate Token** does the same and hands you a fresh secret.
 - Revoking an application password (Users → Profile) ends that one tool.
 

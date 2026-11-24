@@ -1049,6 +1049,11 @@ export default {
       if ('checkScope' === open) {
         this.scopeOpen = true;
       }
+      // The connect wizard lives in the MCP card, which is always mounted
+      // (Settings is v-show); it opens itself only while the server runs.
+      if ('connectAssistant' === open) {
+        this.$nextTick(() => window.dispatchEvent(new CustomEvent('agentimus:connect-assistant')));
+      }
       // Renamed screens keep their old ids working HERE too, not only in the
       // hash: a stale emitter asking for 'today' used to set a tab no panel
       // matches — a blank screen wearing a dead URL.

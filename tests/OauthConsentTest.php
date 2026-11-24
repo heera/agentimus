@@ -130,6 +130,52 @@ final class OauthConsentTest extends TestCase {
 		$this->assertStringNotContainsString( '<script>alert(1)</script>', $html );
 	}
 
+	/* ---- handing the browser back to the app -------------------------------- */
+
+	/**
+	 * Found 2026-11-25: heera.it's `form-action 'self'` header made the browser
+	 * block the 302 that answered Allow, so no approval could finish. The hand-
+	 * back is now a page that moves on, which that header does not cover.
+	 */
+	public function test_allow_hands_back_with_a_page_that_moves_on_not_a_form_redirect() {
+		$consent = $this->consent( array( 'enable_mcp_server' => 1, 'enable_agent_writes' => 1 ) );
+		$html    = $consent->return_page( $this->request( 'write' ), array( 'code' => 'abc123' ) );
+		$url     = 'https://claude.ai/api/mcp/auth_callback?code=abc123&amp;state=xyz';
+
+		$this->assertStringContainsString( '<meta http-equiv="refresh" content="0;url=' . $url . '">', $html );
+		$this->assertStringContainsString( '<a class="btn approve" href="' . $url . '">Continue</a>', $html );
+		$this->assertStringContainsString( '<meta name="referrer" content="no-referrer">', $html );
+		$this->assertStringContainsString( 'Approved. Returning you to Claude', $html );
+		$this->assertStringNotContainsString( '<form', $html );
+		$this->assertStringNotContainsString( '<script', $html );
+	}
+
+	public function test_cancel_hands_back_the_refusal_the_same_way() {
+		$consent = $this->consent( array( 'enable_mcp_server' => 1, 'enable_agent_writes' => 1 ) );
+		$html    = $consent->return_page( $this->request( 'write' ), array( 'error' => 'access_denied' ) );
+
+		$this->assertStringContainsString( 'content="0;url=https://claude.ai/api/mcp/auth_callback?error=access_denied&amp;state=xyz"', $html );
+		$this->assertStringContainsString( 'Cancelled. Returning you to Claude', $html );
+	}
+
+	/** An editor's own scheme survives: esc_url would have emptied it. */
+	public function test_a_custom_scheme_callback_is_kept() {
+		update_option( Settings::OPTION, array( 'enable_mcp_server' => 1 ) );
+		$cb     = 'cursor://anysphere.cursor-retrieval/oauth/callback';
+		$client = Server::register_client( array( 'client_name' => 'Cursor', 'redirect_uris' => array( $cb ) ) );
+		$params = array(
+			'client_id'             => $client['client_id'],
+			'redirect_uri'          => $cb,
+			'response_type'         => 'code',
+			'code_challenge'        => OauthServerTest::RFC_CHALLENGE,
+			'code_challenge_method' => 'S256',
+		);
+		$_GET = $params;
+		$html = ( new Consent( new Settings() ) )->return_page( Server::validate_authorize_request( $params ), array( 'code' => 'c1' ) );
+
+		$this->assertStringContainsString( 'content="0;url=' . $cb . '?code=c1"', $html );
+	}
+
 	/* ---- discovery documents ---------------------------------------------- */
 
 	public function test_oauth_discovery_docs_gate_on_the_mcp_server() {

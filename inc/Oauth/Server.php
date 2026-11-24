@@ -290,6 +290,9 @@ final class Server {
 			$state['clients'][ $req['client_id'] ]['approved_by'] = (int) $user_id;
 			$state['clients'][ $req['client_id'] ]['scope']       = 'write' === $scope ? 'write' : 'read';
 			$state['clients'][ $req['client_id'] ]['access']      = $access;
+			// Approved is not connected: the app still has to come back with
+			// the code. 0 = not yet; the code exchange stamps the time.
+			$state['clients'][ $req['client_id'] ]['signed_in'] = 0;
 		}
 		self::save( $state );
 		return $code;
@@ -351,6 +354,15 @@ final class Server {
 		}
 		if ( '' === $verifier || ! hash_equals( (string) $entry['challenge'], self::s256( $verifier ) ) ) {
 			return self::oauth_error( 'invalid_grant', 'PKCE verification failed.' );
+		}
+
+		// The app came back with its code: from here on it is connected. The
+		// connect wizard waits for this, not for the click on Allow, which a
+		// blocked hand-back can leave with nothing behind it.
+		$state = self::state();
+		if ( isset( $state['clients'][ $client_id ] ) ) {
+			$state['clients'][ $client_id ]['signed_in'] = time();
+			self::save( $state );
 		}
 
 		return self::mint_tokens( (string) $entry['client_id'], (string) $entry['scope'], (int) $entry['user_id'] );
@@ -662,14 +674,24 @@ final class Server {
 				'access'   => \Agentimus\Abilities\ConnectionAccess::normalize( isset( $client['access'] ) ? $client['access'] : null, $scope ),
 				'approved' => (int) $client['approved'],
 				'lastUsed' => isset( $client['last_used'] ) ? (int) $client['last_used'] : null,
+				// null = approved before this was recorded (unknown); 0 = the
+				// app never came back with its code; else when it did.
+				'signedIn' => array_key_exists( 'signed_in', $client ) ? (int) $client['signed_in'] : null,
 			);
 		}
 		return $rows;
 	}
 
 	/**
-	 * Revoke ONE client's grant: its tokens, refresh tokens, and registration
-	 * all go at once. Every other connection is untouched.
+	 * Revoke ONE client's grant: its approval, tokens, refresh tokens and
+	 * waiting codes all go at once. Every other connection is untouched.
+	 *
+	 * ⛔ The registration stays. An app keeps its client id (Claude Code does),
+	 * so deleting the registration left it unable to ever ask again: every
+	 * try read "Unknown client_id", while the Disconnect dialog promised it
+	 * could reconnect by asking for approval (found 2026-11-25). A kept,
+	 * unapproved registration grants nothing: it is no connection, and it is
+	 * pruned like any other unapproved one when the roster fills.
 	 *
 	 * @param string $client_id The client to disconnect.
 	 * @return bool Whether anything was removed.
@@ -677,8 +699,12 @@ final class Server {
 	public static function revoke_client( $client_id ) {
 		$client_id = (string) $client_id;
 		$state     = self::state();
-		$found     = isset( $state['clients'][ $client_id ] );
-		unset( $state['clients'][ $client_id ] );
+		$found     = isset( $state['clients'][ $client_id ]['approved'] ) && ! empty( $state['clients'][ $client_id ]['approved'] );
+		if ( isset( $state['clients'][ $client_id ] ) ) {
+			foreach ( array( 'approved', 'approved_by', 'scope', 'access', 'last_used', 'signed_in' ) as $field ) {
+				unset( $state['clients'][ $client_id ][ $field ] );
+			}
+		}
 		foreach ( array( 'codes', 'tokens', 'refresh' ) as $bucket ) {
 			foreach ( $state[ $bucket ] as $key => $entry ) {
 				if ( isset( $entry['client_id'] ) && $entry['client_id'] === $client_id ) {
@@ -737,7 +763,8 @@ final class Server {
 			return '';
 		}
 		$client = self::client( substr( (string) $cred, strlen( 'agentimus-oauth:' ) ) );
-		if ( null === $client ) {
+		// A disconnected app keeps its registration, not its connection.
+		if ( null === $client || ! $client['approved'] ) {
 			return '';
 		}
 		return $client['name'] . '’s connection';
@@ -803,6 +830,7 @@ final class Server {
 		return array(
 			'redirect_uris' => isset( $c['redirect_uris'] ) && is_array( $c['redirect_uris'] ) ? array_map( 'strval', $c['redirect_uris'] ) : array(),
 			'name'          => isset( $c['name'] ) ? (string) $c['name'] : 'MCP client',
+			'approved'      => ! empty( $c['approved'] ),
 		);
 	}
 

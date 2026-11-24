@@ -21,11 +21,13 @@ import { bindDocEsc } from '../js/docEsc.js';
 import { connectionAccessLabel } from '../js/connectionAccess.js';
 import { judgeInitialize } from '../js/mcpTest.js';
 import { LEVELS, levelOf, chooseLevel, customNote, limitFor, publishWarning } from '../js/agentLevel.js';
+import { recipeFor } from '../js/connectWizard.js';
 import AppLink from './AppLink.vue';
+import ConnectWizard from './ConnectWizard.vue';
 
 export default {
   name: 'McpServerCard',
-  components: { AppLink },
+  components: { AppLink, ConnectWizard },
   props: {
     settings: { type: Object, required: true },
     mcpServer: { type: Object, default: () => ({}) },
@@ -58,6 +60,8 @@ export default {
       accessError: '',
       // The live last-call fact from /mcp-status; overrides the page-load copy.
       mcpLiveLastCall: null,
+      // The connect wizard (ConnectWizard.vue), opened from Connected assistants.
+      connectOpen: false,
       // Which assistant's setup steps the help fold is showing.
       mcpSetupPick: 'claude',
       mcpRecipeCopied: false,
@@ -205,58 +209,7 @@ export default {
     // token only appears where a client genuinely can't ask for approval.
     mcpRecipe() {
       const url = (this.mcpServer && this.mcpServer.endpoint) || '';
-      const tok = this.mcpTokenPlain;
-      const map = {
-        claude: {
-          title: 'Claude — web, desktop, mobile',
-          steps: [
-            'Settings → Connectors → Add custom connector.',
-            'Paste the address above. Claude opens a page on this site asking for your approval.',
-            'Approve, and Claude appears in Connected assistants.',
-          ],
-        },
-        'claude-code': {
-          title: 'Claude Code — terminal',
-          steps: ['Run this command.', 'Start Claude Code — it sends you here to approve.'],
-          copy: `claude mcp add --transport http agentimus ${url}`,
-        },
-        cursor: {
-          title: 'Cursor — editor',
-          steps: [
-            'Settings → MCP → add a server with the address above, no key.',
-            'Ask Cursor something about your site; it shows an Authenticate button.',
-            'Approve here, and Cursor is connected.',
-          ],
-          note: 'Needs a recent Cursor — old versions ignore MCP install links and show nothing.',
-        },
-        vscode: {
-          title: 'VS Code — editor',
-          steps: [
-            'Command Palette → MCP: Add Server → HTTP → paste the address above.',
-            'Confirm, then approve here when it asks.',
-          ],
-        },
-        chatgpt: {
-          title: 'ChatGPT — web, desktop & Codex',
-          steps: [
-            'In ChatGPT: Settings → Security → turn on “Developer mode”. It unlocks custom connectors (ChatGPT pauses its memory feature while it is on).',
-            'Plugins → the “+” button → paste the address above, keep Authentication on “OAuth”, and Create.',
-            '“Sign in with Agentimus” opens a page on this site — approve, and ChatGPT appears in Connected assistants.',
-            'Codex can’t ask for approval: create a token under “Shared token” below and send it as this header.',
-          ],
-          copy: tok ? `Authorization: Bearer ${tok}` : 'Authorization: Bearer <create a token below>',
-          note: 'Site behind Cloudflare? Free-plan “Bot Fight Mode” blocks ChatGPT’s calls with a 403 — turn it off for this to work. Verified July 2026.',
-        },
-        other: {
-          title: 'Any MCP client',
-          steps: [
-            'Give it the address above, over HTTP transport.',
-            'If it can ask for approval, it sends you here. If it cannot, create one under “Shared token” below and send it as a Bearer header.',
-          ],
-          copy: tok ? `Authorization: Bearer ${tok}` : '',
-        },
-      };
-      return map[this.mcpSetupPick] || map.claude;
+      return recipeFor(this.mcpSetupPick, url, this.mcpTokenPlain);
     },
     // Cursor takes base64-encoded JSON; VS Code takes URL-encoded JSON. Both
     // carry the header so the client arrives already authenticated.
@@ -469,6 +422,7 @@ export default {
   mounted() {
     window.addEventListener('focus', this.onWindowFocus);
     document.addEventListener('visibilitychange', this.onWindowFocus);
+    window.addEventListener('agentimus:connect-assistant', this.openConnect);
     this.mcpSavedEnabled = !!(this.settings && this.settings.enable_mcp_server);
     if (this.mcpSavedEnabled) {
       this.probeMcpStatus();
@@ -479,6 +433,7 @@ export default {
   beforeUnmount() {
     window.removeEventListener('focus', this.onWindowFocus);
     document.removeEventListener('visibilitychange', this.onWindowFocus);
+    window.removeEventListener('agentimus:connect-assistant', this.openConnect);
     if (this._unEscTaken) this._unEscTaken();
     if (this._unEscScope) this._unEscScope();
   },
@@ -520,6 +475,23 @@ export default {
       } catch (e) {
         this.oauthGrants = [];
       }
+    },
+    /* ---- the connect wizard ------------------------------------------------ */
+    // Opens only while the server runs: with it off there is no address to
+    // give an app, and the card's own note says what to choose first.
+    async openConnect() {
+      if (!this.mcpSavedEnabled) return;
+      // The wizard's snapshot is the list as it stands NOW, so read it fresh.
+      await this.loadOauthGrants();
+      this.connectOpen = true;
+    },
+    onConnected(res) {
+      this.oauthGrants = (res && res.grants) || this.oauthGrants;
+    },
+    // Done's Change access: the card's own dialog, on the new connection.
+    connectChangeAccess(g) {
+      this.connectOpen = false;
+      this.openAccess({ kind: 'grant', id: g.clientId, name: g.name, scope: g.scope, access: g.access });
     },
     /* ---- change one connection's access ----------------------------------- */
     accessLabel(c) {
@@ -586,6 +558,9 @@ export default {
     // says "not used yet" rather than inventing a time.
     grantWhen(grant) {
       const approved = `Approved ${formatDate(new Date(grant.approved * 1000))}`;
+      // 0: approved, but the app never came back with its code (its hand-back
+      // failed), so nothing can sign in with this row. null: not recorded.
+      if (!grant.lastUsed && grant.signedIn === 0) return `${approved} · never signed in`;
       if (!grant.lastUsed) return `${approved} · not used yet`;
       return `${approved} · last used ${this.relTime(new Date(grant.lastUsed * 1000).toISOString())}`;
     },
@@ -1006,6 +981,7 @@ export default {
             <p class="ar-mcp-roster__head">
               Connected assistants
               <span class="ar-mcp-roster__count" :class="{ 'is-zero': !mcpConnections.length }">{{ mcpConnections.length }}</span>
+              <button type="button" class="ar-btn ar-btn--small ar-mcp-roster__add" @click="openConnect">Connect an assistant</button>
             </p>
             <p v-if="mcpConnections.length" class="ar-field__hint ar-mcp-roster__note">
               The assistants you approved, plus the shared token. Disconnecting one
@@ -1049,7 +1025,7 @@ export default {
 
             <p v-else class="ar-mcp-roster__empty">
               <strong>No assistant is connected yet.</strong>
-              Give an assistant the address above — it will ask for your approval, and appear here.
+              Click <em>Connect an assistant</em> for steps, or give one the address above: it asks for your approval, then appears here.
             </p>
 
             <p v-if="oauthError" class="ar-field__hint ar-mcp-key__err" role="alert">{{ oauthError }}</p>
@@ -1385,6 +1361,18 @@ export default {
           </details>
         </div>
       </section>
+
+    <ConnectWizard
+      v-if="connectOpen"
+      :api="api"
+      :endpoint="mcpServer.endpoint || ''"
+      :token="mcpTokenPlain"
+      :grants="oauthGrants"
+      :access-choice-count="accessChoices.length"
+      @close="connectOpen = false"
+      @connected="onConnected"
+      @change-access="connectChangeAccess"
+    />
 
     <!-- The key-scope explainer — the step-2 head states the fact, this carries
          what it means and how to stay safe. -->

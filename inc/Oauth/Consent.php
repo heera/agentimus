@@ -160,12 +160,51 @@ final class Consent {
 	 * @return void
 	 */
 	private function redirect_back( array $req, array $params ) {
+		status_header( 200 );
+		header( 'Content-Type: text/html; charset=UTF-8' );
+		echo $this->return_page( $req, $params ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in return_page().
+		exit;
+	}
+
+	/**
+	 * The page that hands the browser back to the app: it moves on by itself
+	 * and has a link in case it does not.
+	 *
+	 * ⛔ Not a 302. A redirect answering the form is part of the form's
+	 * submission, so a site whose security header says `form-action 'self'`
+	 * makes the browser block it, and the app never gets its code. heera.it
+	 * sends exactly that header, so no approval could finish there (found
+	 * 2026-11-25 testing the connect wizard). A page that moves on is a new
+	 * navigation, which `form-action` does not cover. The address is the one
+	 * validated against the app's registration, so nothing else changes.
+	 * esc_attr, not esc_url: esc_url drops the custom schemes editors use
+	 * ({@see Server} keeps them and refuses the ones that can run code).
+	 *
+	 * @param array $req    Validated authorize request.
+	 * @param array $params code or error.
+	 * @return string
+	 */
+	public function return_page( array $req, array $params ) {
 		if ( '' !== $req['state'] ) {
 			$params['state'] = $req['state'];
 		}
-		$url = add_query_arg( array_map( 'rawurlencode', $params ), $req['redirect_uri'] );
-		wp_redirect( $url ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- validated against the registered redirect_uris.
-		exit;
+		$url  = add_query_arg( array_map( 'rawurlencode', $params ), $req['redirect_uri'] );
+		$name = $req['client_name'];
+		$ok   = isset( $params['code'] );
+
+		$b  = '<h1>' . ( $ok
+			/* translators: %s: client-claimed name. */
+			? sprintf( esc_html__( 'Approved. Returning you to %s…', 'agentimus' ), esc_html( $name ) )
+			/* translators: %s: client-claimed name. */
+			: sprintf( esc_html__( 'Cancelled. Returning you to %s…', 'agentimus' ), esc_html( $name ) )
+		) . '</h1>';
+		$b .= '<p class="claims">' . esc_html__( 'If nothing happens in a few seconds, continue yourself. You can close this tab afterwards.', 'agentimus' ) . '</p>';
+		$b .= '<div class="actions"><a class="btn approve" href="' . esc_attr( $url ) . '">' . esc_html__( 'Continue', 'agentimus' ) . '</a></div>';
+
+		$head = '<meta http-equiv="refresh" content="0;url=' . esc_attr( $url ) . '">'
+			// The app learns nothing about this page's address from the hop.
+			. '<meta name="referrer" content="no-referrer">';
+		return $this->page( $b, $head );
 	}
 
 	/**
@@ -292,14 +331,16 @@ final class Consent {
 	 * theme, no scripts.
 	 *
 	 * @param string $body Escaped body HTML.
+	 * @param string $head Escaped extra head tags.
 	 * @return string
 	 */
-	private function page( $body ) {
+	private function page( $body, $head = '' ) {
 		$site = get_bloginfo( 'name' );
 		$host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		return '<!DOCTYPE html><html lang="' . esc_attr( get_bloginfo( 'language' ) ) . '"><head>'
 			. '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 			. '<meta name="robots" content="noindex">'
+			. $head
 			. '<title>' . esc_html__( 'Connect an assistant', 'agentimus' ) . ' · ' . esc_html( $site ) . '</title>'
 			. '<style>'
 			. 'body{margin:0;background:#f7f3ea;color:#211f1a;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;padding:48px 20px}'
@@ -324,7 +365,7 @@ final class Consent {
 			. '.btn{font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;border-radius:6px;padding:11px 20px;cursor:pointer;border:1px solid transparent}'
 			. '.approve{background:#1a6b52;border-color:#1a6b52;color:#fdfbf6}'
 			. '.ghost{background:transparent;border-color:#cfc5ad;color:#211f1a}'
-			. '.btn:focus-visible{outline:2px solid #1a6b52;outline-offset:2px}'
+			. '.btn{display:inline-block;text-decoration:none}.btn:focus-visible{outline:2px solid #1a6b52;outline-offset:2px}'
 			. '.fineprint{margin:22px 0 0;font-size:12.5px;color:#6d6759}'
 			. '</style></head><body><div class="card">'
 			. '<div class="badge"><span class="mark" aria-hidden="true">A</span><span><b>' . esc_html( $site ) . '</b>'
