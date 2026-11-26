@@ -1007,45 +1007,13 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.57.0 is the biggest agent release: the connect guide, access per
-				// connection with Pause and a call limit, skills, other plugins'
-				// abilities, the tool list before sign-in (ON by default, his call, so
-				// its row says where to turn it off), the firm limits on every agent
-				// call, and one fixes row, last.
-				array(
-					'icon'  => 'clock',
-					'title' => 'Connect An Assistant, Step By Step',
-					'text'  => 'A short guide on the MCP Server card: pick your app, follow its steps and approve. It moves on by itself once the app has signed in.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Choose What Each Assistant May Do',
-					'text'  => 'Each connection now has its own access, and a Pause button that keeps it connected. You can also limit calls per minute. Existing connections keep what they had.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Your Rules For Agents',
-					'text'  => 'Write skills under More → Skills: your steps for a job. Agents read the ones that fit before they start. A skill an agent saves waits for you to turn it on.',
-				),
-				array(
-					'icon'  => 'link',
-					'title' => 'Other Plugins’ Abilities',
-					'text'  => 'Under More → Abilities, turn on what other plugins offer to agents, one by one. Everything starts off, new ones too.',
-				),
+				// ⭐ 1.57.1 is one fix, so ONE row: the same pages splitting two
+				// searches ("winter perfume" and "winter perfumes" on heera.it) are
+				// one finding, not two identical rows.
 				array(
 					'icon'  => 'search',
-					'title' => 'Show Your Tools Before Sign-In',
-					'text'  => 'Agents and MCP directories can now see which Agentimus tools your site has before they connect. Using a tool still needs your approval or a token. You can turn this off at the top of the MCP Server card.',
-				),
-				array(
-					'icon'  => 'shield',
-					'title' => 'Firm Limits On Every Agent',
-					'text'  => 'Whatever login an agent uses, it can’t edit plugin or theme files, change users, keys or the site address, or turn off Agentimus.',
-				),
-				array(
-					'icon'  => 'page',
-					'title' => 'Fixes',
-					'text'  => 'Approving an assistant now finishes on sites with a strict security header or plain permalinks, and an assistant you disconnected can connect again.',
+					'title' => 'One Finding Per Pair Of Pages',
+					'text'  => 'When the same pages split more than one search, Findings now shows them once, with each search listed, instead of a row for every search.',
 				),
 			),
 		);

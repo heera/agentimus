@@ -4,6 +4,9 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.57.1
+* Fixed: when the same pages split more than one search, such as a word and its plural, Findings showed an identical row for each search. They are now one finding that lists every search. Searches are still listed as the search engine reported them.
+
 ## 1.57.0
 * New: Connect an assistant, a four-step guide on the MCP Server card. Pick your app, follow its steps, approve, and the guide moves on by itself once the app has signed in.
 * New: each connection has its own access. Allow gives everything your settings allow agents; Allow less lets you untick what it should not do. Change access on each row changes it later. Existing connections keep what they had.

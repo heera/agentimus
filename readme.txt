@@ -299,6 +299,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 
 == Changelog ==
 
+= 1.57.1 =
+* Fixed: when the same pages split more than one search, such as a word and its plural, Findings showed an identical row for each search. They are now one finding that lists every search. Searches are still listed as the search engine reported them.
+
 = 1.57.0 =
 * New: Connect an assistant, a four-step guide on the MCP Server card. Pick your app, follow its steps, approve, and the guide moves on by itself once the app has signed in.
 * New: each connection has its own access. Allow gives everything your settings allow agents; Allow less lets you untick what it should not do. Change access on each row changes it later. Existing connections keep what they had.
@@ -454,14 +457,12 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 * Fixed: a real search crawler could be flagged as a fake on every visit. The identity check asked for an address name that not every operator publishes, and a crawler run from cloud addresses has none, so its operator's own published address list was never read. An address the operator's own list names now counts as genuine, even when the name lookup says no, and a crawler whose operator publishes only a list is checked against that list alone. A list that is out of date, missing or silent never clears a failed check. If a crawler is still flagged in your review queue, re-check it to clear the old flag.
 * Fixed: in the review queue, a fake crawler using a real crawler's exact name borrowed the real one's traffic. Two failed requests beside hundreds of genuine visits were marked "High volume" and sorted above a much larger impersonation, and ignoring such a row did not stick while the real crawler kept visiting. A row caught faking is now weighed on its own failed requests only: for the badge, for its place in the list, and for when an ignored row comes back.
 
-= 1.51.2 =
-* Fixed: a page your own site redirects — a retired page folded into the homepage, say — was filed by the Google Index card under "Google chose a different address", the harshest heading, with a line that blamed Google for an address your site picked. Google's own wording for it is "Page with redirect", and it now has its own group, "Sent elsewhere by this site", whose row names where the page goes. It still counts, the way a page you block on purpose does; nothing is hidden.
-* Fixed: asking the Google Index tool about a page the daily check had not reached yet answered with an error instead of "not checked yet" — the tool's own output rules did not allow an empty row. An assistant asking about a brand-new page now gets the honest answer.
-* New: the share card names your X account. X already builds a link preview from the Open Graph tags, image included, whether or not you have connected X to Agentimus. When you have, the card also carries a twitter:site tag with the connected account, so the preview is attributed to you. Nothing is guessed when X is not connected.
-
-The most recent releases are listed here, back to 1.51.2. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
+The most recent releases are listed here, back to 1.51.3. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.57.1 =
+Findings shows the same pages splitting several searches once, not once per search.
 
 = 1.57.0 =
 A step-by-step guide to connect an assistant, access per connection, Pause, skills and other plugins' abilities. Firm limits on every agent call. Existing connections keep what they had.
