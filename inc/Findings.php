@@ -477,8 +477,15 @@ final class Findings {
 	/**
 	 * Searches that several pages are splitting. The engine sends one search
 	 * to one page at a time, so competing pages take turns — and every turn a
-	 * weaker page takes is a click the strong one loses. One row per split,
-	 * heaviest first, capped so the list names the worst rather than all.
+	 * weaker page takes is a click the strong one loses. One row per SET OF
+	 * PAGES, heaviest first, capped so the list names the worst rather than all.
+	 *
+	 * ⭐ Grouped by the pages, not the search. On heera.it (2026-11-26) the same
+	 * two pages split "winter perfume" and "winter perfumes", and the front door
+	 * showed two identical rows with one fix. The detector still never merges
+	 * word forms ({@see Search\Collisions::build()}): each search listed here
+	 * was reported by the engine on its own, and the row only says the same
+	 * pages are behind them.
 	 *
 	 * @return array<int,array>
 	 */
@@ -490,36 +497,56 @@ final class Findings {
 		}
 
 		$out = array();
-		foreach ( array_slice( $collisions, 0, 3 ) as $i => $collision ) {
-			$n     = count( (array) $collision['pages'] );
+		foreach ( array_slice( self::group_splits( $collisions ), 0, 3 ) as $i => $split ) {
+			$n        = $split['pages'];
+			$searches = $split['searches'];
+			$evidence = array();
+			foreach ( $searches as $collision ) {
+				$evidence[] = sprintf(
+					/* translators: 1: the search query, 2: formatted impression count, 3: formatted click count. */
+					__( '"%1$s" · %2$s shown · %3$s clicks', 'agentimus' ),
+					(string) $collision['query'],
+					number_format_i18n( (int) $collision['shown'] ),
+					number_format_i18n( (int) $collision['clicks'] )
+				);
+			}
+			// The position chip always shows, so the searches get what is left
+			// of the cap — and "+N more" takes a slot of its own when needed.
+			if ( count( $evidence ) > self::MAX_EVIDENCE - 1 ) {
+				$evidence = array_slice( $evidence, 0, self::MAX_EVIDENCE - 2 );
+			}
+			if ( count( $searches ) > count( $evidence ) ) {
+				/* translators: %d: how many further searches the same pages split. */
+				$evidence[] = sprintf( __( '+%d more', 'agentimus' ), count( $searches ) - count( $evidence ) );
+			}
+			$evidence[] = sprintf(
+				/* translators: 1: best average position, 2: worst average position. */
+				__( 'best position #%1$s · worst #%2$s', 'agentimus' ),
+				number_format_i18n( $split['best'], 1 ),
+				number_format_i18n( $split['worst'], 1 )
+			);
+
 			$out[] = $this->row(
 				'split_search_' . $i,
 				self::WORTH,
-				sprintf(
-					/* translators: %d: how many pages appear for the same search. */
-					__( '%d pages are splitting one search', 'agentimus' ),
-					$n
-				),
+				1 === count( $searches )
+					? sprintf(
+						/* translators: %d: how many pages appear for the same search. */
+						__( '%d pages are splitting one search', 'agentimus' ),
+						$n
+					)
+					: sprintf(
+						/* translators: 1: how many pages, 2: how many searches they split. */
+						__( '%1$d pages are splitting %2$d searches', 'agentimus' ),
+						$n,
+						count( $searches )
+					),
 				// ⛔ NOT "none of them wins the click" — the card this row opens
 				// crowns a winner, by clicks then position, and states the rule.
 				// A front door contradicting the screen behind it teaches an
 				// owner to trust neither.
 				__( 'The engine shows one of them at a time, so they take turns — and the weaker turns cost clicks.', 'agentimus' ),
-				array(
-					sprintf(
-						/* translators: 1: the search query, 2: formatted impression count, 3: formatted click count. */
-						__( '"%1$s" · %2$s shown · %3$s clicks', 'agentimus' ),
-						(string) $collision['query'],
-						number_format_i18n( (int) $collision['shown'] ),
-						number_format_i18n( (int) $collision['clicks'] )
-					),
-					sprintf(
-						/* translators: 1: best average position, 2: worst average position. */
-						__( 'best position #%1$s · worst #%2$s', 'agentimus' ),
-						number_format_i18n( $collision['best'], 1 ),
-						number_format_i18n( $collision['worst'], 1 )
-					),
-				),
+				$evidence,
 				$this->go(
 					sprintf(
 						/* translators: %d: how many pages compete for the search. */
@@ -537,6 +564,39 @@ final class Findings {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Collisions grouped by the exact set of competing pages, in the order the
+	 * heaviest search of each set first appears (the detector ranks heaviest
+	 * first, so the ranking survives). A set is keyed by page URL; two sets that
+	 * share only some pages stay apart, because their fix is not the same.
+	 *
+	 * @param array $collisions {@see Search\Collisions::build()} rows.
+	 * @return array<int,array{pages:int,best:float,worst:float,searches:array}>
+	 */
+	private static function group_splits( array $collisions ) {
+		$sets = array();
+		foreach ( $collisions as $collision ) {
+			$urls = array();
+			foreach ( (array) $collision['pages'] as $page ) {
+				$urls[] = isset( $page['url'] ) ? (string) $page['url'] : '';
+			}
+			sort( $urls );
+			$key = implode( "\n", $urls );
+			if ( ! isset( $sets[ $key ] ) ) {
+				$sets[ $key ] = array(
+					'pages'    => count( $urls ),
+					'best'     => (float) $collision['best'],
+					'worst'    => (float) $collision['worst'],
+					'searches' => array(),
+				);
+			}
+			$sets[ $key ]['best']       = min( $sets[ $key ]['best'], (float) $collision['best'] );
+			$sets[ $key ]['worst']      = max( $sets[ $key ]['worst'], (float) $collision['worst'] );
+			$sets[ $key ]['searches'][] = $collision;
+		}
+		return array_values( $sets );
 	}
 
 	/**

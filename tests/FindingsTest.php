@@ -460,4 +460,94 @@ final class FindingsTest extends TestCase {
 		$this->assertLessThan( $weights['edge_unenforced'], $weights['edge_impostors'] );
 		$this->assertGreaterThan( $weights['near_page_one_waiting'], $weights['edge_impostors'] );
 	}
+
+	/* ---- split searches ---------------------------------------------------- */
+
+	/** Runs the split-search source on a given set of collisions. */
+	private function splits( array $collisions ) {
+		$findings = new Findings( new Settings() );
+		$prop     = new \ReflectionProperty( Findings::class, 'opportunities' );
+		$prop->setAccessible( true );
+		$prop->setValue( $findings, array( 'collisions' => $collisions ) );
+		$method = new \ReflectionMethod( Findings::class, 'split_searches' );
+		$method->setAccessible( true );
+		return $method->invoke( $findings );
+	}
+
+	private function collision( $query, $shown, $clicks, $best, $worst, array $urls ) {
+		$pages = array();
+		foreach ( $urls as $url ) {
+			$pages[] = array( 'url' => $url, 'page_id' => 0, 'clicks' => 0, 'impressions' => 0, 'position' => 0.0, 'share' => 0.5, 'winner' => false );
+		}
+		return array( 'query' => $query, 'shown' => $shown, 'clicks' => $clicks, 'best' => $best, 'worst' => $worst, 'pages' => $pages );
+	}
+
+	/**
+	 * ⭐ heera.it, 2026-11-26: the same two pages split "winter perfume" and
+	 * "winter perfumes", and the front door showed two identical rows with one
+	 * fix. Same pages → one row naming both searches. The searches themselves
+	 * stay as the engine reported them; nothing is stemmed.
+	 */
+	public function test_the_same_pages_splitting_two_searches_are_one_finding() {
+		$a    = 'https://heera.test/winter-perfume/';
+		$b    = 'https://heera.test/best-winter-scents/';
+		$rows = $this->splits(
+			array(
+				$this->collision( 'winter perfume', 76, 1, 6.1, 6.9, array( $a, $b ) ),
+				$this->collision( 'winter perfumes', 54, 0, 4.2, 5.4, array( $b, $a ) ),
+			)
+		);
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'split_search_0', $rows[0]['id'] );
+		$this->assertSame( '2 pages are splitting 2 searches', $rows[0]['title'] );
+		$this->assertSame(
+			array(
+				'"winter perfume" · 76 shown · 1 clicks',
+				'"winter perfumes" · 54 shown · 0 clicks',
+				'best position #4.2 · worst #6.9',
+			),
+			$rows[0]['evidence']
+		);
+	}
+
+	/** Different pages are a different fix, so they keep their own rows. */
+	public function test_different_pages_keep_separate_split_findings() {
+		$rows = $this->splits(
+			array(
+				$this->collision( 'winter perfume', 76, 1, 6.1, 6.9, array( 'https://h.test/a/', 'https://h.test/b/' ) ),
+				$this->collision( 'oud', 54, 0, 4.2, 5.4, array( 'https://h.test/a/', 'https://h.test/c/' ) ),
+			)
+		);
+
+		$this->assertCount( 2, $rows );
+		$this->assertSame( '2 pages are splitting one search', $rows[0]['title'] );
+		$this->assertSame(
+			array( '"winter perfume" · 76 shown · 1 clicks', 'best position #6.1 · worst #6.9' ),
+			$rows[0]['evidence']
+		);
+		$this->assertSame( '"oud" · 54 shown · 0 clicks', $rows[1]['evidence'][0] );
+	}
+
+	/** Many searches on one pair: the chips stop at the cap and keep the positions. */
+	public function test_a_pair_splitting_many_searches_keeps_its_position_chip() {
+		$urls = array( 'https://h.test/a/', 'https://h.test/b/' );
+		$list = array();
+		foreach ( array( 'q1', 'q2', 'q3', 'q4', 'q5' ) as $k => $q ) {
+			$list[] = $this->collision( $q, 100 - $k, 0, 3.0 + $k, 4.0 + $k, $urls );
+		}
+		$rows = $this->splits( $list );
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( '2 pages are splitting 5 searches', $rows[0]['title'] );
+		$this->assertSame(
+			array(
+				'"q1" · 100 shown · 0 clicks',
+				'"q2" · 99 shown · 0 clicks',
+				'+3 more',
+				'best position #3.0 · worst #8.0',
+			),
+			$rows[0]['evidence']
+		);
+	}
 }
