@@ -279,7 +279,7 @@ Agentimus makes no outbound requests by default: no remote scripts, fonts or ana
 
 **Every outbound feature is opt-in and off by default.**
 
-**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. An optional switch adds names of clients you block to a Cloudflare rule. The optional IndexNow switch announces changed and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/): a page published, edited or removed, a page whose description, title or cover image changed, and an edited category or tag page. Only the changed URL list is sent.
+**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. An optional switch adds names of clients you block to a Cloudflare rule. The optional IndexNow switch announces changed and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/) — only the changed URL list is sent.
 
 **Verify bot identities** makes DNS lookups and, once a day, downloads the IP-range files bot operators publish to verify their crawlers (Google, Microsoft, DuckDuckGo, Apple, OpenAI, Perplexity — or a URL you add yourself). Only those files are fetched; nothing about your site is sent.
 
