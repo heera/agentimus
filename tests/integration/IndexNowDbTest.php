@@ -119,6 +119,136 @@ final class IndexNowDbTest extends WP_UnitTestCase {
 		$this->assertContains( home_url( '/shop/handmade-attar/' ), $this->sent[0]['body']['urlList'] );
 	}
 
+	/**
+	 * A live post, created with the switch on and the creation ping drained, so
+	 * every test below sees only what its own change sends.
+	 *
+	 * @param array $args Extra post fields.
+	 * @return int Post ID.
+	 */
+	private function live_post( array $args = array() ) {
+		$this->turn_on();
+		$id = self::factory()->post->create( array_merge( array( 'post_status' => 'publish' ), $args ) );
+		IndexNow::flush();
+		$this->sent = array();
+		return $id;
+	}
+
+	/** @return string[] Every URL sent this test, across all pings. */
+	private function sent_urls() {
+		$urls = array();
+		foreach ( $this->sent as $ping ) {
+			$urls = array_merge( $urls, (array) $ping['body']['urlList'] );
+		}
+		return $urls;
+	}
+
+	/**
+	 * The gap found on heera.it 2026-11-28: ten descriptions written through
+	 * write-description changed every page's meta description, and Bing was
+	 * told about none of them — a meta-only write never fires
+	 * transition_post_status.
+	 */
+	public function test_a_description_change_on_a_live_post_pings_it() {
+		$id = $this->live_post();
+
+		update_post_meta( $id, \Agentimus\Description::META, 'A new description a search engine shows.' );
+		IndexNow::flush();
+
+		$this->assertContains( get_permalink( $id ), $this->sent_urls() );
+	}
+
+	public function test_a_search_title_change_on_a_live_post_pings_it() {
+		$id = $this->live_post();
+
+		update_post_meta( $id, \Agentimus\Seo::META_TITLE, 'A new search title' );
+		IndexNow::flush();
+
+		$this->assertContains( get_permalink( $id ), $this->sent_urls() );
+	}
+
+	public function test_a_cover_image_swap_on_a_live_post_pings_it() {
+		$id    = $this->live_post();
+		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/a2-small.jpg' );
+
+		set_post_thumbnail( $id, $image );
+		IndexNow::flush();
+
+		$this->assertContains( get_permalink( $id ), $this->sent_urls() );
+	}
+
+	/**
+	 * Alt text lives on the image, not the page: describing a cover image
+	 * changes every live page that wears it, and only those.
+	 */
+	public function test_new_alt_text_pings_every_live_post_that_uses_the_image() {
+		$a     = $this->live_post();
+		$b     = $this->live_post();
+		$draft = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		$image = self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/a2-small.jpg' );
+		foreach ( array( $a, $b, $draft ) as $post ) {
+			set_post_thumbnail( $post, $image );
+		}
+		IndexNow::flush();
+		$this->sent = array();
+
+		update_post_meta( $image, '_wp_attachment_image_alt', 'Five perfume bottles on brown velvet.' );
+		IndexNow::flush();
+
+		$urls = $this->sent_urls();
+		$this->assertContains( get_permalink( $a ), $urls );
+		$this->assertContains( get_permalink( $b ), $urls );
+		$this->assertNotContains( get_permalink( $draft ), $urls, 'a draft has no public page to recrawl' );
+	}
+
+	public function test_editing_a_category_pings_its_archive() {
+		$this->turn_on();
+		$cat = self::factory()->category->create( array( 'name' => 'Perfumery' ) );
+		self::factory()->post->create( array( 'post_status' => 'publish', 'post_category' => array( $cat ) ) );
+		IndexNow::flush();
+		$this->sent = array();
+
+		wp_update_term( $cat, 'category', array( 'description' => 'Fragrance notes and reviews.' ) );
+		IndexNow::flush();
+
+		$this->assertContains( get_term_link( $cat, 'category' ), $this->sent_urls() );
+	}
+
+	public function test_page_meta_on_a_draft_pings_nothing() {
+		$this->turn_on();
+		$id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		IndexNow::flush();
+		$this->sent = array();
+
+		update_post_meta( $id, \Agentimus\Description::META, 'Not public yet.' );
+		IndexNow::flush();
+
+		$this->assertSame( array(), $this->sent, 'nothing public changed' );
+	}
+
+	public function test_meta_that_never_reaches_the_page_pings_nothing() {
+		$id = $this->live_post();
+
+		update_post_meta( $id, '_edit_lock', time() . ':1' );
+		update_post_meta( $id, 'some_other_plugins_counter', 42 );
+		IndexNow::flush();
+
+		$this->assertSame( array(), $this->sent, 'only meta that changes what an engine reads counts' );
+	}
+
+	public function test_page_meta_stays_silent_when_the_switch_is_off() {
+		$id       = $this->live_post();
+		$settings = new Settings();
+		$all      = $settings->all();
+		$all['indexnow_enabled'] = false;
+		$settings->update( $all );
+
+		update_post_meta( $id, \Agentimus\Description::META, 'Changed while off.' );
+		IndexNow::flush();
+
+		$this->assertSame( array(), $this->sent, 'no outbound by default is the standing promise' );
+	}
+
 	public function test_the_announce_action_refuses_foreign_hosts_and_stays_off_when_disabled() {
 		$this->turn_on();
 		do_action( 'agentimus_announce_url', 'https://evil.example/not-ours/' );

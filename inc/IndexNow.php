@@ -42,6 +42,9 @@ final class IndexNow {
 	/** @var int Sanity cap on one ping's URL list (the spec allows 10,000; a bulk edit doesn't need it). */
 	const MAX_URLS = 100;
 
+	/** @var string Core's alt-text key — it lives on the image, so its pages are found by lookup. */
+	const ALT_META = '_wp_attachment_image_alt';
+
 	/** @var array<string,true> URLs collected this request, deduped, flushed on shutdown. */
 	private static $queue = array();
 
@@ -64,6 +67,15 @@ final class IndexNow {
 	 */
 	public static function boot() {
 		add_action( 'transition_post_status', array( __CLASS__, 'on_transition' ), 10, 3 );
+		// Writes that change what an engine reads WITHOUT a status transition:
+		// a description, search title or cover image saved on its own (the
+		// write-description / describe-image / write-search-fields tools, a
+		// REST meta write), and a category or tag edited. Same queue, so a
+		// full editor save that touches all of them still sends one ping.
+		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'on_meta' ), 10, 3 );
+		}
+		add_action( 'edited_term', array( __CLASS__, 'on_term' ), 10, 3 );
 		add_action( 'template_redirect', array( __CLASS__, 'serve_key_file' ), 0 );
 		// The seam for content that lives outside posts (a commerce plugin's
 		// custom-table catalog, a forum's virtual pages): any plugin can
@@ -127,6 +139,105 @@ final class IndexNow {
 		} else {
 			return; // Draft-to-draft noise — nothing public changed.
 		}
+		self::queue( $url );
+	}
+
+	/**
+	 * The post meta that changes what a search engine reads on the page itself:
+	 * the meta description and JSON-LD description, the <title>, the schema's
+	 * keywords and media, and the cover image. Anything else (edit locks, view
+	 * counters, another plugin's bookkeeping) is not a reason to recrawl.
+	 *
+	 * @return string[]
+	 */
+	public static function page_meta_keys() {
+		return array(
+			Description::META,
+			Seo::META_TITLE,
+			Topics::META_TOPICS,
+			Topics::META_DERIVE,
+			MediaContext::META,
+			'_thumbnail_id',
+		);
+	}
+
+	/**
+	 * Queue a live page whose meta changed without a status transition. Alt
+	 * text belongs to the image, so it queues every live page using that image
+	 * as its cover.
+	 *
+	 * @param int|int[] $meta_id   Unused.
+	 * @param int       $object_id Post (or attachment) ID.
+	 * @param string    $meta_key  The key that changed.
+	 */
+	public static function on_meta( $meta_id, $object_id, $meta_key ) {
+		if ( self::ALT_META === $meta_key ) {
+			if ( ! self::enabled() ) {
+				return;
+			}
+			$ids = get_posts(
+				array(
+					'post_type'        => Content::post_types(),
+					'post_status'      => 'publish',
+					'numberposts'      => self::MAX_URLS,
+					'fields'           => 'ids',
+					'meta_key'         => '_thumbnail_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- core's own indexed lookup, once per alt-text write.
+					'meta_value'       => (string) (int) $object_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- as above.
+					'suppress_filters' => false,
+				)
+			);
+			foreach ( (array) $ids as $id ) {
+				self::queue_live_post( get_post( (int) $id ) );
+			}
+			return;
+		}
+		if ( ! in_array( (string) $meta_key, self::page_meta_keys(), true ) || ! self::enabled() ) {
+			return;
+		}
+		self::queue_live_post( get_post( (int) $object_id ) );
+	}
+
+	/**
+	 * Queue a public category, tag or custom-taxonomy archive after its term
+	 * is edited — its name and description are what that page shows.
+	 *
+	 * @param int    $term_id  Term ID.
+	 * @param int    $tt_id    Unused.
+	 * @param string $taxonomy Taxonomy slug.
+	 */
+	public static function on_term( $term_id, $tt_id = 0, $taxonomy = '' ) {
+		if ( ! self::enabled() || ! is_taxonomy_viewable( (string) $taxonomy ) ) {
+			return;
+		}
+		$url = get_term_link( (int) $term_id, (string) $taxonomy );
+		if ( is_string( $url ) ) {
+			self::queue( $url );
+		}
+	}
+
+	/**
+	 * Queue a post's permalink only while it is a live, public, agent-visible
+	 * page — the same gate the status listener applies.
+	 *
+	 * @param \WP_Post|null $post Post.
+	 */
+	private static function queue_live_post( $post ) {
+		if ( ! $post instanceof \WP_Post
+			|| 'publish' !== $post->post_status
+			|| ! in_array( (string) $post->post_type, Content::post_types(), true )
+			|| ! is_post_type_viewable( $post->post_type )
+			|| '' !== (string) $post->post_password ) {
+			return;
+		}
+		self::queue( (string) get_permalink( $post ) );
+	}
+
+	/**
+	 * Add one URL to this request's ping, scheduling the flush once.
+	 *
+	 * @param string $url Absolute URL.
+	 */
+	private static function queue( $url ) {
 		if ( '' === $url ) {
 			return;
 		}
