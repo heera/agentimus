@@ -67,9 +67,45 @@ final class Tombstones {
 	 */
 	public static function on_delete( $post_id, $post = null ) {
 		$post = $post instanceof \WP_Post ? $post : get_post( (int) $post_id );
-		if ( $post instanceof \WP_Post ) {
+		if ( $post instanceof \WP_Post && self::was_public( $post ) ) {
 			self::maybe_record( $post );
 		}
+	}
+
+	/**
+	 * Whether a post being deleted ever had a public URL to lose: it is live
+	 * right now, or it is in the trash and was live when it went there. A
+	 * draft never had one — and forcing its permalink public falls back to the
+	 * home URL when it has no slug, which is how heera.it's feed came to say
+	 * the homepage was deleted.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return bool
+	 */
+	private static function was_public( \WP_Post $post ) {
+		if ( 'publish' === $post->post_status ) {
+			return true;
+		}
+		return 'trash' === $post->post_status
+			&& 'publish' === get_post_meta( $post->ID, '_wp_trash_meta_status', true );
+	}
+
+	/**
+	 * A stored URL no deleted post could really have had: the home page
+	 * itself, or a leftover "__trashed" slug. Rows the old capture wrote for
+	 * never-public posts look exactly like this, and they stay in the option
+	 * for the whole retention window — so the feed stops serving them here.
+	 *
+	 * @param string $url Stored URL.
+	 * @return bool
+	 */
+	private static function is_placeholder_url( $url ) {
+		if ( untrailingslashit( $url ) === untrailingslashit( home_url( '/' ) ) ) {
+			return true;
+		}
+		$path = trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
+		$last = '' === $path ? '' : basename( $path );
+		return 0 === strpos( $last, '__trashed' );
 	}
 
 	/**
@@ -145,7 +181,7 @@ final class Tombstones {
 			if ( ! isset( $t['ts'], $t['id'], $t['url'] ) || (int) $t['ts'] < $cutoff ) {
 				continue;
 			}
-			if ( in_array( (int) $t['id'], $exclude, true ) ) {
+			if ( in_array( (int) $t['id'], $exclude, true ) || self::is_placeholder_url( (string) $t['url'] ) ) {
 				continue;
 			}
 			$rows[] = array(
