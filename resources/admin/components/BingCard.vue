@@ -237,7 +237,7 @@ export default {
       <span class="ar-toggle__track" aria-hidden="true"></span>
       <span class="ar-toggle__text">
         <strong>Announce changes with IndexNow</strong>
-        <small>When you publish, edit or remove a post, Agentimus tells search engines right away — one standard ping to <code>api.indexnow.org</code>, which Bing, Yandex and other participating engines all read. Bing hearing about a new post in minutes matters, because ChatGPT search and Copilot read Bing's index. Only the changed addresses are sent, nothing else, and it works with or without a Bing connection. A small key file at <code>/&lt;key&gt;.txt</code> proves the pings come from your site.</small>
+        <small>When you publish, edit or remove a post, change its description, title or cover image, or edit a category or tag, Agentimus tells search engines right away — one standard ping to <code>api.indexnow.org</code>, which Bing, Yandex and other participating engines all read. Bing hearing about a new post in minutes matters, because ChatGPT search and Copilot read Bing's index. Only the changed addresses are sent, nothing else, and it works with or without a Bing connection. A small key file at <code>/&lt;key&gt;.txt</code> proves the pings come from your site.</small>
       </span>
     </label>
     <!-- The key file is a FACT about the setting above, not more of the

@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, agent-readiness, llms-txt, ai-seo
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.57.1
+Stable tag: 1.57.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -279,7 +279,7 @@ Agentimus makes no outbound requests by default: no remote scripts, fonts or ana
 
 **Every outbound feature is opt-in and off by default.**
 
-**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. An optional switch adds names of clients you block to a Cloudflare rule. The optional IndexNow switch announces published and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/) — only the changed URL list is sent.
+**Data sources & IndexNow:** connecting Cloudflare, Google Search Console or Bing Webmaster Tools polls that service with your own key. An optional switch adds names of clients you block to a Cloudflare rule. The optional IndexNow switch announces changed and removed URLs to search engines via api.indexnow.org (https://www.indexnow.org/): a page published, edited or removed, a page whose description, title or cover image changed, and an edited category or tag page. Only the changed URL list is sent.
 
 **Verify bot identities** makes DNS lookups and, once a day, downloads the IP-range files bot operators publish to verify their crawlers (Google, Microsoft, DuckDuckGo, Apple, OpenAI, Perplexity — or a URL you add yourself). Only those files are fetched; nothing about your site is sent.
 
@@ -298,6 +298,10 @@ The same setting verifies **Web Bot Auth** signatures — the standard where an 
 URL-like strings in the plugin's output are labels, not requests — the discovery documents' `$schema` value names the format (never fetched), and the `example.com` URLs in `examples/` are documentation placeholders.
 
 == Changelog ==
+
+= 1.57.2 =
+* Fixed: IndexNow told search engines about a page only when the post itself was saved. A description, search title or cover image changed on its own, new alt text on a cover image, or an edited category or tag changed what search engines read without telling them. Each now announces its page: for alt text, every published post that uses the image as its cover. Drafts still send nothing.
+* Fixed: the change feed could list your homepage as deleted. Permanently deleting a draft that was never published recorded it at the site's home address, or at a leftover "__trashed" address. Only posts that were live are listed as deleted now, and the wrong entries already stored stop showing at once.
 
 = 1.57.1 =
 * Fixed: when the same pages split more than one search, such as a word and its plural, Findings showed an identical row for each search. They are now one finding that lists every search. Searches are still listed as the search engine reported them.
@@ -460,6 +464,9 @@ URL-like strings in the plugin's output are labels, not requests — the discove
 The most recent releases are listed here, back to 1.51.3. Every earlier one, back to 1.22.0, is kept in the full history in the same detail: https://github.com/heera/agentimus/blob/main/CHANGELOG.md
 
 == Upgrade Notice ==
+
+= 1.57.2 =
+IndexNow also announces description, title, cover-image, alt-text and category changes. The change feed no longer lists your homepage as deleted.
 
 = 1.57.1 =
 Findings shows the same pages splitting several searches once, not once per search.

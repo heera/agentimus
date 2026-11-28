@@ -1007,13 +1007,18 @@ final class Admin {
 				// releases that kept the older rows (1.53.2 to 1.53.6, 13 rows by the end,
 				// for a one-fix release). Older news is under "Older releases" in the
 				// dialog, read from the changelog.
-				// ⭐ 1.57.1 is one fix, so ONE row: the same pages splitting two
-				// searches ("winter perfume" and "winter perfumes" on heera.it) are
-				// one finding, not two identical rows.
+				// ⭐ 1.57.2 is two fixes, so TWO rows: IndexNow now announces changes
+				// saved on their own (description, title, cover, alt text, terms), and
+				// the change feed stops calling the homepage deleted.
 				array(
 					'icon'  => 'search',
-					'title' => 'One Finding Per Pair Of Pages',
-					'text'  => 'When the same pages split more than one search, Findings now shows them once, with each search listed, instead of a row for every search.',
+					'title' => 'Every Change Reaches Search Engines',
+					'text'  => 'With IndexNow on, a new description, search title, cover image or alt text, and an edited category or tag, now tell search engines right away, not only a post save.',
+				),
+				array(
+					'icon'  => 'page',
+					'title' => 'Fixes',
+					'text'  => 'The change feed no longer tells AI assistants your homepage was deleted when a draft that was never published is removed.',
 				),
 			),
 		);

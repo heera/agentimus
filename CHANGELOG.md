@@ -4,6 +4,10 @@ The full release history. The readme.txt shipped to WordPress.org keeps only
 the most recent releases (its Changelog section has a 5,000-word cap); this
 file is the complete record.
 
+## 1.57.2
+* Fixed: IndexNow told search engines about a page only when the post itself was saved. A description, search title or cover image changed on its own, new alt text on a cover image, or an edited category or tag changed what search engines read without telling them. Each now announces its page: for alt text, every published post that uses the image as its cover. Drafts still send nothing.
+* Fixed: the change feed could list your homepage as deleted. Permanently deleting a draft that was never published recorded it at the site's home address, or at a leftover "__trashed" address. Only posts that were live are listed as deleted now, and the wrong entries already stored stop showing at once.
+
 ## 1.57.1
 * Fixed: when the same pages split more than one search, such as a word and its plural, Findings showed an identical row for each search. They are now one finding that lists every search. Searches are still listed as the search engine reported them.
 
